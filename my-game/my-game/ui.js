@@ -473,22 +473,26 @@ function renderResearchPanel() {
   researchNodes.innerHTML = ''; 
   researchSvg.innerHTML = '';
   
-  // Огромная надпись на фоне
-  const bgText = document.createElement('div');
-  bgText.textContent = 'I ЭПОХА';
-  bgText.style.position = 'absolute';
-  bgText.style.fontSize = '160px'; // Увеличили
-  bgText.style.fontWeight = '900';
-  bgText.style.color = 'rgba(255, 255, 255, 0.04)'; // Чуть ярче
-  bgText.style.pointerEvents = 'none';
-  bgText.style.whiteSpace = 'nowrap';
-  bgText.style.zIndex = '0';
-  bgText.style.top = '-60px'; // Подняли наверх
-  // left и transform выставим позже, когда узнаем общую ширину
-  researchNodes.appendChild(bgText);
+  // Огромная надпись на фоне (фиксированная в окне)
+  let bgText = document.getElementById('research-bg-text');
+  if (!bgText) {
+    bgText = document.createElement('div');
+    bgText.id = 'research-bg-text';
+    bgText.textContent = 'I ЭПОХА';
+    bgText.style.position = 'absolute';
+    bgText.style.top = '50%';
+    bgText.style.left = '50%';
+    bgText.style.transform = 'translate(-50%, -50%)';
+    bgText.style.fontSize = '160px'; 
+    bgText.style.fontWeight = '900';
+    bgText.style.color = 'rgba(255, 255, 255, 0.03)'; 
+    bgText.style.pointerEvents = 'none';
+    bgText.style.whiteSpace = 'nowrap';
+    bgText.style.zIndex = '0';
+    researchViewport.appendChild(bgText); 
+  }
 
   const NODE_W = 180, NODE_H = 140, GAP_Y = 60, GAP_X = 40;
-  let allSvgLines = '';
   let maxTotalY = 0;
   
   const globalPositions = {};
@@ -501,14 +505,14 @@ function renderResearchPanel() {
     const header = document.createElement('div');
     header.textContent = cat.name;
     header.style.position = 'absolute';
-    header.style.top = '40px'; // Чуть ниже, чтобы не пересекаться с "I ЭПОХА"
-    header.style.fontSize = '26px'; // Сделали больше
+    header.style.top = '40px';
+    header.style.fontSize = '26px'; 
     header.style.fontWeight = '900';
     header.style.color = '#ffd700';
     header.style.zIndex = '2';
     header.style.whiteSpace = 'nowrap';
     header.style.transform = 'translateX(-50%)'; 
-    header.style.textShadow = '0 2px 6px rgba(0,0,0,0.9)'; // Добавили тень
+    header.style.textShadow = '0 2px 6px rgba(0,0,0,0.9)';
     researchNodes.appendChild(header);
 
     if (catTechs.length === 0) {
@@ -536,7 +540,6 @@ function renderResearchPanel() {
 
     function layoutNode(id, depth, startX) {
       const kids = children[id] || [];
-      // Сдвинули Y с 100 на 130, чтобы под заголовком было место
       globalPositions[id] = { y: 130 + depth * (NODE_H + GAP_Y) };
       
       if (kids.length === 0) {
@@ -565,7 +568,6 @@ function renderResearchPanel() {
       rootStartX += width + 40; 
     }
     
-    // Ищем реальные границы колонки
     for (const id in globalPositions) {
       if (techMap[id]) {
         colMinX = Math.min(colMinX, globalPositions[id].x);
@@ -574,36 +576,22 @@ function renderResearchPanel() {
       }
     }
 
-    // Центрируем заголовок над колонкой
     const colCenterX = (colMinX + colMaxX) / 2;
     header.style.left = colCenterX + 'px';
 
-    // Следующая колонка начинается с отступом 250px
     currentColumnStartX = colMaxX + 250;
   }
 
-  // Рисуем ВСЕ линии (только внутри одной колонки)
-  for (const id in globalPositions) {
-    const t = TECHNOLOGIES.find(x => x.id === id);
-    if (!t) continue;
+  const totalWidth = currentColumnStartX + 200;
+  const totalHeight = maxTotalY + 200;
 
-    for (const reqId of (t.requires || [])) {
-      const reqT = TECHNOLOGIES.find(x => x.id === reqId);
-      if (!reqT || reqT.cat !== t.cat) continue; // Skip cross-column lines
+  researchSvg.style.width = totalWidth + 'px';
+  researchSvg.style.height = totalHeight + 'px';
+  researchNodes.style.width = totalWidth + 'px';
+  researchNodes.style.height = totalHeight + 'px';
 
-      const parentPos = globalPositions[reqId];
-      const childPos = globalPositions[id];
-      if (!parentPos || !childPos) continue;
-
-      const x1 = parentPos.x + NODE_W / 2, y1 = parentPos.y + NODE_H;
-      const x2 = childPos.x + NODE_W / 2, y2 = childPos.y;
-      const ctrl1Y = y1 + (y2 - y1) * 0.4, ctrl2Y = y2 - (y2 - y1) * 0.4;
-      const strokeColor = isTechOwned(reqId) ? '#5a7a5a' : '#333';
-      allSvgLines += `<path d="M ${x1} ${y1} C ${x1} ${ctrl1Y}, ${x2} ${ctrl2Y}, ${x2} ${y2}" stroke="${strokeColor}" stroke-width="3" fill="none" />`;
-    }
-  }
-
-  // Рисуем ВСЕ карточки
+  // Рисуем карточки и сохраняем DOM элементы для точного расчета линий
+  const cardElements = {};
   for (const id in globalPositions) {
     const t = TECHNOLOGIES.find(x => x.id === id);
     if (!t) continue;
@@ -615,22 +603,35 @@ function renderResearchPanel() {
     cardDiv.style.zIndex = '1';
     cardDiv.innerHTML = renderTechCardHtml(t);
     researchNodes.appendChild(cardDiv);
+    cardElements[id] = cardDiv;
   }
 
-  const totalWidth = currentColumnStartX + 200;
-  const totalHeight = maxTotalY + 200;
+  // Через микросекунду (когда DOM отрисуется) считаем реальные размеры и рисуем линии
+  setTimeout(() => {
+    let allSvgLines = '';
+    for (const id in globalPositions) {
+      const t = TECHNOLOGIES.find(x => x.id === id);
+      if (!t) continue;
 
-  researchSvg.style.width = totalWidth + 'px';
-  researchSvg.style.height = totalHeight + 'px';
-  
-  researchNodes.style.width = totalWidth + 'px';
-  researchNodes.style.height = totalHeight + 'px';
+      for (const reqId of (t.requires || [])) {
+        const parentEl = cardElements[reqId];
+        const childEl = cardElements[id];
+        if (!parentEl || !childEl) continue;
 
-  // Центрируем надпись "I ЭПОХА" по центру всех категорий
-  bgText.style.left = (totalWidth / 2) + 'px';
-  bgText.style.transform = 'translateX(-50%)';
+        // Берем реальные координаты краев карточек
+        const x1 = parentEl.offsetLeft + parentEl.offsetWidth / 2;
+        const y1 = parentEl.offsetTop + parentEl.offsetHeight;
+        const x2 = childEl.offsetLeft + childEl.offsetWidth / 2;
+        const y2 = childEl.offsetTop;
 
-  researchSvg.innerHTML = allSvgLines;
+        const ctrl1Y = y1 + (y2 - y1) * 0.4;
+        const ctrl2Y = y2 - (y2 - y1) * 0.4;
+        const strokeColor = isTechOwned(reqId) ? '#5a7a5a' : '#333';
+        allSvgLines += `<path d="M ${x1} ${y1} C ${x1} ${ctrl1Y}, ${x2} ${ctrl2Y}, ${x2} ${y2}" stroke="${strokeColor}" stroke-width="3" fill="none" />`;
+      }
+    }
+    researchSvg.innerHTML = allSvgLines;
+  }, 0);
 
   researchNodes.querySelectorAll('[data-start-study]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); if (selectStudyTech(btn.dataset.startStudy)) renderResearchPanel(); else showToast('Нельзя изучать'); }));
   researchNodes.querySelectorAll('[data-cancel-study]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); cancelStudy(); renderResearchPanel(); }));
