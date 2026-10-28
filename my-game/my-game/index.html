@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1">
+  <title>Factory</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="topbar">
+    <div class="res" id="day-widget"><span id="ui-day">День 1</span></div>
+    <div class="res"><div class="res-dot" id="dot-iron" style="background-color:#c87d5e"></div><span id="ui-iron">0</span></div>
+    <div class="res"><div class="res-dot" id="dot-copper" style="background-color:#e89a4a"></div><span id="ui-copper">0</span></div>
+    <div class="res"><div class="res-dot" id="dot-coal" style="background-color:#555;border:1px solid #888"></div><span id="ui-coal">0</span></div>
+    <div class="res"><span>🧬</span><span id="ui-dna">0</span></div>
+    <div id="pollution-widget" class="res">
+      <span>☣</span><span id="ui-pollution">0.0%</span>
+      <span class="pollution-level" id="ui-pollution-level">чисто</span>
+    </div>
+  </div>
+
+  <button id="drawer-toggle">☰</button>
+
+  <div id="drawer" class="hidden">
+    <button class="dtab active" data-tab="build">🏗️</button>
+    <button class="dtab" data-tab="research">🧬</button>
+    <button class="dtab" data-tab="stats">📊</button>
+    <button class="dtab" data-tab="demolish">🔨</button>
+    <button class="dtab" data-tab="settings">⚙️</button>
+    <button id="drawer-hide">✕</button>
+  </div>
+
+  <div id="modal-backdrop" class="hidden"></div>
+
+  <div id="modal" class="hidden">
+    <div id="modal-header">
+      <div class="panel-title" id="panel-title"></div>
+      <button id="modal-close">✕</button>
+    </div>
+    <div id="panel-content"></div>
+  </div>
+
+  <div id="info-card" class="hidden">
+    <div id="info-card-content"></div>
+  </div>
+
+  <div id="ghost-panel" class="hidden"></div>
+  <div id="toast"></div>
+
+  <div id="main-menu">
+    <div class="menu-side">
+      <button class="menu-side-btn" data-action="leaderboard" data-ghost="🏆"><span class="menu-side-btn-icon">🏆</span><span class="menu-side-btn-label">Лидерборд</span></button>
+      <button class="menu-side-btn" data-action="accounts" data-ghost="👤"><span class="menu-side-btn-icon">👤</span><span class="menu-side-btn-label">Аккаунт</span></button>
+      <button class="menu-side-btn" data-action="changelog" data-ghost="📜"><span class="menu-side-btn-icon">📜</span><span class="menu-side-btn-label">Обновления</span></button>
+      <button class="menu-side-btn menu-side-btn-settings" data-action="settings" data-ghost="⚙️"><span class="menu-side-btn-icon">⚙️</span><span class="menu-side-btn-label">Настройки</span></button>
+    </div>
+    <div class="menu-center">
+      <svg class="menu-logo" viewBox="0 0 480 150" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="logo-metal" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#fafafa"/><stop offset="35%" stop-color="#d8d8d8"/><stop offset="49%" stop-color="#a0a0a0"/><stop offset="51%" stop-color="#606060"/><stop offset="75%" stop-color="#b8b8b8"/><stop offset="100%" stop-color="#505050"/></linearGradient>
+          <linearGradient id="logo-orange" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffcc44"/><stop offset="50%" stop-color="#ff8800"/><stop offset="100%" stop-color="#aa4400"/></linearGradient>
+        </defs>
+        <text x="240" y="98" text-anchor="middle" font-family="'Arial Black', Impact, sans-serif" font-size="84" font-weight="900" letter-spacing="6" fill="#000" opacity="0.7">FACTORY</text>
+        <text x="240" y="92" text-anchor="middle" font-family="'Arial Black', Impact, sans-serif" font-size="84" font-weight="900" letter-spacing="6" fill="url(#logo-metal)" stroke="#0a0a0a" stroke-width="3" stroke-linejoin="round">FACTORY</text>
+        <text x="240" y="92" text-anchor="middle" font-family="'Arial Black', Impact, sans-serif" font-size="84" font-weight="900" letter-spacing="6" fill="none" stroke="url(#logo-orange)" stroke-width="1.2" opacity="0.7" stroke-linejoin="round">FACTORY</text>
+        <g fill="#555" stroke="#0a0a0a" stroke-width="1.5"><circle cx="26" cy="68" r="6"/><circle cx="454" cy="68" r="6"/></g>
+        <g fill="#8a8a8a"><circle cx="26" cy="68" r="2.5"/><circle cx="454" cy="68" r="2.5"/></g>
+        <g stroke="#555" stroke-width="1.2"><line x1="20" y1="68" x2="32" y2="68" stroke-linecap="round"/><line x1="448" y1="68" x2="460" y2="68" stroke-linecap="round"/></g>
+        <rect x="90" y="122" width="300" height="3" fill="url(#logo-orange)" opacity="0.8"/>
+        <circle cx="90" cy="123.5" r="3" fill="#ff8800"/><circle cx="390" cy="123.5" r="3" fill="#ff8800"/><circle cx="240" cy="123.5" r="4" fill="#ffcc44" stroke="#0a0a0a" stroke-width="1"/>
+      </svg>
+      <button class="menu-play-btn" data-action="play">Играть</button>
+      <button class="menu-continue-btn" data-action="continue">Продолжить</button>
+    </div>
+    <div class="menu-version">v0.2 alpha</div>
+  </div>
+
+  <div id="save-slots-modal" class="hidden"><div class="modal-content"><div class="modal-header"><span id="save-slots-title">Сохранения</span><button id="save-slots-close">✕</button></div><div id="save-slots-list"></div></div></div>
+  <div id="changelog-modal" class="hidden"><div class="modal-content"><div class="modal-header"><span>📜 Обновления</span><button id="changelog-close">✕</button></div><div id="changelog-content"></div></div></div>
+  <div id="menu-settings-modal" class="hidden"><div class="modal-content"><div class="modal-header"><span>⚙️ Настройки</span><button id="menu-settings-close">✕</button></div><div id="menu-settings-content"></div></div></div>
+
+  <div id="research-screen" class="hidden">
+    <div id="research-topbar"><div id="research-tabs"></div><button id="research-close">✕ Закрыть</button></div>
+    <div id="research-viewport"><div id="research-world"><svg id="research-svg"></svg><div id="research-nodes"></div></div></div>
+  </div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
