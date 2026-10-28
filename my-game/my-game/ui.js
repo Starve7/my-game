@@ -479,34 +479,38 @@ function renderResearchPanel() {
   }
   
   researchNodes.innerHTML = ''; researchSvg.innerHTML = '';
-  const branches = BRANCHES[activeResearchTab] || [];
   
-  let currentBranchY = 150; // Отступ для первой эпохи
+  const branches = BRANCHES[activeResearchTab] || [];
+  const tabTechs = TECHNOLOGIES.filter(t => t.tab === activeResearchTab);
+  
+  let currentY = 100;
   let maxTotalX = 0;
   let allSvgLines = '';
+  const NODE_W = 180, NODE_H = 140, GAP_X = 80, GAP_Y = 40;
 
-  // Группируем технологии по эпохам
-  const eras = [...new Set(branches.flatMap(b => TECHNOLOGIES.filter(t => t.tab === activeResearchTab && t.branch === b.id).map(t => t.era)))].sort();
+  const eras = [...new Set(tabTechs.map(t => t.era || 1))].sort();
 
   for (const era of eras) {
-    // Заголовок эпохи
+    const eraTechs = tabTechs.filter(t => (t.era || 1) === era);
+    if (eraTechs.length === 0) continue;
+
     const eraHeader = document.createElement('div');
     eraHeader.textContent = `ЭПОХА ${era}`;
     eraHeader.style.position = 'absolute';
     eraHeader.style.left = '50px';
-    eraHeader.style.top = (currentBranchY - 70) + 'px';
+    eraHeader.style.top = (currentY - 80) + 'px';
     eraHeader.style.fontSize = '32px';
     eraHeader.style.fontWeight = '900';
-    eraHeader.style.color = 'rgba(255, 255, 255, 0.1)'; // Прозрачный огромный текст
+    eraHeader.style.color = 'rgba(255, 255, 255, 0.1)';
     eraHeader.style.pointerEvents = 'none';
     eraHeader.style.whiteSpace = 'nowrap';
     eraHeader.style.letterSpacing = '10px';
     researchNodes.appendChild(eraHeader);
 
-    let eraMaxY = currentBranchY;
+    let eraMaxY = currentY;
 
     for (const branch of branches) {
-      const branchTechs = TECHNOLOGIES.filter(t => t.tab === activeResearchTab && t.branch === branch.id && t.era === era);
+      const branchTechs = eraTechs.filter(t => t.branch === branch.id);
       if (branchTechs.length === 0) continue;
 
       const techMap = {}; 
@@ -522,20 +526,21 @@ function renderResearchPanel() {
         }
       }
 
-      const NODE_W = 180, NODE_H = 140, GAP_X = 80, GAP_Y = 40;
-      const positions = {}; let nextLeafY = currentBranchY;
+      const positions = {}; 
+      let branchNextLeafY = currentY;
+      let branchMaxY = currentY;
 
       function computeY(id) {
         const kids = children[id] || [];
         if (kids.length === 0) {
-          positions[id] = { y: nextLeafY };
-          nextLeafY += NODE_H + GAP_Y;
+          positions[id] = { y: branchNextLeafY };
+          branchNextLeafY += NODE_H + GAP_Y;
           return { top: positions[id].y, bottom: positions[id].y + NODE_H };
         }
         const ranges = kids.map(cid => computeY(cid));
         const top = ranges[0].top;
         let y = top;
-        positions[id] = { y: Math.max(currentBranchY, y) };
+        positions[id] = { y: Math.max(currentY, y) };
         return { top: positions[id].y, bottom: positions[id].y + NODE_H };
       }
       for (const rid of roots) computeY(rid);
@@ -550,7 +555,7 @@ function renderResearchPanel() {
 
       for (const id in positions) {
         positions[id].x = 50 + depths[id] * (NODE_W + GAP_X);
-        eraMaxY = Math.max(eraMaxY, positions[id].y + NODE_H);
+        branchMaxY = Math.max(branchMaxY, positions[id].y + NODE_H);
         maxTotalX = Math.max(maxTotalX, positions[id].x + NODE_W);
       }
 
@@ -573,13 +578,15 @@ function renderResearchPanel() {
         cardDiv.innerHTML = renderTechCardHtml(t);
         researchNodes.appendChild(cardDiv);
       }
+
+      currentY = branchMaxY + 80;
+      eraMaxY = Math.max(eraMaxY, branchMaxY);
     }
-    
-    currentBranchY = eraMaxY + 100; // Отступ между эпохами
+    currentY = eraMaxY + 120;
   }
 
   researchSvg.style.width = maxTotalX + 'px';
-  researchSvg.style.height = currentBranchY + 'px';
+  researchSvg.style.height = currentY + 'px';
   researchSvg.innerHTML = allSvgLines;
 
   researchNodes.querySelectorAll('[data-start-study]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); if (selectStudyTech(btn.dataset.startStudy)) renderResearchPanel(); else showToast('Нельзя изучать'); }));
