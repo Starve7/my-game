@@ -21,8 +21,8 @@ import {
   flushOutputBuffer,
 } from './buildings.js';
 import {
-  RESEARCH_TABS, TECHNOLOGIES, BRANCHES, isTechOwned, selectStudyTech, cancelStudy,
-  getTechProgressPct, activeResearchTab, setActiveResearchTab, isBuildingUnlocked, hasAvailableResearch,
+  CATEGORIES, TECHNOLOGIES, isTechOwned, selectStudyTech, cancelStudy,
+  getTechProgressPct, isBuildingUnlocked, hasAvailableResearch,
 } from './research.js';
 import { playClick } from './audio.js';
 import { deleteSlot } from './save.js';
@@ -469,124 +469,117 @@ export function closeResearchPanel() { if (researchScreen) researchScreen.classL
 
 function renderResearchPanel() {
   uiLastStudyTechId = state.activeStudyTechId;
-  researchTabs.innerHTML = '';
-  for (const tab of RESEARCH_TABS) {
-    const btn = document.createElement('button');
-    btn.textContent = tab.name;
-    btn.className = tab.id === activeResearchTab ? 'active' : '';
-    btn.onclick = () => { setActiveResearchTab(tab.id); resetCamera(); renderResearchPanel(); };
-    researchTabs.appendChild(btn);
+  researchTabs.innerHTML = ''; // Прячем табы
+  researchNodes.innerHTML = ''; 
+  researchSvg.innerHTML = '';
+  
+  // Огромная надпись на фоне
+  const bgText = document.createElement('div');
+  bgText.textContent = 'I ЭПОХА';
+  bgText.style.position = 'absolute';
+  bgText.style.left = '50px';
+  bgText.style.top = '50px';
+  bgText.style.fontSize = '150px';
+  bgText.style.fontWeight = '900';
+  bgText.style.color = 'rgba(255, 255, 255, 0.03)';
+  bgText.style.pointerEvents = 'none';
+  bgText.style.whiteSpace = 'nowrap';
+  bgText.style.zIndex = '0';
+  researchNodes.appendChild(bgText);
+
+  // Отрисовка заголовков колонок
+  for (const cat of CATEGORIES) {
+    const header = document.createElement('div');
+    header.textContent = cat.name;
+    header.style.position = 'absolute';
+    header.style.left = cat.x + 'px';
+    header.style.top = '20px';
+    header.style.fontSize = '24px';
+    header.style.fontWeight = 'bold';
+    header.style.color = '#ffd700';
+    header.style.zIndex = '2';
+    header.style.whiteSpace = 'nowrap';
+    researchNodes.appendChild(header);
   }
-  
-  researchNodes.innerHTML = ''; researchSvg.innerHTML = '';
-  
-  const branches = BRANCHES[activeResearchTab] || [];
-  const tabTechs = TECHNOLOGIES.filter(t => t.tab === activeResearchTab);
-  
-  let currentY = 100;
-  let maxTotalX = 0;
+
+  const NODE_W = 180, NODE_H = 140, GAP_Y = 40, GAP_X = 40;
   let allSvgLines = '';
-  const NODE_W = 180, NODE_H = 140, GAP_X = 80, GAP_Y = 40;
+  let maxTotalX = 0;
+  let maxTotalY = 0;
 
-  const eras = [...new Set(tabTechs.map(t => t.era || 1))].sort();
+  // Рендерим каждую колонку отдельно
+  for (const cat of CATEGORIES) {
+    const catTechs = TECHNOLOGIES.filter(t => t.cat === cat.id && t.era === 1);
+    if (catTechs.length === 0) continue;
 
-  for (const era of eras) {
-    const eraTechs = tabTechs.filter(t => (t.era || 1) === era);
-    if (eraTechs.length === 0) continue;
-
-    const eraHeader = document.createElement('div');
-    eraHeader.textContent = `ЭПОХА ${era}`;
-    eraHeader.style.position = 'absolute';
-    eraHeader.style.left = '50px';
-    eraHeader.style.top = (currentY - 80) + 'px';
-    eraHeader.style.fontSize = '32px';
-    eraHeader.style.fontWeight = '900';
-    eraHeader.style.color = 'rgba(255, 255, 255, 0.1)';
-    eraHeader.style.pointerEvents = 'none';
-    eraHeader.style.whiteSpace = 'nowrap';
-    eraHeader.style.letterSpacing = '10px';
-    researchNodes.appendChild(eraHeader);
-
-    let eraMaxY = currentY;
-
-    for (const branch of branches) {
-      const branchTechs = eraTechs.filter(t => t.branch === branch.id);
-      if (branchTechs.length === 0) continue;
-
-      const techMap = {}; 
-      for (const t of branchTechs) techMap[t.id] = t;
-      const children = {}; const roots = [];
-      
-      for (const t of branchTechs) {
-        const parents = (t.requires || []).filter(r => techMap[r]);
-        if (parents.length === 0) roots.push(t.id);
-        for (const p of parents) { 
-          if (!children[p]) children[p] = []; 
-          children[p].push(t.id); 
-        }
+    const techMap = {}; 
+    for (const t of catTechs) techMap[t.id] = t;
+    const children = {}; const roots = [];
+    
+    for (const t of catTechs) {
+      const parents = (t.requires || []).filter(r => techMap[r]);
+      if (parents.length === 0) roots.push(t.id);
+      for (const p of parents) { 
+        if (!children[p]) children[p] = []; 
+        children[p].push(t.id); 
       }
-
-      const positions = {}; 
-      let branchNextLeafY = currentY;
-      let branchMaxY = currentY;
-
-      function computeY(id) {
-        const kids = children[id] || [];
-        if (kids.length === 0) {
-          positions[id] = { y: branchNextLeafY };
-          branchNextLeafY += NODE_H + GAP_Y;
-          return { top: positions[id].y, bottom: positions[id].y + NODE_H };
-        }
-        const ranges = kids.map(cid => computeY(cid));
-        const top = ranges[0].top;
-        let y = top;
-        positions[id] = { y: Math.max(currentY, y) };
-        return { top: positions[id].y, bottom: positions[id].y + NODE_H };
-      }
-      for (const rid of roots) computeY(rid);
-
-      const depths = {};
-      function setDepth(id, d) { 
-        if (depths[id] !== undefined) return; 
-        depths[id] = d; 
-        for (const cid of (children[id] || [])) setDepth(cid, d + 1); 
-      }
-      for (const rid of roots) setDepth(rid, 0);
-
-      for (const id in positions) {
-        positions[id].x = 50 + depths[id] * (NODE_W + GAP_X);
-        branchMaxY = Math.max(branchMaxY, positions[id].y + NODE_H);
-        maxTotalX = Math.max(maxTotalX, positions[id].x + NODE_W);
-      }
-
-      for (const id in positions) {
-        for (const cid of (children[id] || [])) {
-          const x1 = positions[id].x + NODE_W, y1 = positions[id].y + NODE_H / 2;
-          const x2 = positions[cid].x, y2 = positions[cid].y + NODE_H / 2;
-          const ctrl1X = x1 + (x2 - x1) * 0.4, ctrl2X = x2 - (x2 - x1) * 0.4;
-          const strokeColor = isTechOwned(id) ? '#5a7a5a' : '#333';
-          allSvgLines += `<path d="M ${x1} ${y1} C ${ctrl1X} ${y1}, ${ctrl2X} ${y2}, ${x2} ${y2}" stroke="${strokeColor}" stroke-width="3" fill="none" />`;
-        }
-      }
-
-      for (const id in positions) {
-        const t = techMap[id];
-        const cardDiv = document.createElement('div');
-        cardDiv.style.position = 'absolute';
-        cardDiv.style.left = positions[id].x + 'px';
-        cardDiv.style.top = positions[id].y + 'px';
-        cardDiv.innerHTML = renderTechCardHtml(t);
-        researchNodes.appendChild(cardDiv);
-      }
-
-      currentY = branchMaxY + 80;
-      eraMaxY = Math.max(eraMaxY, branchMaxY);
     }
-    currentY = eraMaxY + 120;
+
+    const positions = {}; 
+    let nextLeafX = cat.x; // Начинаем от X колонки
+    let branchMaxY = 100;
+
+    // Считаем Y (глубину) и X (смещение)
+    function computePos(id, depth) {
+      const kids = children[id] || [];
+      positions[id] = { y: 100 + depth * (NODE_H + GAP_Y) };
+      
+      if (kids.length === 0) {
+        positions[id].x = nextLeafX;
+        nextLeafX += NODE_W + GAP_X;
+      } else {
+        for (const cid of kids) computePos(cid, depth + 1);
+        // Родитель центрируется над детьми
+        const firstChild = positions[kids[0]];
+        const lastChild = positions[kids[kids.length - 1]];
+        positions[id].x = (firstChild.x + lastChild.x) / 2;
+      }
+      branchMaxY = Math.max(branchMaxY, positions[id].y + NODE_H);
+      maxTotalX = Math.max(maxTotalX, positions[id].x + NODE_W);
+      maxTotalY = Math.max(maxTotalY, branchMaxY);
+    }
+
+    for (const rid of roots) {
+      computePos(rid, 0);
+      nextLeafX += 50; // Отступ между разными корнями в одной колонке
+    }
+
+    // Рисуем линии
+    for (const id in positions) {
+      for (const cid of (children[id] || [])) {
+        const x1 = positions[id].x + NODE_W / 2, y1 = positions[id].y + NODE_H;
+        const x2 = positions[cid].x + NODE_W / 2, y2 = positions[cid].y;
+        const ctrl1Y = y1 + (y2 - y1) * 0.4, ctrl2Y = y2 - (y2 - y1) * 0.4;
+        const strokeColor = isTechOwned(id) ? '#5a7a5a' : '#333';
+        allSvgLines += `<path d="M ${x1} ${y1} C ${x1} ${ctrl1Y}, ${x2} ${ctrl2Y}, ${x2} ${y2}" stroke="${strokeColor}" stroke-width="3" fill="none" />`;
+      }
+    }
+
+    // Рисуем карточки
+    for (const id in positions) {
+      const t = techMap[id];
+      const cardDiv = document.createElement('div');
+      cardDiv.style.position = 'absolute';
+      cardDiv.style.left = positions[id].x + 'px';
+      cardDiv.style.top = positions[id].y + 'px';
+      cardDiv.style.zIndex = '1';
+      cardDiv.innerHTML = renderTechCardHtml(t);
+      researchNodes.appendChild(cardDiv);
+    }
   }
 
-  researchSvg.style.width = maxTotalX + 'px';
-  researchSvg.style.height = currentY + 'px';
+  researchSvg.style.width = (maxTotalX + 200) + 'px';
+  researchSvg.style.height = (maxTotalY + 200) + 'px';
   researchSvg.innerHTML = allSvgLines;
 
   researchNodes.querySelectorAll('[data-start-study]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); if (selectStudyTech(btn.dataset.startStudy)) renderResearchPanel(); else showToast('Нельзя изучать'); }));
@@ -615,10 +608,12 @@ function renderTechCardHtml(t) {
     const names = t.requires.map(r => { const rt = TECHNOLOGIES.find(x => x.id === r); return rt ? rt.name : r; });
     reqHtml = `<div style="font-size:10px;color:#a06060;margin-top:4px;">Требуется: ${names.join(', ')}</div>`;
   }
-  return `<div class="tech-card ${owned ? 'owned' : ''} ${locked ? 'locked' : ''} ${isActive ? 'selected' : ''}">
+  return `<div class="tech-card ${owned ? 'owned' : ''} ${locked ? 'locked' : ''} ${isActive ? 'selected' : ''}" style="width:${180}px;">
     <div class="tech-head"><div class="tech-name">${t.name}</div><div class="tech-status" style="color:${statusColor};">${statusText}</div></div>
     <div class="tech-desc">${t.desc}</div>${reqHtml}${barHtml}${btnHtml}</div>`;
 }
+
+// Остальные функции (статистика, настройки, панели зданий) остаются БЕЗ ИЗМЕНЕНИЙ.
 
 const STATS_TABS = [
   { id: 'resources', name: '📦 Ресурсы' },
