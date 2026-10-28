@@ -11,11 +11,12 @@ export const RESEARCH_TABS = [
 
 export const BRANCHES = {
   industry: [
-    { id: 'press', name: '⚙️ Пресс' },
+    { id: 'press', name: '⚙️ Производство' },
     { id: 'cutter', name: '✂️ Резак' },
     { id: 'assembler', name: '🤖 Сборщик' },
     { id: 'chem', name: '🧪 Химия' },
     { id: 'logistics', name: '📦 Логистика' },
+    { id: 'storage', name: '📦 Хранение' },
   ],
   military: [
     { id: 'defense', name: '🛡 Оборона' },
@@ -40,31 +41,41 @@ export let activeResearchTab = 'industry';
 export function setActiveResearchTab(tab) { activeResearchTab = tab; }
 
 export const TECHNOLOGIES = [
-  // --- ЭПОХА I (Индустрия) ---
-  { id: 'unlock_press', era: 1, tab: 'industry', branch: 'press', name: 'Пластины', desc: 'Прессование руды в плиты', studyPercent: 5, requires: [], effect: () => {} },
-  { id: 'unlock_cutter', era: 1, tab: 'industry', branch: 'cutter', name: 'Провода', desc: '1 медная плита → 2 провода', studyPercent: 10, requires: ['unlock_press'], effect: () => {} },
-  { id: 'unlock_logistics', era: 1, tab: 'industry', branch: 'logistics', name: 'Распределители', desc: 'Распределители и подземные конвейеры', studyPercent: 15, requires: [], effect: () => {} },
+  // ================== ИНДУСТРИЯ (ЭПОХА 1) ==================
+  { id: 'unlock_logistics', era: 1, tab: 'industry', branch: 'logistics', name: 'Логистика', desc: 'Распределители и подземные конвейеры', studyPercent: 15, requires: [], effect: () => {} },
+  { id: 'unlock_cutter', era: 1, tab: 'industry', branch: 'cutter', name: 'Резак', desc: '1 медная плита → 2 провода', studyPercent: 10, requires: [], effect: () => {} },
   
-  // --- ЭПОХА II (Индустрия) ---
-  { id: 'unlock_assembler', era: 2, tab: 'industry', branch: 'assembler', name: 'Сборщик', desc: 'Шестерни, корпуса, схемы', studyPercent: 30, requires: ['unlock_cutter'], effect: () => { state.LIMITS.assembler = 3; } },
+  // ================== ИНДУСТРИЯ (ЭПОХА 2) ==================
+  { id: 'unlock_assembler', era: 2, tab: 'industry', branch: 'assembler', name: 'Сборщик', desc: 'Шестерни, корпуса, схемы, двигатели', studyPercent: 30, requires: ['unlock_cutter'], effect: () => { state.LIMITS.assembler = 3; } },
+  { id: 'unlock_storage', era: 2, tab: 'industry', branch: 'storage', name: 'Склад', desc: 'Хранилище на 500 предметов', studyPercent: 20, requires: ['unlock_assembler'], effect: () => {} },
   { id: 'unlock_chemplant', era: 2, tab: 'industry', branch: 'chem', name: 'Химзавод', desc: 'Производство пороха', studyPercent: 40, requires: ['unlock_assembler'], effect: () => {} },
 
-  // --- ВОЕННЫЕ ---
-  { id: 'unlock_turret', era: 1, tab: 'military', branch: 'defense', name: 'Турель', desc: 'Авто-атака монстров', studyPercent: 20, requires: ['unlock_assembler'], effect: () => {} },
-  { id: 'unlock_walls', era: 2, tab: 'military', branch: 'defense', name: 'Стены', desc: 'Защитные укрепления', studyPercent: 30, requires: ['unlock_turret'], effect: () => {} },
+  // ================== ВОЕННЫЕ (ЭПОХА 1) ==================
+  { id: 'unlock_turret', era: 1, tab: 'military', branch: 'defense', name: 'Турель', desc: 'Авто-атака монстров в радиусе', studyPercent: 20, requires: ['unlock_assembler'], effect: () => {} },
+
+  // ================== ВОЕННЫЕ (ЭПОХА 2) ==================
+  { id: 'unlock_walls', era: 2, tab: 'military', branch: 'defense', name: 'Стены', desc: 'Защитные укрепления', studyPercent: 35, requires: ['unlock_turret'], effect: () => {} },
   { id: 'unlock_rockets', era: 2, tab: 'military', branch: 'ballistics', name: 'Ракеты', desc: 'Уничтожение коконов на расстоянии', studyPercent: 50, requires: ['unlock_assembler'], effect: () => {} },
 
-  // --- ЭНЕРГЕТИКА ---
-  { id: 'unlock_generator', era: 2, tab: 'energy', branch: 'generators', name: 'Угольный генератор', desc: 'Выработка энергии', studyPercent: 20, requires: ['unlock_assembler'], effect: () => {} },
+  // ================== ЭНЕРГЕТИКА (ЭПОХА 2) ==================
+  { id: 'unlock_generator', era: 2, tab: 'energy', branch: 'generators', name: 'Угольный генератор', desc: 'Выработка энергии для продвинутых зданий', studyPercent: 25, requires: ['unlock_assembler'], effect: () => {} },
 
-  // --- УЛУЧШЕНИЯ ---
+  // ================== УЛУЧШЕНИЯ (ЭПОХА 1) ==================
   { id: 'mine_limit_1', era: 1, tab: 'upgrades', branch: 'mining', name: 'Расширение шахт I', desc: 'Лимит буров +5', studyPercent: 5, requires: [], effect: () => { state.LIMITS.mine += 5; } },
-  { id: 'mine_speed_1', era: 1, tab: 'upgrades', branch: 'mining', name: 'Быстрые буры I', desc: 'Скорость добычи +25%', studyPercent: 10, requires: ['mine_limit_1'], effect: () => { state.miningSpeedMult *= 1.25; } },
+  { id: 'mine_speed_1', era: 1, tab: 'upgrades', branch: 'mining', name: 'Быстрые буры I', desc: 'Скорость добычи +25%', studyPercent: 12, requires: ['mine_limit_1'], effect: () => { state.miningSpeedMult *= 1.25; } },
   { id: 'furnace_limit_1', era: 1, tab: 'upgrades', branch: 'smelting', name: 'Расширение печей I', desc: 'Лимит печей +2', studyPercent: 8, requires: [], effect: () => { state.LIMITS.furnace += 2; } },
   { id: 'lab_limit_1', era: 1, tab: 'upgrades', branch: 'research', name: 'Доп. лаборатория', desc: 'Лимит лабораторий +1', studyPercent: 10, requires: [], effect: () => { state.LIMITS.lab += 1; } },
   { id: 'lab_speed_1', era: 1, tab: 'upgrades', branch: 'research', name: 'Быстрые исследования I', desc: 'Скорость лабораторий +50%', studyPercent: 15, requires: [], effect: () => { state.labSpeedMult *= 1.5; } },
   { id: 'core_damage_1', era: 1, tab: 'upgrades', branch: 'core', name: 'Усиленное ядро I', desc: 'Урон атаки ядра +1', studyPercent: 10, requires: [], effect: () => { state.coreDamageBonus += 1; } },
-  { id: 'assembler_limit_1', era: 2, tab: 'upgrades', branch: 'assembly', name: 'Больше сборщиков', desc: 'Лимит сборщиков +1', studyPercent: 18, requires: ['unlock_assembler'], effect: () => { state.LIMITS.assembler += 1; } },
+
+  // ================== УЛУЧШЕНИЯ (ЭПОХА 2) ==================
+  { id: 'mine_limit_2', era: 2, tab: 'upgrades', branch: 'mining', name: 'Расширение шахт II', desc: 'Лимит буров +10', studyPercent: 25, requires: ['mine_limit_1', 'unlock_assembler'], effect: () => { state.LIMITS.mine += 10; } },
+  { id: 'mine_speed_2', era: 2, tab: 'upgrades', branch: 'mining', name: 'Быстрые буры II', desc: 'Скорость добычи ещё +25%', studyPercent: 40, requires: ['mine_speed_1'], effect: () => { state.miningSpeedMult *= 1.25; } },
+  { id: 'furnace_limit_2', era: 2, tab: 'upgrades', branch: 'smelting', name: 'Расширение печей II', desc: 'Лимит печей +4', studyPercent: 30, requires: ['furnace_limit_1'], effect: () => { state.LIMITS.furnace += 4; } },
+  { id: 'lab_speed_2', era: 2, tab: 'upgrades', branch: 'research', name: 'Быстрые исследования II', desc: 'Скорость лабораторий ещё +50%', studyPercent: 45, requires: ['lab_speed_1'], effect: () => { state.labSpeedMult *= 1.5; } },
+  { id: 'core_damage_2', era: 2, tab: 'upgrades', branch: 'core', name: 'Усиленное ядро II', desc: 'Урон атаки ядра ещё +1', studyPercent: 35, requires: ['core_damage_1'], effect: () => { state.coreDamageBonus += 1; } },
+  { id: 'assembler_limit_1', era: 2, tab: 'upgrades', branch: 'assembly', name: 'Больше сборщиков', desc: 'Лимит сборщиков +1', studyPercent: 30, requires: ['unlock_assembler'], effect: () => { state.LIMITS.assembler += 1; } },
+  { id: 'turret_limit_1', era: 2, tab: 'upgrades', branch: 'assembly', name: 'Больше турелей', desc: 'Лимит турелей +4', studyPercent: 45, requires: ['unlock_turret'], effect: () => { state.LIMITS.turret += 4; } },
 ];
 
 const STUDY_TICK = 2, STUDY_PERCENT_PER_DNA = 0.5;
