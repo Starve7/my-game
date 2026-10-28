@@ -473,30 +473,11 @@ function renderResearchPanel() {
   researchNodes.innerHTML = ''; 
   researchSvg.innerHTML = '';
   
-  // Огромная надпись на фоне (фиксированная в окне)
-  let bgText = document.getElementById('research-bg-text');
-  if (!bgText) {
-    bgText = document.createElement('div');
-    bgText.id = 'research-bg-text';
-    bgText.textContent = 'I ЭПОХА';
-    bgText.style.position = 'absolute';
-    bgText.style.top = '50%';
-    bgText.style.left = '50%';
-    bgText.style.transform = 'translate(-50%, -50%)';
-    bgText.style.fontSize = '160px'; 
-    bgText.style.fontWeight = '900';
-    bgText.style.color = 'rgba(255, 255, 255, 0.03)'; 
-    bgText.style.pointerEvents = 'none';
-    bgText.style.whiteSpace = 'nowrap';
-    bgText.style.zIndex = '0';
-    researchViewport.appendChild(bgText); 
-  }
-
   const NODE_W = 180, NODE_H = 140, GAP_Y = 60, GAP_X = 40;
   let maxTotalY = 0;
   
   const globalPositions = {};
-  let currentColumnStartX = 50;
+  let currentColumnStartX = 100; // Отступ слева
 
   for (const cat of CATEGORIES) {
     const catTechs = TECHNOLOGIES.filter(t => t.cat === cat.id && t.era === 1);
@@ -505,7 +486,7 @@ function renderResearchPanel() {
     const header = document.createElement('div');
     header.textContent = cat.name;
     header.style.position = 'absolute';
-    header.style.top = '40px';
+    header.style.top = '140px'; // Опустили ниже, чтобы не мешать надписи
     header.style.fontSize = '26px'; 
     header.style.fontWeight = '900';
     header.style.color = '#ffd700';
@@ -517,7 +498,7 @@ function renderResearchPanel() {
 
     if (catTechs.length === 0) {
       header.style.left = (currentColumnStartX + NODE_W / 2) + 'px';
-      currentColumnStartX += 250;
+      currentColumnStartX += 350; // Широкий отступ для пустых
       continue;
     }
 
@@ -540,7 +521,7 @@ function renderResearchPanel() {
 
     function layoutNode(id, depth, startX) {
       const kids = children[id] || [];
-      globalPositions[id] = { y: 130 + depth * (NODE_H + GAP_Y) };
+      globalPositions[id] = { y: 220 + depth * (NODE_H + GAP_Y) }; // Опустили карточки
       
       if (kids.length === 0) {
         globalPositions[id].x = startX;
@@ -565,7 +546,7 @@ function renderResearchPanel() {
 
     for (const rid of roots) {
       const width = layoutNode(rid, 0, rootStartX);
-      rootStartX += width + 40; 
+      rootStartX += width + 60; 
     }
     
     for (const id in globalPositions) {
@@ -579,10 +560,11 @@ function renderResearchPanel() {
     const colCenterX = (colMinX + colMaxX) / 2;
     header.style.left = colCenterX + 'px';
 
-    currentColumnStartX = colMaxX + 250;
+    // Огромный отступ между колонками (350px), чтобы они визуально не сливались
+    currentColumnStartX = colMaxX + 350;
   }
 
-  const totalWidth = currentColumnStartX + 200;
+  const totalWidth = currentColumnStartX;
   const totalHeight = maxTotalY + 200;
 
   researchSvg.style.width = totalWidth + 'px';
@@ -590,7 +572,22 @@ function renderResearchPanel() {
   researchNodes.style.width = totalWidth + 'px';
   researchNodes.style.height = totalHeight + 'px';
 
-  // Рисуем карточки и сохраняем DOM элементы для точного расчета линий
+  // Огромная надпись на фоне СВЕРХУ
+  const bgText = document.createElement('div');
+  bgText.textContent = 'I ЭПОХА';
+  bgText.style.position = 'absolute';
+  bgText.style.top = '-20px'; // Самый верх
+  bgText.style.left = (totalWidth / 2) + 'px';
+  bgText.style.transform = 'translateX(-50%)';
+  bgText.style.fontSize = '140px'; 
+  bgText.style.fontWeight = '900';
+  bgText.style.color = 'rgba(255, 255, 255, 0.05)'; 
+  bgText.style.pointerEvents = 'none';
+  bgText.style.whiteSpace = 'nowrap';
+  bgText.style.zIndex = '0';
+  researchNodes.appendChild(bgText);
+
+  // Карточки
   const cardElements = {};
   for (const id in globalPositions) {
     const t = TECHNOLOGIES.find(x => x.id === id);
@@ -606,7 +603,7 @@ function renderResearchPanel() {
     cardElements[id] = cardDiv;
   }
 
-  // Через микросекунду (когда DOM отрисуется) считаем реальные размеры и рисуем линии
+  // Линии (только внутри одной колонки)
   setTimeout(() => {
     let allSvgLines = '';
     for (const id in globalPositions) {
@@ -614,11 +611,13 @@ function renderResearchPanel() {
       if (!t) continue;
 
       for (const reqId of (t.requires || [])) {
+        const reqT = TECHNOLOGIES.find(x => x.id === reqId);
+        if (!reqT || reqT.cat !== t.cat) continue; // ТОЛЬКО ВНУТРИ КОЛОНКИ
+
         const parentEl = cardElements[reqId];
         const childEl = cardElements[id];
         if (!parentEl || !childEl) continue;
 
-        // Берем реальные координаты краев карточек
         const x1 = parentEl.offsetLeft + parentEl.offsetWidth / 2;
         const y1 = parentEl.offsetTop + parentEl.offsetHeight;
         const x2 = childEl.offsetLeft + childEl.offsetWidth / 2;
