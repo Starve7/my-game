@@ -477,23 +477,23 @@ function renderResearchPanel() {
   const bgText = document.createElement('div');
   bgText.textContent = 'I ЭПОХА';
   bgText.style.position = 'absolute';
-  bgText.style.left = '50px';
-  bgText.style.top = '200px';
-  bgText.style.fontSize = '200px';
+  bgText.style.left = '50%';
+  bgText.style.top = '50%';
+  bgText.style.transform = 'translate(-50%, -50%)';
+  bgText.style.fontSize = '25vw';
   bgText.style.fontWeight = '900';
   bgText.style.color = 'rgba(255, 255, 255, 0.03)';
   bgText.style.pointerEvents = 'none';
   bgText.style.whiteSpace = 'nowrap';
   bgText.style.zIndex = '0';
-  bgText.style.transform = 'rotate(-10deg)';
   researchNodes.appendChild(bgText);
 
-  const NODE_W = 180, NODE_H = 140, GAP_Y = 40, GAP_X = 40;
+  const NODE_W = 180, NODE_H = 140, GAP_Y = 60, GAP_X = 40;
   let allSvgLines = '';
   let maxTotalY = 0;
   
   const globalPositions = {};
-  let currentColumnX = 50;
+  let currentColumnStartX = 50;
 
   for (const cat of CATEGORIES) {
     const catTechs = TECHNOLOGIES.filter(t => t.cat === cat.id && t.era === 1);
@@ -502,7 +502,7 @@ function renderResearchPanel() {
     const header = document.createElement('div');
     header.textContent = cat.name;
     header.style.position = 'absolute';
-    header.style.left = currentColumnX + 'px';
+    header.style.left = currentColumnStartX + 'px';
     header.style.top = '20px';
     header.style.fontSize = '24px';
     header.style.fontWeight = 'bold';
@@ -512,7 +512,7 @@ function renderResearchPanel() {
     researchNodes.appendChild(header);
 
     if (catTechs.length === 0) {
-      currentColumnX += 300;
+      currentColumnStartX += 300;
       continue;
     }
 
@@ -529,40 +529,58 @@ function renderResearchPanel() {
       }
     }
 
-    let nextLeafX = currentColumnX;
-    let columnMaxX = currentColumnX;
+    let rootStartX = currentColumnStartX;
+    let columnMaxX = currentColumnStartX;
 
-    function computePos(id, depth) {
+    function layoutNode(id, depth, startX) {
       const kids = children[id] || [];
       globalPositions[id] = { y: 100 + depth * (NODE_H + GAP_Y) };
       
       if (kids.length === 0) {
-        globalPositions[id].x = nextLeafX;
-        nextLeafX += NODE_W + GAP_X;
-      } else {
-        for (const cid of kids) computePos(cid, depth + 1);
-        const firstChild = globalPositions[kids[0]];
-        const lastChild = globalPositions[kids[kids.length - 1]];
-        globalPositions[id].x = (firstChild.x + lastChild.x) / 2;
+        globalPositions[id].x = startX;
+        return NODE_W + GAP_X;
       }
-      columnMaxX = Math.max(columnMaxX, globalPositions[id].x + NODE_W);
-      maxTotalY = Math.max(maxTotalY, globalPositions[id].y + NODE_H);
+      
+      let childX = startX;
+      let totalWidth = 0;
+      
+      for (const kid of kids) {
+        const w = layoutNode(kid, depth + 1, childX);
+        childX += w;
+        totalWidth += w;
+      }
+      
+      const firstKidX = globalPositions[kids[0]].x;
+      const lastKidX = globalPositions[kids[kids.length - 1]].x;
+      globalPositions[id].x = (firstKidX + lastKidX + NODE_W) / 2 - NODE_W / 2;
+      
+      return totalWidth;
     }
 
     for (const rid of roots) {
-      computePos(rid, 0);
-      nextLeafX += 60; 
+      const width = layoutNode(rid, 0, rootStartX);
+      rootStartX += width + 80; 
     }
     
-    currentColumnX = columnMaxX + 100; // Отступ до следующей колонки
+    // Find the rightmost edge of THIS column to position the next one
+    for (const id in globalPositions) {
+      if (techMap[id]) {
+        columnMaxX = Math.max(columnMaxX, globalPositions[id].x + NODE_W);
+        maxTotalY = Math.max(maxTotalY, globalPositions[id].y + NODE_H);
+      }
+    }
+    currentColumnStartX = columnMaxX + 150;
   }
 
-  // Рисуем ВСЕ линии (включая сквозные между колонками)
+  // Рисуем ВСЕ линии (только внутри одной колонки)
   for (const id in globalPositions) {
     const t = TECHNOLOGIES.find(x => x.id === id);
     if (!t) continue;
 
     for (const reqId of (t.requires || [])) {
+      const reqT = TECHNOLOGIES.find(x => x.id === reqId);
+      if (!reqT || reqT.cat !== t.cat) continue; // Skip cross-column lines
+
       const parentPos = globalPositions[reqId];
       const childPos = globalPositions[id];
       if (!parentPos || !childPos) continue;
@@ -589,7 +607,7 @@ function renderResearchPanel() {
     researchNodes.appendChild(cardDiv);
   }
 
-  researchSvg.style.width = (currentColumnX + 200) + 'px';
+  researchSvg.style.width = (currentColumnStartX + 200) + 'px';
   researchSvg.style.height = (maxTotalY + 200) + 'px';
   researchSvg.innerHTML = allSvgLines;
 
