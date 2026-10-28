@@ -2,12 +2,12 @@
 
 import { state } from './game.js';
 
-// 4 колонки-категории, которые всегда на экране
+// 4 колонки-категории
 export const CATEGORIES = [
-  { id: 'production', name: '🏭 Производство', x: 50 },
-  { id: 'military', name: '⚔️ Военная промышленность', x: 450 },
-  { id: 'energy', name: '⚡ Энергия', x: 850 },
-  { id: 'liquid', name: '💧 Жидкость', x: 1250 },
+  { id: 'production', name: '🏭 Производство' },
+  { id: 'military', name: '⚔️ Военная промышленность' },
+  { id: 'energy', name: '⚡ Энергия' },
+  { id: 'liquid', name: '💧 Жидкость' },
 ];
 
 export const TECHNOLOGIES = [
@@ -26,7 +26,7 @@ export const TECHNOLOGIES = [
   { id: 'unlock_generator', era: 1, cat: 'energy', name: 'Угольный генератор', desc: 'Выработка энергии', studyPercent: 35, requires: ['unlock_assembler'], effect: () => {} },
 
   // --- ЖИДКОСТЬ ---
-  // Пока пусто, но колонка будет висеть для будущего
+  // Пока пусто
 ];
 
 const STUDY_TICK = 2, STUDY_PERCENT_PER_DNA = 0.5;
