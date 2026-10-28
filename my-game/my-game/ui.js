@@ -125,7 +125,7 @@ export function showInfoCard(e) {
             <div class="card-row"><span>HP:</span><span>${Math.ceil(e.hp)} / ${Math.ceil(e.maxHp)}</span></div>
             <div class="card-row"><span>Уровень:</span><span>${e.level}</span></div>
             <div class="card-row"><span>Заражение:</span><span>${e.radius} клеток</span></div>
-            <div class="warn" style="margin-top:8px;">Уничтожать коконы можно будет с помощью ракет (в будущем).</div>`;
+            <div class="warn" style="margin-top:8px;">Уничтожать коконы можно будет с помощью ракет.</div>`;
   } else if (e.type === 'core') {
     title = 'Ядро'; icon = '💎';
     html = `<div class="card-header"><span>${icon} ${title}</span><button class="card-close">✕</button></div>
@@ -153,8 +153,8 @@ export function showInfoCard(e) {
     else html += `<button class="card-manage-btn">Управление</button>`;
   } else {
     let name = '';
-    if (e.type === 'mine') { name = 'Шахта'; icon = '⛏'; }
-    else if (e.type === 'furnace') { name = 'Печь'; icon = '🔥'; }
+    if (e.type === 'mine') { name = 'Угольный бур'; icon = '⛏'; }
+    else if (e.type === 'furnace') { name = 'Угольная печь'; icon = '🔥'; }
     else if (e.type === 'lab') { name = 'Лаборатория'; icon = '🧪'; }
     else if (e.type === 'cutter') { name = 'Резак'; icon = '✂️'; }
     else if (e.type === 'assembler') { name = 'Сборщик'; icon = '⚙️'; }
@@ -266,8 +266,8 @@ function updateGhostPanel() {
   const currentDir = isConveyor ? state.newConveyorDir : state.savedOutputDir;
 
   let label, cost = null;
-  if (type === 'mine') { label = 'Шахта'; cost = MINE_COST; }
-  else if (type === 'furnace') { label = 'Печь'; cost = FURNACE_COST; }
+  if (type === 'mine') { label = 'Угольный бур'; cost = MINE_COST; }
+  else if (type === 'furnace') { label = 'Угольная печь'; cost = FURNACE_COST; }
   else if (type === 'conveyor') { label = 'Конвейер'; cost = CONVEYOR_COST; }
   else if (type === 'underground') { label = 'Подземный'; cost = UNDERGROUND_COST.iron; }
   else if (type === 'splitter') { label = 'Распределитель'; }
@@ -359,8 +359,8 @@ function renderBuildPanel() {
     const inserterOk = inserterCount < state.LIMITS.inserter && canAffordInserter();
 
     html += `
-      <button class="option-btn ${mineOk ? '' : 'disabled'}" data-type="mine" ${mineOk ? '' : 'disabled'}><span class="opt-icon">⛏</span><span class="opt-label">Шахта <span style="color:#888;font-size:11px;">(${mineCount}/${state.LIMITS.mine})</span></span><span class="opt-cost ${iron >= MINE_COST ? '' : 'disabled'}">${costHtml(MINE_COST, RES.IRON)}</span></button>
-      <button class="option-btn ${furnaceOk ? '' : 'disabled'}" data-type="furnace" ${furnaceOk ? '' : 'disabled'}><span class="opt-icon">🔥</span><span class="opt-label">Печь <span style="color:#888;font-size:11px;">(${furnaceCount}/${state.LIMITS.furnace})</span></span><span class="opt-cost ${iron >= FURNACE_COST ? '' : 'disabled'}">${costHtml(FURNACE_COST, RES.IRON)}</span></button>
+      <button class="option-btn ${mineOk ? '' : 'disabled'}" data-type="mine" ${mineOk ? '' : 'disabled'}><span class="opt-icon">⛏</span><span class="opt-label">Угольный бур <span style="color:#888;font-size:11px;">(${mineCount}/${state.LIMITS.mine})</span></span><span class="opt-cost ${iron >= MINE_COST ? '' : 'disabled'}">${costHtml(MINE_COST, RES.IRON)}</span></button>
+      <button class="option-btn ${furnaceOk ? '' : 'disabled'}" data-type="furnace" ${furnaceOk ? '' : 'disabled'}><span class="opt-icon">🔥</span><span class="opt-label">Угольная печь <span style="color:#888;font-size:11px;">(${furnaceCount}/${state.LIMITS.furnace})</span></span><span class="opt-cost ${iron >= FURNACE_COST ? '' : 'disabled'}">${costHtml(FURNACE_COST, RES.IRON)}</span></button>
       <button class="option-btn ${labOk ? '' : 'disabled'}" data-type="lab" ${labOk ? '' : 'disabled'}><span class="opt-icon">🧪</span><span class="opt-label">Лаборатория <span style="color:#888;font-size:11px;">(${labCount}/${state.LIMITS.lab})</span></span><span class="opt-cost ${canAffordLab() ? '' : 'disabled'}">${costHtml(LAB_IRON_COST, RES.PLATE_IRON)} + ${costHtml(LAB_COPPER_COST, RES.PLATE_COPPER)}</span></button>
       ${isBuildingUnlocked('cutter') ? `<button class="option-btn ${cutterOk ? '' : 'disabled'}" data-type="cutter" ${cutterOk ? '' : 'disabled'}><span class="opt-icon">✂️</span><span class="opt-label">Резак <span style="color:#888;font-size:11px;">(${cutterCount}/${state.LIMITS.cutter})</span></span><span class="opt-cost ${canAffordCutter() ? '' : 'disabled'}">${costHtml(CUTTER_IRON_COST, RES.PLATE_IRON)} + ${costHtml(CUTTER_COPPER_COST, RES.PLATE_COPPER)}</span></button>` : ''}
       ${isBuildingUnlocked('assembler') ? `<button class="option-btn ${assemblerOk ? '' : 'disabled'}" data-type="assembler" ${assemblerOk ? '' : 'disabled'}><span class="opt-icon">⚙️</span><span class="opt-label">Сборщик <span style="color:#888;font-size:11px;">(${assemblerCount}/${state.LIMITS.assembler})</span></span><span class="opt-cost ${canAffordAssembler() ? '' : 'disabled'}">${costHtml(ASSEMBLER_IRON_COST, RES.PLATE_IRON)} + ${costHtml(ASSEMBLER_COPPER_COST, RES.PLATE_COPPER)}</span></button>` : ''}
@@ -481,100 +481,101 @@ function renderResearchPanel() {
   researchNodes.innerHTML = ''; researchSvg.innerHTML = '';
   const branches = BRANCHES[activeResearchTab] || [];
   
-  let currentBranchY = 120;
+  let currentBranchY = 150; // Отступ для первой эпохи
   let maxTotalX = 0;
   let allSvgLines = '';
 
-  for (const branch of branches) {
-    const branchTechs = TECHNOLOGIES.filter(t => t.tab === activeResearchTab && t.branch === branch.id);
-    if (branchTechs.length === 0) continue;
+  // Группируем технологии по эпохам
+  const eras = [...new Set(branches.flatMap(b => TECHNOLOGIES.filter(t => t.tab === activeResearchTab && t.branch === b.id).map(t => t.era)))].sort();
 
-    const techMap = {}; 
-    for (const t of branchTechs) techMap[t.id] = t;
-    const children = {}; const roots = [];
-    
-    for (const t of branchTechs) {
-      const parents = (t.requires || []).filter(r => techMap[r]);
-      if (parents.length === 0) roots.push(t.id);
-      for (const p of parents) { 
-        if (!children[p]) children[p] = []; 
-        children[p].push(t.id); 
+  for (const era of eras) {
+    // Заголовок эпохи
+    const eraHeader = document.createElement('div');
+    eraHeader.textContent = `ЭПОХА ${era}`;
+    eraHeader.style.position = 'absolute';
+    eraHeader.style.left = '50px';
+    eraHeader.style.top = (currentBranchY - 70) + 'px';
+    eraHeader.style.fontSize = '32px';
+    eraHeader.style.fontWeight = '900';
+    eraHeader.style.color = 'rgba(255, 255, 255, 0.1)'; // Прозрачный огромный текст
+    eraHeader.style.pointerEvents = 'none';
+    eraHeader.style.whiteSpace = 'nowrap';
+    eraHeader.style.letterSpacing = '10px';
+    researchNodes.appendChild(eraHeader);
+
+    let eraMaxY = currentBranchY;
+
+    for (const branch of branches) {
+      const branchTechs = TECHNOLOGIES.filter(t => t.tab === activeResearchTab && t.branch === branch.id && t.era === era);
+      if (branchTechs.length === 0) continue;
+
+      const techMap = {}; 
+      for (const t of branchTechs) techMap[t.id] = t;
+      const children = {}; const roots = [];
+      
+      for (const t of branchTechs) {
+        const parents = (t.requires || []).filter(r => techMap[r]);
+        if (parents.length === 0) roots.push(t.id);
+        for (const p of parents) { 
+          if (!children[p]) children[p] = []; 
+          children[p].push(t.id); 
+        }
       }
-    }
 
-    const NODE_W = 180, NODE_H = 140, GAP_X = 80, GAP_Y = 50;
-    const positions = {}; let nextLeafY = 0;
+      const NODE_W = 180, NODE_H = 140, GAP_X = 80, GAP_Y = 40;
+      const positions = {}; let nextLeafY = currentBranchY;
 
-    function computeY(id) {
-      const kids = children[id] || [];
-      if (kids.length === 0) {
-        positions[id] = { y: nextLeafY };
-        nextLeafY += NODE_H + GAP_Y;
+      function computeY(id) {
+        const kids = children[id] || [];
+        if (kids.length === 0) {
+          positions[id] = { y: nextLeafY };
+          nextLeafY += NODE_H + GAP_Y;
+          return { top: positions[id].y, bottom: positions[id].y + NODE_H };
+        }
+        const ranges = kids.map(cid => computeY(cid));
+        const top = ranges[0].top;
+        let y = top;
+        positions[id] = { y: Math.max(currentBranchY, y) };
         return { top: positions[id].y, bottom: positions[id].y + NODE_H };
       }
-      const ranges = kids.map(cid => computeY(cid));
-      const top = ranges[0].top;
-      let y = top;
-      positions[id] = { y: Math.max(0, y) };
-      return { top: positions[id].y, bottom: positions[id].y + NODE_H };
-    }
-    for (const rid of roots) computeY(rid);
+      for (const rid of roots) computeY(rid);
 
-    const depths = {};
-    function setDepth(id, d) { 
-      if (depths[id] !== undefined) return; 
-      depths[id] = d; 
-      for (const cid of (children[id] || [])) setDepth(cid, d + 1); 
-    }
-    for (const rid of roots) setDepth(rid, 0);
-    
-    let branchMaxX = 0, branchMaxY = 0;
-    let minY = Infinity;
+      const depths = {};
+      function setDepth(id, d) { 
+        if (depths[id] !== undefined) return; 
+        depths[id] = d; 
+        for (const cid of (children[id] || [])) setDepth(cid, d + 1); 
+      }
+      for (const rid of roots) setDepth(rid, 0);
 
-    for (const id in positions) {
-      positions[id].x = 50 + depths[id] * (NODE_W + GAP_X);
-      positions[id].y += currentBranchY; 
-      
-      minY = Math.min(minY, positions[id].y);
-      branchMaxX = Math.max(branchMaxX, positions[id].x + NODE_W);
-      branchMaxY = Math.max(branchMaxY, positions[id].y + NODE_H);
-    }
+      for (const id in positions) {
+        positions[id].x = 50 + depths[id] * (NODE_W + GAP_X);
+        eraMaxY = Math.max(eraMaxY, positions[id].y + NODE_H);
+        maxTotalX = Math.max(maxTotalX, positions[id].x + NODE_W);
+      }
 
-    const headerDiv = document.createElement('div');
-    headerDiv.textContent = branch.name;
-    headerDiv.style.position = 'absolute';
-    headerDiv.style.left = '50px';
-    headerDiv.style.top = (minY - 60) + 'px'; 
-    headerDiv.style.fontSize = '26px';
-    headerDiv.style.fontWeight = '900';
-    headerDiv.style.color = '#ffd700';
-    headerDiv.style.textShadow = '0 2px 4px rgba(0,0,0,0.8)';
-    headerDiv.style.pointerEvents = 'none';
-    headerDiv.style.whiteSpace = 'nowrap';
-    researchNodes.appendChild(headerDiv);
+      for (const id in positions) {
+        for (const cid of (children[id] || [])) {
+          const x1 = positions[id].x + NODE_W, y1 = positions[id].y + NODE_H / 2;
+          const x2 = positions[cid].x, y2 = positions[cid].y + NODE_H / 2;
+          const ctrl1X = x1 + (x2 - x1) * 0.4, ctrl2X = x2 - (x2 - x1) * 0.4;
+          const strokeColor = isTechOwned(id) ? '#5a7a5a' : '#333';
+          allSvgLines += `<path d="M ${x1} ${y1} C ${ctrl1X} ${y1}, ${ctrl2X} ${y2}, ${x2} ${y2}" stroke="${strokeColor}" stroke-width="3" fill="none" />`;
+        }
+      }
 
-    for (const id in positions) {
-      for (const cid of (children[id] || [])) {
-        const x1 = positions[id].x + NODE_W, y1 = positions[id].y + NODE_H / 2;
-        const x2 = positions[cid].x, y2 = positions[cid].y + NODE_H / 2;
-        const ctrl1X = x1 + (x2 - x1) * 0.4, ctrl2X = x2 - (x2 - x1) * 0.4;
-        const strokeColor = isTechOwned(id) ? '#5a7a5a' : '#333';
-        allSvgLines += `<path d="M ${x1} ${y1} C ${ctrl1X} ${y1}, ${ctrl2X} ${y2}, ${x2} ${y2}" stroke="${strokeColor}" stroke-width="3" fill="none" />`;
+      for (const id in positions) {
+        const t = techMap[id];
+        const cardDiv = document.createElement('div');
+        cardDiv.style.position = 'absolute';
+        cardDiv.style.left = positions[id].x + 'px';
+        cardDiv.style.top = positions[id].y + 'px';
+        cardDiv.innerHTML = renderTechCardHtml(t);
+        researchNodes.appendChild(cardDiv);
       }
     }
-
-    for (const id in positions) {
-      const t = techMap[id];
-      const cardDiv = document.createElement('div');
-      cardDiv.style.position = 'absolute';
-      cardDiv.style.left = positions[id].x + 'px';
-      cardDiv.style.top = positions[id].y + 'px';
-      cardDiv.innerHTML = renderTechCardHtml(t);
-      researchNodes.appendChild(cardDiv);
-    }
-
-    maxTotalX = Math.max(maxTotalX, branchMaxX);
-    currentBranchY = branchMaxY + 140; 
+    
+    currentBranchY = eraMaxY + 100; // Отступ между эпохами
   }
 
   researchSvg.style.width = maxTotalX + 'px';
@@ -811,8 +812,8 @@ function renderRecipePicker(b) {
 export function openInfoPanel(b) {
   state.panel = 'info'; state.activeBuilding = b;
   let title = '';
-  if (b.type === 'mine') title = '⛏ Шахта';
-  else if (b.type === 'furnace') title = '🔥 Печь';
+  if (b.type === 'mine') title = '⛏ Угольный бур';
+  else if (b.type === 'furnace') title = '🔥 Угольная печь';
   else if (b.type === 'lab') title = '🧪 Лаборатория';
   else if (b.type === 'cutter') title = '✂️ Резак';
   else if (b.type === 'assembler') title = '⚙️ Сборщик';
