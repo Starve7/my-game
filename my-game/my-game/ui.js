@@ -502,17 +502,18 @@ function renderResearchPanel() {
     const header = document.createElement('div');
     header.textContent = cat.name;
     header.style.position = 'absolute';
-    header.style.left = currentColumnStartX + 'px';
     header.style.top = '20px';
-    header.style.fontSize = '24px';
+    header.style.fontSize = '18px'; // Уменьшили шрифт
     header.style.fontWeight = 'bold';
     header.style.color = '#ffd700';
     header.style.zIndex = '2';
     header.style.whiteSpace = 'nowrap';
+    header.style.transform = 'translateX(-50%)'; // Центрирование
     researchNodes.appendChild(header);
 
     if (catTechs.length === 0) {
-      currentColumnStartX += 300;
+      header.style.left = (currentColumnStartX + NODE_W / 2) + 'px';
+      currentColumnStartX += 250;
       continue;
     }
 
@@ -530,7 +531,8 @@ function renderResearchPanel() {
     }
 
     let rootStartX = currentColumnStartX;
-    let columnMaxX = currentColumnStartX;
+    let colMinX = Infinity;
+    let colMaxX = -Infinity;
 
     function layoutNode(id, depth, startX) {
       const kids = children[id] || [];
@@ -559,17 +561,24 @@ function renderResearchPanel() {
 
     for (const rid of roots) {
       const width = layoutNode(rid, 0, rootStartX);
-      rootStartX += width + 80; 
+      rootStartX += width + 40; 
     }
     
-    // Find the rightmost edge of THIS column to position the next one
+    // Ищем реальные границы колонки
     for (const id in globalPositions) {
       if (techMap[id]) {
-        columnMaxX = Math.max(columnMaxX, globalPositions[id].x + NODE_W);
+        colMinX = Math.min(colMinX, globalPositions[id].x);
+        colMaxX = Math.max(colMaxX, globalPositions[id].x + NODE_W);
         maxTotalY = Math.max(maxTotalY, globalPositions[id].y + NODE_H);
       }
     }
-    currentColumnStartX = columnMaxX + 150;
+
+    // Центрируем заголовок над колонкой
+    const colCenterX = (colMinX + colMaxX) / 2;
+    header.style.left = colCenterX + 'px';
+
+    // Следующая колонка начинается с отступом 250px
+    currentColumnStartX = colMaxX + 250;
   }
 
   // Рисуем ВСЕ линии (только внутри одной колонки)
