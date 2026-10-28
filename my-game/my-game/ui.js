@@ -639,30 +639,38 @@ function renderResearchPanel() {
 function renderTechCardHtml(t) {
   const owned = isTechOwned(t.id), locked = t.requires.some(r => !isTechOwned(r));
   const isActive = state.activeStudyTechId === t.id, progressPct = getTechProgressPct(t.id);
+  
   let statusText, statusColor;
   if (owned) { statusText = '✓'; statusColor = '#7fbf7f'; }
+  else if (t.isStub) { statusText = '⚙️'; statusColor = '#777'; } // Серый значок для заглушек
   else if (locked) { statusText = '🔒'; statusColor = '#888'; }
   else if (isActive) { statusText = progressPct.toFixed(1) + '%'; statusColor = '#7fbfff'; }
   else if (progressPct > 0) { statusText = progressPct.toFixed(0) + '%'; statusColor = '#aaa'; }
   else { statusText = `${t.studyPercent * 2}🧬`; statusColor = '#aaa'; }
 
   let barHtml = '';
-  if (!owned && !locked) barHtml = `<div style="height:4px;background:#333;border-radius:3px;margin-top:8px;overflow:hidden;"><div class="tech-progress-bar" style="height:100%;background:${isActive ? '#4a8aff' : '#555'};width:${progressPct}%;transition:width 0.3s;"></div></div>`;
+  if (!owned && !locked && !t.isStub) {
+    barHtml = `<div style="height:4px;background:#333;border-radius:3px;margin-top:8px;overflow:hidden;"><div class="tech-progress-bar" style="height:100%;background:${isActive ? '#4a8aff' : '#555'};width:${progressPct}%;transition:width 0.3s;"></div></div>`;
+  }
+
   let btnHtml = '';
-  if (!owned && !locked) {
+  if (t.isStub) {
+    btnHtml = `<button class="option-btn" disabled style="margin-top:8px;padding:5px 8px;font-size:11px;justify-content:center;width:100%;opacity:0.5;cursor:not-allowed;border-color:#444;background:#1a1a1a;color:#888;">В РАЗРАБОТКЕ</button>`;
+  } else if (!owned && !locked) {
     if (isActive) btnHtml = `<button class="option-btn" data-cancel-study="1" style="margin-top:8px;padding:5px 8px;font-size:11px;justify-content:center;width:100%;background:#7a3a3a;border-color:#a04040;color:#fff;">Отменить</button>`;
     else btnHtml = `<button class="option-btn" data-start-study="${t.id}" style="margin-top:8px;padding:5px 8px;font-size:11px;justify-content:center;width:100%;">Изучать</button>`;
   }
+
   let reqHtml = '';
   if (locked && t.requires.length > 0) {
     const names = t.requires.map(r => { const rt = TECHNOLOGIES.find(x => x.id === r); return rt ? rt.name : r; });
     reqHtml = `<div style="font-size:10px;color:#a06060;margin-top:4px;">Требуется: ${names.join(', ')}</div>`;
   }
-  return `<div class="tech-card ${owned ? 'owned' : ''} ${locked ? 'locked' : ''} ${isActive ? 'selected' : ''}" style="width:${180}px;">
+
+  return `<div class="tech-card ${owned ? 'owned' : ''} ${locked ? 'locked' : ''} ${isActive ? 'selected' : ''}" style="width:${180}px; ${t.isStub ? 'opacity:0.8; border-color:#444;' : ''}">
     <div class="tech-head"><div class="tech-name">${t.name}</div><div class="tech-status" style="color:${statusColor};">${statusText}</div></div>
     <div class="tech-desc">${t.desc}</div>${reqHtml}${barHtml}${btnHtml}</div>`;
 }
-
 const STATS_TABS = [
   { id: 'resources', name: '📦 Ресурсы' },
   { id: 'energy', name: '⚡ Электричество' },
