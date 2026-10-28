@@ -477,15 +477,14 @@ function renderResearchPanel() {
   const bgText = document.createElement('div');
   bgText.textContent = 'I ЭПОХА';
   bgText.style.position = 'absolute';
-  bgText.style.left = '50%';
-  bgText.style.top = '50%';
-  bgText.style.transform = 'translate(-50%, -50%)';
-  bgText.style.fontSize = '25vw';
+  bgText.style.fontSize = '160px'; // Увеличили
   bgText.style.fontWeight = '900';
-  bgText.style.color = 'rgba(255, 255, 255, 0.03)';
+  bgText.style.color = 'rgba(255, 255, 255, 0.04)'; // Чуть ярче
   bgText.style.pointerEvents = 'none';
   bgText.style.whiteSpace = 'nowrap';
   bgText.style.zIndex = '0';
+  bgText.style.top = '-60px'; // Подняли наверх
+  // left и transform выставим позже, когда узнаем общую ширину
   researchNodes.appendChild(bgText);
 
   const NODE_W = 180, NODE_H = 140, GAP_Y = 60, GAP_X = 40;
@@ -502,13 +501,14 @@ function renderResearchPanel() {
     const header = document.createElement('div');
     header.textContent = cat.name;
     header.style.position = 'absolute';
-    header.style.top = '20px';
-    header.style.fontSize = '18px'; // Уменьшили шрифт
-    header.style.fontWeight = 'bold';
+    header.style.top = '40px'; // Чуть ниже, чтобы не пересекаться с "I ЭПОХА"
+    header.style.fontSize = '26px'; // Сделали больше
+    header.style.fontWeight = '900';
     header.style.color = '#ffd700';
     header.style.zIndex = '2';
     header.style.whiteSpace = 'nowrap';
-    header.style.transform = 'translateX(-50%)'; // Центрирование
+    header.style.transform = 'translateX(-50%)'; 
+    header.style.textShadow = '0 2px 6px rgba(0,0,0,0.9)'; // Добавили тень
     researchNodes.appendChild(header);
 
     if (catTechs.length === 0) {
@@ -536,7 +536,8 @@ function renderResearchPanel() {
 
     function layoutNode(id, depth, startX) {
       const kids = children[id] || [];
-      globalPositions[id] = { y: 100 + depth * (NODE_H + GAP_Y) };
+      // Сдвинули Y с 100 на 130, чтобы под заголовком было место
+      globalPositions[id] = { y: 130 + depth * (NODE_H + GAP_Y) };
       
       if (kids.length === 0) {
         globalPositions[id].x = startX;
@@ -616,8 +617,19 @@ function renderResearchPanel() {
     researchNodes.appendChild(cardDiv);
   }
 
-  researchSvg.style.width = (currentColumnStartX + 200) + 'px';
-  researchSvg.style.height = (maxTotalY + 200) + 'px';
+  const totalWidth = currentColumnStartX + 200;
+  const totalHeight = maxTotalY + 200;
+
+  researchSvg.style.width = totalWidth + 'px';
+  researchSvg.style.height = totalHeight + 'px';
+  
+  researchNodes.style.width = totalWidth + 'px';
+  researchNodes.style.height = totalHeight + 'px';
+
+  // Центрируем надпись "I ЭПОХА" по центру всех категорий
+  bgText.style.left = (totalWidth / 2) + 'px';
+  bgText.style.transform = 'translateX(-50%)';
+
   researchSvg.innerHTML = allSvgLines;
 
   researchNodes.querySelectorAll('[data-start-study]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); if (selectStudyTech(btn.dataset.startStudy)) renderResearchPanel(); else showToast('Нельзя изучать'); }));
