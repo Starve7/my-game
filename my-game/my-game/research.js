@@ -80,18 +80,18 @@ export const TECHNOLOGIES = [
   { id: 'unlock_concrete_walls', isStub: true, era: 1, cat: 'military', name: 'Бетонные стены', desc: 'Максимальная прочность', studyPercent: 40, requires: ['unlock_stone_walls', 'unlock_concrete_factory'], effect: () => {} },
 
   // --- Ветка Вооружения ---
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_powder_tech', isStub: true, era: 1, cat: 'military', name: 'Порох', desc: 'Основа для боеприпасов', studyPercent: 35, requires: ['unlock_chemplant'], effect: () => {} },
+  // ВОТ ТУТ УБРАН IS_STUB У ПОРОХА
+  { id: 'unlock_powder_tech', era: 1, cat: 'military', name: 'Порох', desc: 'Основа для боеприпасов', studyPercent: 35, requires: ['unlock_chemplant'], effect: () => {} },
   
   // От Пороха идут Патроны и Снаряды
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_basic_ammo', isStub: true, era: 1, cat: 'military', name: 'Патроны (базовые)', desc: 'Боеприпасы для турелей', studyPercent: 30, requires: ['unlock_powder_tech', 'unlock_assembler'], effect: () => {} },
+  // ВОТ ТУТ УБРАН IS_STUB У ПАТРОНОВ
+  { id: 'unlock_basic_ammo', era: 1, cat: 'military', name: 'Патроны (базовые)', desc: 'Боеприпасы для турелей', studyPercent: 30, requires: ['unlock_powder_tech', 'unlock_assembler'], effect: () => {} },
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_artillery_shells', isStub: true, era: 1, cat: 'military', name: 'Артиллерийские снаряды', desc: 'Для тяжелых орудий', studyPercent: 60, requires: ['unlock_powder_tech', 'unlock_assembly_plant'], effect: () => {} },
 
   // Ветка от Патронов:
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_mg_turret', isStub: true, era: 1, cat: 'military', name: 'Пулемётная турель', desc: 'Стреляет простыми патронами', studyPercent: 45, requires: ['unlock_basic_ammo', 'unlock_assembler'], effect: () => {} },
+  // ВОТ ТУТ УБРАН IS_STUB У ТУРЕЛИ
+  { id: 'unlock_mg_turret', era: 1, cat: 'military', name: 'Пулемётная турель', desc: 'Стреляет простыми патронами', studyPercent: 45, requires: ['unlock_basic_ammo', 'unlock_assembler'], effect: () => {} },
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_incendiary_mix', isStub: true, era: 1, cat: 'military', name: 'Огнесмесь', desc: 'Топливо для огнемётов', studyPercent: 50, requires: ['unlock_basic_ammo'], effect: () => {} },
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
@@ -127,7 +127,6 @@ export const TECHNOLOGIES = [
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_rough_water_treatment', isStub: true, era: 1, cat: 'liquid', name: 'Очистка воды (грубая)', desc: 'Фильтрует воду от грязи для котлов', studyPercent: 35, requires: ['unlock_water_pump', 'unlock_wire_factory'], effect: () => {} },
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  // ВОТ ТУТ ДОБАВЛЕН СБОРОЧНЫЙ ЗАВОД
   { id: 'unlock_oil_derrick', isStub: true, era: 1, cat: 'liquid', name: 'Нефтяная вышка', desc: 'Качает сырую нефть из под земли', studyPercent: 40, requires: ['unlock_water_pump', 'unlock_assembly_plant'], effect: () => {} },
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_basic_oil_refining', isStub: true, era: 1, cat: 'liquid', name: 'Нефтеперерабатывающий завод', desc: 'Делит нефть на мазут и солярку', studyPercent: 60, requires: ['unlock_oil_derrick'], effect: () => {} },
