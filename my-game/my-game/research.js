@@ -28,12 +28,9 @@ export const TECHNOLOGIES = [
   { id: 'unlock_storage', era: 1, cat: 'production', name: 'Склад', desc: 'Хранилище на 500 предметов', studyPercent: 40, requires: ['unlock_cutter'], effect: () => {} },
 
   // От Сборщика идут 3 ветки:
-  // 1. Прокатный стан
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_rolling_mill', isStub: true, era: 1, cat: 'production', name: 'Прокатный стан', desc: 'Прутки, балки', studyPercent: 40, requires: ['unlock_assembler'], effect: () => {} },
-  // 2. Химзавод (убрали стекло)
   { id: 'unlock_chemplant', era: 1, cat: 'production', name: 'Химзавод', desc: 'Производство пороха', studyPercent: 55, requires: ['unlock_assembler'], effect: () => {} },
-  // 3. Проволочный завод
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_wire_factory', isStub: true, era: 1, cat: 'production', name: 'Проволочный завод', desc: 'Проволока, тросы, сетка', studyPercent: 45, requires: ['unlock_assembler'], effect: () => {} },
 
@@ -51,7 +48,7 @@ export const TECHNOLOGIES = [
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_textile_factory', isStub: true, era: 1, cat: 'production', name: 'Текстильная фабрика', desc: 'Ткань, канаты, ремни', studyPercent: 30, requires: ['unlock_sawmill'], effect: () => {} },
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_crusher', isStub: true, era: 1, cat: 'production', name: 'Дробильный завод', desc: 'Щебень, песок, гравий', studyPercent: 25, requires: ['unlock_sawmill'], effect: () => {} },
+  { id: 'unlock_crusher', isStub: true, era: 1, cat: 'production', name: 'Дробильный завод', desc: 'Щебень, песок, гравий', studyPercent: 25, requires: ['unlock_sawmill', 'unlock_fastener_factory'], effect: () => {} },
 
   // От Дробильного завода:
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
@@ -74,25 +71,37 @@ export const TECHNOLOGIES = [
   { id: 'unlock_pipe_factory', isStub: true, era: 1, cat: 'production', name: 'Трубный завод', desc: 'Трубы, профили. Открывает Жидкости.', studyPercent: 85, requires: ['unlock_concrete_factory', 'unlock_wire_factory'], effect: () => {} },
 
   // ================= ВОЕННАЯ ПРОМЫШЛЕННОСТЬ =================
+  // --- Ветка Стен ---
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_stone_walls', isStub: true, era: 1, cat: 'military', name: 'Каменные стены', desc: 'Защита от монстров', studyPercent: 20, requires: ['unlock_brick_factory'], effect: () => {} },
+  { id: 'unlock_wooden_walls', isStub: true, era: 1, cat: 'military', name: 'Деревянные стены', desc: 'Простая защита', studyPercent: 15, requires: ['unlock_sawmill'], effect: () => {} },
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_basic_ammo', isStub: true, era: 1, cat: 'military', name: 'Патроны (базовые)', desc: 'Боеприпасы для турелей', studyPercent: 30, requires: ['unlock_fastener_factory'], effect: () => {} },
+  { id: 'unlock_stone_walls', isStub: true, era: 1, cat: 'military', name: 'Каменные стены', desc: 'Надежная защита', studyPercent: 25, requires: ['unlock_wooden_walls', 'unlock_brick_factory'], effect: () => {} },
+  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
+  { id: 'unlock_concrete_walls', isStub: true, era: 1, cat: 'military', name: 'Бетонные стены', desc: 'Максимальная прочность', studyPercent: 40, requires: ['unlock_stone_walls', 'unlock_concrete_factory'], effect: () => {} },
+
+  // --- Ветка Вооружения ---
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_powder_tech', isStub: true, era: 1, cat: 'military', name: 'Порох', desc: 'Основа для боеприпасов', studyPercent: 35, requires: ['unlock_chemplant'], effect: () => {} },
   
+  // От Пороха идут Патроны и Снаряды
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_mg_turret', isStub: true, era: 1, cat: 'military', name: 'Пулемётная турель', desc: 'Стреляет простыми патронами', studyPercent: 45, requires: ['unlock_mechanical_factory', 'unlock_basic_ammo', 'unlock_powder_tech'], effect: () => {} },
+  { id: 'unlock_basic_ammo', isStub: true, era: 1, cat: 'military', name: 'Патроны (базовые)', desc: 'Боеприпасы для турелей', studyPercent: 30, requires: ['unlock_powder_tech', 'unlock_assembler'], effect: () => {} },
+  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
+  { id: 'unlock_artillery_shells', isStub: true, era: 1, cat: 'military', name: 'Артиллерийские снаряды', desc: 'Для тяжелых орудий', studyPercent: 60, requires: ['unlock_powder_tech', 'unlock_assembly_plant'], effect: () => {} },
 
+  // Ветка от Патронов:
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_artillery_shells', isStub: true, era: 1, cat: 'military', name: 'Артиллерийские снаряды', desc: 'Для тяжелых орудий', studyPercent: 60, requires: ['unlock_rolling_mill', 'unlock_powder_tech'], effect: () => {} },
+  { id: 'unlock_mg_turret', isStub: true, era: 1, cat: 'military', name: 'Пулемётная турель', desc: 'Стреляет простыми патронами', studyPercent: 45, requires: ['unlock_basic_ammo', 'unlock_assembler'], effect: () => {} },
+  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
+  { id: 'unlock_incendiary_mix', isStub: true, era: 1, cat: 'military', name: 'Огнесмесь', desc: 'Топливо для огнемётов', studyPercent: 50, requires: ['unlock_basic_ammo'], effect: () => {} },
+  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
+  { id: 'unlock_flamethrower_turret', isStub: true, era: 1, cat: 'military', name: 'Слабая огнеметная турель', desc: 'Сжигает врагов вблизи', studyPercent: 70, requires: ['unlock_incendiary_mix', 'unlock_oil_derrick', 'unlock_pipe_factory'], effect: () => {} },
+
+  // Ветка от Снарядов:
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_artillery', isStub: true, era: 1, cat: 'military', name: 'Артиллерийская установка', desc: 'Дальний обстрел', studyPercent: 80, requires: ['unlock_artillery_shells'], effect: () => {} },
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_dumb_rockets', isStub: true, era: 1, cat: 'military', name: 'Неуправляемые ракеты', desc: 'Слабые ракеты по площади', studyPercent: 100, requires: ['unlock_artillery_shells', 'unlock_artillery'], effect: () => {} },
-
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_flamethrower_turret', isStub: true, era: 1, cat: 'military', name: 'Огнемётная турель', desc: 'Сжигает врагов вблизи', studyPercent: 70, requires: ['unlock_pipe_factory', 'unlock_mechanical_factory'], effect: () => {} },
+  { id: 'unlock_srbm', isStub: true, era: 1, cat: 'military', name: 'Баллистическая ракета малой дистанции', desc: 'Мощный взрыв по площади', studyPercent: 100, requires: ['unlock_artillery'], effect: () => {} },
 
   // ================= ЭНЕРГИЯ =================
   // --- Ветка Генерации ---
