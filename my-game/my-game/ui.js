@@ -413,7 +413,7 @@ function applyCamera() { researchWorld.style.transform = `translate(${cam.x}px, 
 researchViewport.addEventListener('wheel', (e) => {
   e.preventDefault();
   const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-  const newScale = Math.max(0.2, Math.min(2, cam.scale * zoomFactor)); // Мин зум 0.2
+  const newScale = Math.max(0.2, Math.min(2, cam.scale * zoomFactor));
   const rect = researchViewport.getBoundingClientRect();
   const mouseX = e.clientX - rect.left, mouseY = e.clientY - rect.top;
   cam.x = mouseX - (mouseX - cam.x) * (newScale / cam.scale);
@@ -425,7 +425,6 @@ let pinchStartDist = 0, initialScale = 1;
 const activePointers = new Map();
 
 researchViewport.addEventListener('pointerdown', (e) => {
-  // Игнорируем клики по модалке или кнопкам
   if (e.target.closest('#tech-detail-modal') || e.target.closest('.tech-card') || e.target.closest('#research-topbar')) return;
   researchViewport.setPointerCapture(e.pointerId);
   activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -497,7 +496,7 @@ function renderResearchPanel() {
   researchNodes.innerHTML = ''; 
   researchSvg.innerHTML = '';
   
-  const NODE_W = 160, NODE_H = 90, GAP_Y = 40, GAP_X = 20;
+  const NODE_W = 160, NODE_H = 90, GAP_Y = 60, GAP_X = 20;
   let maxTotalY = 0;
   
   const globalPositions = {};
@@ -538,7 +537,7 @@ function renderResearchPanel() {
 
     function layoutNode(id, depth, startX) {
       const kids = children[id] || [];
-      globalPositions[id] = { y: 120 + depth * (NODE_H + GAP_Y) };
+      globalPositions[id] = { y: 140 + depth * (NODE_H + GAP_Y) };
       
       if (kids.length === 0) {
         globalPositions[id].x = startX;
@@ -581,7 +580,7 @@ function renderResearchPanel() {
   }
 
   const totalWidth = currentColumnStartX;
-  const totalHeight = Math.max(300, maxTotalY + 100);
+  const totalHeight = Math.max(400, maxTotalY + 150);
 
   researchSvg.style.width = totalWidth + 'px';
   researchSvg.style.height = totalHeight + 'px';
@@ -591,7 +590,7 @@ function renderResearchPanel() {
   const bgText = document.createElement('div');
   bgText.textContent = 'I ЭПОХА';
   bgText.style.position = 'absolute';
-  bgText.style.top = '-30px'; 
+  bgText.style.top = '-90px'; 
   bgText.style.left = '50%';
   bgText.style.transform = 'translateX(-50%)';
   bgText.style.fontSize = '120px'; 
@@ -652,10 +651,10 @@ function renderResearchPanel() {
         const x2 = childEl.offsetLeft + childEl.offsetWidth / 2;
         const y2 = childEl.offsetTop;
 
-        const ctrl1Y = y1 + (y2 - y1) * 0.4;
-        const ctrl2Y = y2 - (y2 - y1) * 0.4;
+        const midY = y1 + (y2 - y1) * 0.5;
         const strokeColor = isTechOwned(reqId) ? '#5a7a5a' : '#333';
-        allSvgLines += `<path d="M ${x1} ${y1} C ${x1} ${ctrl1Y}, ${x2} ${ctrl2Y}, ${x2} ${y2}" stroke="${strokeColor}" stroke-width="2" fill="none" />`;
+        // ОРТОГОНАЛЬНЫЕ ЛИНИИ (вниз, вбок, вниз)
+        allSvgLines += `<path d="M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}" stroke="${strokeColor}" stroke-width="2" fill="none" stroke-linejoin="round" />`;
       }
     }
     researchSvg.innerHTML = allSvgLines;
