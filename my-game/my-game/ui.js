@@ -394,6 +394,8 @@ function renderBuildPanel() {
   });
 }
 
+// ==================== RESEARCH SCREEN ====================
+
 const researchScreen = document.getElementById('research-screen');
 const researchTabs = document.getElementById('research-tabs');
 const researchClose = document.getElementById('research-close');
@@ -403,15 +405,15 @@ const researchSvg = document.getElementById('research-svg');
 const researchNodes = document.getElementById('research-nodes');
 
 let cam = { x: 0, y: 0, scale: 1 }, isDragging = false, startX = 0, startY = 0, initialCamX = 0, initialCamY = 0, uiLastStudyTechId = null;
+let activeResearchCat = 'production';
 let researchFirstOpen = true;
 if (researchClose) researchClose.addEventListener('click', closeResearchPanel);
 function applyCamera() { researchWorld.style.transform = `translate(${cam.x}px, ${cam.y}px) scale(${cam.scale})`; }
-function resetCamera() { cam = { x: 0, y: 0, scale: 1 }; applyCamera(); }
 
 researchViewport.addEventListener('wheel', (e) => {
   e.preventDefault();
   const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-  const newScale = Math.max(0.15, Math.min(2, cam.scale * zoomFactor)); // Мин. зум 0.15
+  const newScale = Math.max(0.2, Math.min(2, cam.scale * zoomFactor)); // Мин зум 0.2
   const rect = researchViewport.getBoundingClientRect();
   const mouseX = e.clientX - rect.left, mouseY = e.clientY - rect.top;
   cam.x = mouseX - (mouseX - cam.x) * (newScale / cam.scale);
@@ -423,7 +425,8 @@ let pinchStartDist = 0, initialScale = 1;
 const activePointers = new Map();
 
 researchViewport.addEventListener('pointerdown', (e) => {
-  if (e.target.closest('.tech-card button') || e.target.closest('#research-topbar')) return;
+  // Игнорируем клики по модалке или кнопкам
+  if (e.target.closest('#tech-detail-modal') || e.target.closest('.tech-card') || e.target.closest('#research-topbar')) return;
   researchViewport.setPointerCapture(e.pointerId);
   activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (activePointers.size === 1) {
@@ -444,7 +447,7 @@ researchViewport.addEventListener('pointermove', (e) => {
   } else if (activePointers.size === 2) {
     const pts = [...activePointers.values()];
     const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-    const newScale = Math.max(0.15, Math.min(2, initialScale * (dist / pinchStartDist)));
+    const newScale = Math.max(0.2, Math.min(2, initialScale * (dist / pinchStartDist)));
     const midX = (pts[0].x + pts[1].x) / 2, midY = (pts[0].y + pts[1].y) / 2;
     const rect = researchViewport.getBoundingClientRect();
     const localMidX = midX - rect.left, localMidY = midY - rect.top;
@@ -475,43 +478,47 @@ export function openResearchPanel() {
   renderResearchPanel(); 
   researchFirstOpen = false;
 }
-export function closeResearchPanel() { if (researchScreen) researchScreen.classList.add('hidden'); state.panel = null; }
+export function closeResearchPanel() { if (researchScreen) researchScreen.classList.add('hidden'); state.panel = null; closeTechModal(); }
 
 function renderResearchPanel() {
   uiLastStudyTechId = state.activeStudyTechId;
-  researchTabs.innerHTML = ''; 
+  
+  // Отрисовка вкладок
+  researchTabs.innerHTML = '';
+  for (const cat of CATEGORIES) {
+    const isActive = cat.id === activeResearchCat;
+    const btn = document.createElement('button');
+    btn.textContent = cat.name;
+    btn.className = isActive ? 'active' : '';
+    btn.addEventListener('click', () => { activeResearchCat = cat.id; renderResearchPanel(); });
+    researchTabs.appendChild(btn);
+  }
+
   researchNodes.innerHTML = ''; 
   researchSvg.innerHTML = '';
   
-  // СЖАТЫЕ РАЗМЕРЫ
-  const NODE_W = 140, NODE_H = 80, GAP_Y = 30, GAP_X = 15;
+  const NODE_W = 160, NODE_H = 90, GAP_Y = 40, GAP_X = 20;
   let maxTotalY = 0;
   
   const globalPositions = {};
   let currentColumnStartX = 50;
 
-  for (const cat of CATEGORIES) {
-    const catTechs = TECHNOLOGIES.filter(t => t.cat === cat.id && t.era === 1);
-    
-    const header = document.createElement('div');
-    header.textContent = cat.name;
-    header.style.position = 'absolute';
-    header.style.top = '90px';
-    header.style.fontSize = '20px'; 
-    header.style.fontWeight = '900';
-    header.style.color = '#ffd700';
-    header.style.zIndex = '2';
-    header.style.whiteSpace = 'nowrap';
-    header.style.transform = 'translateX(-50%)'; 
-    header.style.textShadow = '0 2px 6px rgba(0,0,0,0.9)';
-    researchNodes.appendChild(header);
+  const catTechs = TECHNOLOGIES.filter(t => t.cat === activeResearchCat && t.era === 1);
+  
+  const header = document.createElement('div');
+  header.textContent = CATEGORIES.find(c => c.id === activeResearchCat).name;
+  header.style.position = 'absolute';
+  header.style.top = '40px';
+  header.style.fontSize = '24px'; 
+  header.style.fontWeight = '900';
+  header.style.color = '#ffd700';
+  header.style.zIndex = '2';
+  header.style.whiteSpace = 'nowrap';
+  header.style.transform = 'translateX(-50%)'; 
+  header.style.textShadow = '0 2px 6px rgba(0,0,0,0.9)';
+  researchNodes.appendChild(header);
 
-    if (catTechs.length === 0) {
-      header.style.left = (currentColumnStartX + NODE_W / 2) + 'px';
-      currentColumnStartX += 200;
-      continue;
-    }
-
+  if (catTechs.length > 0) {
     const techMap = {}; 
     for (const t of catTechs) techMap[t.id] = t;
     
@@ -531,7 +538,7 @@ function renderResearchPanel() {
 
     function layoutNode(id, depth, startX) {
       const kids = children[id] || [];
-      globalPositions[id] = { y: 150 + depth * (NODE_H + GAP_Y) };
+      globalPositions[id] = { y: 120 + depth * (NODE_H + GAP_Y) };
       
       if (kids.length === 0) {
         globalPositions[id].x = startX;
@@ -556,25 +563,25 @@ function renderResearchPanel() {
 
     for (const rid of roots) {
       const width = layoutNode(rid, 0, rootStartX);
-      rootStartX += width + 40; // Меньше отступ
+      rootStartX += width + 40; 
     }
     
     for (const id in globalPositions) {
-      if (techMap[id]) {
-        colMinX = Math.min(colMinX, globalPositions[id].x);
-        colMaxX = Math.max(colMaxX, globalPositions[id].x + NODE_W);
-        maxTotalY = Math.max(maxTotalY, globalPositions[id].y + NODE_H);
-      }
+      colMinX = Math.min(colMinX, globalPositions[id].x);
+      colMaxX = Math.max(colMaxX, globalPositions[id].x + NODE_W);
+      maxTotalY = Math.max(maxTotalY, globalPositions[id].y + NODE_H);
     }
 
     const colCenterX = (colMinX + colMaxX) / 2;
     header.style.left = colCenterX + 'px';
-
-    currentColumnStartX = colMaxX + 150; // Меньше отступ между категориями
+    currentColumnStartX = colMaxX + 100;
+  } else {
+    header.style.left = '100px';
+    currentColumnStartX = 200;
   }
 
   const totalWidth = currentColumnStartX;
-  const totalHeight = maxTotalY + 100;
+  const totalHeight = Math.max(300, maxTotalY + 100);
 
   researchSvg.style.width = totalWidth + 'px';
   researchSvg.style.height = totalHeight + 'px';
@@ -584,12 +591,12 @@ function renderResearchPanel() {
   const bgText = document.createElement('div');
   bgText.textContent = 'I ЭПОХА';
   bgText.style.position = 'absolute';
-  bgText.style.top = '-10px'; 
-  bgText.style.left = (totalWidth / 2) + 'px';
+  bgText.style.top = '-30px'; 
+  bgText.style.left = '50%';
   bgText.style.transform = 'translateX(-50%)';
-  bgText.style.fontSize = '100px'; 
+  bgText.style.fontSize = '120px'; 
   bgText.style.fontWeight = '900';
-  bgText.style.color = 'rgba(255, 255, 255, 0.05)'; 
+  bgText.style.color = 'rgba(255, 255, 255, 0.03)'; 
   bgText.style.pointerEvents = 'none';
   bgText.style.whiteSpace = 'nowrap';
   bgText.style.zIndex = '0';
@@ -601,21 +608,29 @@ function renderResearchPanel() {
     if (!t) continue;
 
     const cardDiv = document.createElement('div');
+    cardDiv.className = 'tech-card-wrapper';
     cardDiv.style.position = 'absolute';
     cardDiv.style.left = globalPositions[id].x + 'px';
     cardDiv.style.top = globalPositions[id].y + 'px';
     cardDiv.style.zIndex = '1';
     cardDiv.innerHTML = renderTechCardHtml(t);
+    cardDiv.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showTechModal(t);
+    });
     researchNodes.appendChild(cardDiv);
     cardElements[id] = cardDiv;
   }
 
-  if (researchFirstOpen && globalPositions['unlock_cutter']) {
-    const startNode = globalPositions['unlock_cutter'];
-    const vpRect = researchViewport.getBoundingClientRect();
-    cam.x = -(startNode.x - vpRect.width / 2 + NODE_W / 2);
-    cam.y = -(startNode.y - vpRect.height / 3);
-    applyCamera();
+  if (researchFirstOpen) {
+    const firstRootId = catTechs.find(t => t.requires.length === 0)?.id;
+    if (firstRootId && globalPositions[firstRootId]) {
+      const startNode = globalPositions[firstRootId];
+      const vpRect = researchViewport.getBoundingClientRect();
+      cam.x = -(startNode.x - vpRect.width / 2 + NODE_W / 2);
+      cam.y = -(startNode.y - vpRect.height / 3);
+      applyCamera();
+    }
   }
 
   setTimeout(() => {
@@ -645,11 +660,9 @@ function renderResearchPanel() {
     }
     researchSvg.innerHTML = allSvgLines;
   }, 0);
-
-  researchNodes.querySelectorAll('[data-start-study]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); if (selectStudyTech(btn.dataset.startStudy)) renderResearchPanel(); else showToast('Нельзя изучать'); }));
-  researchNodes.querySelectorAll('[data-cancel-study]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); cancelStudy(); renderResearchPanel(); }));
 }
 
+// Простая карточка, БЕЗ кнопок
 function renderTechCardHtml(t) {
   const owned = isTechOwned(t.id), locked = t.requires.some(r => !isTechOwned(r));
   const isActive = state.activeStudyTechId === t.id, progressPct = getTechProgressPct(t.id);
@@ -659,33 +672,99 @@ function renderTechCardHtml(t) {
   else if (t.isStub) { statusText = '⚙️'; statusColor = '#777'; }
   else if (locked) { statusText = '🔒'; statusColor = '#888'; }
   else if (isActive) { statusText = progressPct.toFixed(0) + '%'; statusColor = '#7fbfff'; }
-  else if (progressPct > 0) { statusText = progressPct.toFixed(0) + '%'; statusColor = '#aaa'; }
   else { statusText = `${t.studyPercent * 2}🧬`; statusColor = '#aaa'; }
 
-  let barHtml = '';
-  if (!owned && !locked && !t.isStub) {
-    barHtml = `<div style="height:3px;background:#333;border-radius:2px;margin-top:4px;overflow:hidden;"><div class="tech-progress-bar" style="height:100%;background:${isActive ? '#4a8aff' : '#555'};width:${progressPct}%;transition:width 0.3s;"></div></div>`;
-  }
+  return `<div class="tech-card ${owned ? 'owned' : ''} ${locked ? 'locked' : ''} ${isActive ? 'selected' : ''}" style="width:160px; padding:8px; box-sizing:border-box; cursor:pointer;">
+    <div class="tech-head" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+      <div class="tech-name" style="font-size:12px; font-weight:bold; line-height:1.2;">${t.name}</div>
+      <div class="tech-status" style="font-size:11px; color:${statusColor}; margin-left:4px;">${statusText}</div>
+    </div>
+    <div class="tech-desc" style="font-size:10px; color:#888; line-height:1.2; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${t.desc}</div>
+  </div>`;
+}
 
+// Всплывающее окно с деталями
+function showTechModal(t) {
+  let modalEl = document.getElementById('tech-detail-modal');
+  if (modalEl) modalEl.remove();
+  
+  modalEl = document.createElement('div');
+  modalEl.id = 'tech-detail-modal';
+  modalEl.style.cssText = 'position:absolute; inset:0; background:rgba(0,0,0,0.7); z-index:100; display:flex; align-items:center; justify-content:center; padding:20px; opacity:0; transition:opacity 0.15s;';
+  
+  const owned = isTechOwned(t.id), locked = t.requires.some(r => !isTechOwned(r));
+  const isActive = state.activeStudyTechId === t.id, progressPct = getTechProgressPct(t.id);
+  
   let btnHtml = '';
   if (t.isStub) {
-    btnHtml = `<button class="option-btn" disabled style="margin-top:4px;padding:2px;font-size:9px;justify-content:center;width:100%;opacity:0.5;cursor:not-allowed;border-color:#444;background:#1a1a1a;color:#888;">В РАЗРАБОТКЕ</button>`;
-  } else if (!owned && !locked) {
-    if (isActive) btnHtml = `<button class="option-btn" data-cancel-study="1" style="margin-top:4px;padding:2px;font-size:9px;justify-content:center;width:100%;background:#7a3a3a;border-color:#a04040;color:#fff;">Отменить</button>`;
-    else btnHtml = `<button class="option-btn" data-start-study="${t.id}" style="margin-top:4px;padding:2px;font-size:9px;justify-content:center;width:100%;">Изучать</button>`;
+    btnHtml = `<div style="text-align:center; color:#888; font-size:13px; margin-top:12px; border:1px dashed #444; padding:10px; border-radius:8px;">⚙️ В РАЗРАБОТКЕ</div>`;
+  } else if (owned) {
+    btnHtml = `<div style="text-align:center; color:#7fbf7f; font-size:13px; margin-top:12px; border:1px solid #4a7a4a; background:#1a2a1a; padding:10px; border-radius:8px;">✓ Изучено</div>`;
+  } else if (locked) {
+    btnHtml = `<div style="text-align:center; color:#a06060; font-size:13px; margin-top:12px; border:1px solid #5a2a2a; background:#2a1a1a; padding:10px; border-radius:8px;">🔒 Требуются предыдущие технологии</div>`;
+  } else if (isActive) {
+    btnHtml = `<button id="modal-cancel-btn" class="option-btn" style="margin-top:12px; justify-content:center; background:#7a3a3a; border-color:#a04040; color:#fff;">Отменить изучение (${progressPct.toFixed(1)}%)</button>`;
+  } else {
+    btnHtml = `<button id="modal-start-btn" class="option-btn" style="margin-top:12px; justify-content:center; border-color:#c8a040; color:#ffd700;">🧬 Изучать (${t.studyPercent * 2} ДНК)</button>`;
   }
 
   let reqHtml = '';
-  if (locked && t.requires.length > 0) {
-    const names = t.requires.map(r => { const rt = TECHNOLOGIES.find(x => x.id === r); return rt ? rt.name : r; });
-    reqHtml = `<div style="font-size:9px;color:#a06060;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Треб: ${names.join(', ')}</div>`;
+  if (t.requires.length > 0) {
+    reqHtml = `<div style="margin-top:10px; font-size:12px; color:#ccc;"><strong>Требуется:</strong><ul style="margin:4px 0 0 16px; padding:0;">`;
+    for (const r of t.requires) {
+      const rt = TECHNOLOGIES.find(x => x.id === r);
+      const isReqOwned = isTechOwned(r);
+      reqHtml += `<li style="color:${isReqOwned ? '#7fbf7f' : '#e06060'}">${rt ? rt.name : r} ${isReqOwned ? '✓' : ''}</li>`;
+    }
+    reqHtml += `</ul></div>`;
   }
 
-  return `<div class="tech-card ${owned ? 'owned' : ''} ${locked ? 'locked' : ''} ${isActive ? 'selected' : ''}" style="width:${140}px; padding:6px; box-sizing:border-box; ${t.isStub ? 'opacity:0.8; border-color:#444;' : ''}">
-    <div class="tech-head" style="margin-bottom:2px;"><div class="tech-name" style="font-size:11px; line-height:1.1;">${t.name}</div><div class="tech-status" style="font-size:9px; color:${statusColor}; margin-left:4px;">${statusText}</div></div>
-    <div class="tech-desc" style="font-size:9px; line-height:1.1; margin-bottom:2px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${t.desc}</div>
-    ${reqHtml}${barHtml}${btnHtml}</div>`;
+  modalEl.innerHTML = `
+    <div style="background:#1e1e1e; border:2px solid #555; border-radius:12px; padding:16px; width:100%; max-width:320px; color:#fff; box-shadow:0 8px 24px rgba(0,0,0,0.8); transform:translateY(10px); transition:transform 0.15s;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+        <div style="font-size:16px; font-weight:bold; color:#ffd700;">${t.name}</div>
+        <button id="modal-close-btn" style="background:transparent; border:none; color:#888; font-size:16px; cursor:pointer; padding:0 4px;">✕</button>
+      </div>
+      <div style="font-size:13px; color:#bbb; line-height:1.4;">${t.desc}</div>
+      ${reqHtml}
+      ${btnHtml}
+    </div>
+  `;
+
+  researchScreen.appendChild(modalEl);
+  
+  requestAnimationFrame(() => {
+    modalEl.style.opacity = '1';
+    modalEl.firstElementChild.style.transform = 'translateY(0)';
+  });
+
+  const close = () => {
+    modalEl.style.opacity = '0';
+    modalEl.firstElementChild.style.transform = 'translateY(10px)';
+    setTimeout(() => modalEl.remove(), 150);
+  };
+
+  modalEl.querySelector('#modal-close-btn').addEventListener('click', close);
+  modalEl.addEventListener('click', (e) => { if (e.target === modalEl) close(); });
+
+  const startBtn = modalEl.querySelector('#modal-start-btn');
+  if (startBtn) startBtn.addEventListener('click', () => {
+    if (selectStudyTech(t.id)) { close(); renderResearchPanel(); }
+    else showToast('Нельзя изучать');
+  });
+
+  const cancelBtn = modalEl.querySelector('#modal-cancel-btn');
+  if (cancelBtn) cancelBtn.addEventListener('click', () => {
+    cancelStudy(); close(); renderResearchPanel();
+  });
 }
+
+function closeTechModal() {
+  const el = document.getElementById('tech-detail-modal');
+  if (el) el.remove();
+}
+
+// ==================== ОСТАЛЬНОЙ КОД (СТАТИСТИКА, ЗДАНИЯ И Т.Д.) ====================
 
 const STATS_TABS = [
   { id: 'resources', name: '📦 Ресурсы' },
