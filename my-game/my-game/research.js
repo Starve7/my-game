@@ -106,40 +106,37 @@ export const TECHNOLOGIES = [
   // ================= ЭНЕРГИЯ =================
   // --- Ветка Генерации ---
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_coal_generator', isStub: true, era: 1, cat: 'energy', name: 'Угольный генератор', desc: 'Выработка энергии сжиганием угля', studyPercent: 25, requires: ['unlock_mechanical_factory'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_steam_generator', isStub: true, era: 1, cat: 'energy', name: 'Паровой генератор', desc: 'Требует воду и уголь', studyPercent: 50, requires: ['unlock_coal_generator', 'unlock_pipe_factory'], effect: () => {} },
+  { id: 'unlock_steam_generator', isStub: true, era: 1, cat: 'energy', name: 'Паровой генератор', desc: 'Требует воду и уголь', studyPercent: 50, requires: ['unlock_mechanical_factory', 'unlock_pipe_factory'], effect: () => {} },
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_diesel_generator', isStub: true, era: 1, cat: 'energy', name: 'Дизель-генератор', desc: 'Сжигает жидкое топливо (мазут/солярку)', studyPercent: 80, requires: ['unlock_oil_derrick', 'unlock_assembly_plant'], effect: () => {} },
 
   // --- Ветка Передачи ---
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_copper_cables', isStub: true, era: 1, cat: 'energy', name: 'Медные кабели', desc: 'Передача энергии', studyPercent: 15, requires: ['unlock_cutter'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_wooden_power_lines', isStub: true, era: 1, cat: 'energy', name: 'Деревянный ЛЭП', desc: 'Дальняя передача энергии', studyPercent: 25, requires: ['unlock_copper_cables', 'unlock_sawmill'], effect: () => {} },
+  { id: 'unlock_wooden_power_lines', isStub: true, era: 1, cat: 'energy', name: 'Деревянный ЛЭП', desc: 'Дальняя передача энергии', studyPercent: 25, requires: ['unlock_sawmill'], effect: () => {} },
 
   // --- Ветка Хранения ---
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_weak_battery', isStub: true, era: 1, cat: 'energy', name: 'Слабый аккумулятор', desc: 'Запас энергии (малый)', studyPercent: 35, requires: ['unlock_copper_cables'], effect: () => {} },
+  { id: 'unlock_weak_battery', isStub: true, era: 1, cat: 'energy', name: 'Слабый аккумулятор', desc: 'Запас энергии (малый)', studyPercent: 35, requires: ['unlock_assembler'], effect: () => {} },
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_improved_battery', isStub: true, era: 1, cat: 'energy', name: 'Улучшенный аккумулятор', desc: 'Запас энергии (большой)', studyPercent: 90, requires: ['unlock_weak_battery', 'unlock_assembly_plant'], effect: () => {} },
 
   // ================= ЖИДКОСТИ =================
   // --- Ветка Генерации (Добыча и переработка) ---
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_water_pump', isStub: true, era: 1, cat: 'liquid', name: 'Водяной насос', desc: 'Качает воду для паровых двигателей', studyPercent: 25, requires: ['unlock_mechanical_factory'], effect: () => {} },
+  { id: 'unlock_water_pump', isStub: true, era: 1, cat: 'liquid', name: 'Водяной насос', desc: 'Качает воду для паровых двигателей', studyPercent: 25, requires: ['unlock_pipe_factory'], effect: () => {} },
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
+  { id: 'unlock_rough_water_treatment', isStub: true, era: 1, cat: 'liquid', name: 'Очистка воды (грубая)', desc: 'Фильтрует воду от грязи для котлов', studyPercent: 35, requires: ['unlock_water_pump', 'unlock_wire_factory'], effect: () => {} },
+  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
+  // ВОТ ТУТ ДОБАВЛЕН СБОРОЧНЫЙ ЗАВОД
   { id: 'unlock_oil_derrick', isStub: true, era: 1, cat: 'liquid', name: 'Нефтяная вышка', desc: 'Качает сырую нефть из под земли', studyPercent: 40, requires: ['unlock_water_pump', 'unlock_assembly_plant'], effect: () => {} },
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_basic_oil_refining', isStub: true, era: 1, cat: 'liquid', name: 'Базовая нефтепереработка', desc: 'Делит нефть на мазут и солярку', studyPercent: 60, requires: ['unlock_oil_derrick'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_rough_water_treatment', isStub: true, era: 1, cat: 'liquid', name: 'Очистка воды (грубая)', desc: 'Фильтрует воду от грязи для котлов', studyPercent: 35, requires: ['unlock_wire_factory'], effect: () => {} },
+  { id: 'unlock_basic_oil_refining', isStub: true, era: 1, cat: 'liquid', name: 'Нефтеперерабатывающий завод', desc: 'Делит нефть на мазут и солярку', studyPercent: 60, requires: ['unlock_oil_derrick'], effect: () => {} },
 
   // --- Ветка Транспортировки ---
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_steel_pipes', isStub: true, era: 1, cat: 'liquid', name: 'Стальные трубы', desc: 'Прочные трубы для жидкостей', studyPercent: 50, requires: ['unlock_pipe_factory'], effect: () => {} },
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_mech_pump', isStub: true, era: 1, cat: 'liquid', name: 'Механический насос', desc: 'Толкает жидкость (увеличивает дальность)', studyPercent: 45, requires: ['unlock_mechanical_factory'], effect: () => {} },
+  { id: 'unlock_mech_pump', isStub: true, era: 1, cat: 'liquid', name: 'Механический насос', desc: 'Толкает жидкость (увеличивает дальность)', studyPercent: 45, requires: ['unlock_steel_pipes', 'unlock_water_pump'], effect: () => {} },
 
   // --- Ветка Хранения ---
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
