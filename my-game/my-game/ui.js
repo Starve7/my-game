@@ -5,7 +5,7 @@ import {
   inventory, state, showToast, STAT_WINDOW_SEC,
 } from './game.js';
 import { CORE, oreAmount, oreInitial } from './world.js';
-import { spriteUrl, setHudIcon } from './sprites.js';
+import { spriteUrl, setHudIcon, buildingImages, isReady } from './sprites.js';
 import {
   buildings, conveyors, splitters, undergrounds,
   countBuildings, getStorageTotal, getRecipesForBuilding, getRecipeById,
@@ -254,7 +254,7 @@ function iconStyle(resType) {
   return `background:${RES_COLOR[resType] || '#888'}`;
 }
 function costHtml(amount, resType) {
-  return `${amount}<span style="display:inline-block;width:14px;height:14px;vertical-align:middle;margin:0 2px 3px 0;border-radius:2px;background-size:contain;background-repeat:no-repeat;background-position:center;image-rendering:pixelated;${iconStyle(resType)}"></span>`;
+  return `${amount}<span style="display:inline-block;width:12px;height:12px;vertical-align:middle;margin:0 2px 2px 0;border-radius:2px;background-size:contain;background-repeat:no-repeat;background-position:center;image-rendering:pixelated;${iconStyle(resType)}"></span>`;
 }
 
 const BUILDING_ICONS = { mine: '⛏', furnace: '🔥', lab: '🧪', cutter: '✂️', assembler: '⚙️', chemplant: '🧪', storage: '📦', turret: '🎯', conveyor: '↔️', splitter: '↔️', underground: '⬇️', radar: '📡', inserter: '🦾' };
@@ -317,6 +317,8 @@ function updateGhostPanel() {
 
 export function updateModeBadge() { updateGhostPanel(); }
 
+// ==================== BUILD PANEL ====================
+
 const BUILD_TABS = [{ id: 'industry', name: '🏭 Индустрия' }, { id: 'military', name: '⚔️ Военная' }, { id: 'energy', name: '⚡ Энергетика' }];
 let activeBuildTab = 'industry';
 
@@ -329,13 +331,50 @@ function canAffordTurret() { return inventory[RES.CORPS] >= TURRET_CORPS_COST &&
 function canAffordRadar() { return inventory[RES.CIRCUIT] >= RADAR_COST.circuit && inventory[RES.CORPS] >= RADAR_COST.corps && inventory[RES.PLATE_IRON] >= RADAR_COST.plate_iron; }
 function canAffordInserter() { return inventory[RES.IRON] >= INSERTER_COST.iron && inventory[RES.GEAR] >= INSERTER_COST.gear && inventory[RES.PLATE_IRON] >= INSERTER_COST.plate_iron; }
 
+function getBuildingSpriteStyle(type) {
+  const img = buildingImages[type];
+  if (isReady(img)) return `background-image:url('${img.src}'); background-size:contain; background-repeat:no-repeat; background-position:center bottom;`;
+  return `display:flex; align-items:center; justify-content:center; font-size:24px;`;
+}
+
 function openBuildPanel() { openModal('🏗️ Постройки'); renderBuildPanel(); }
 
+function renderBuildCard(type, name, costHtmlStr, isOk, countStr = '') {
+  const icon = BUILDING_ICONS[type] || '?';
+  const spriteStyle = getBuildingSpriteStyle(type);
+  
+  return `<div class="build-card ${isOk ? '' : 'disabled'}" data-type="${type}">
+    <div class="build-card-img" style="${spriteStyle}">${spriteStyle.includes('font-size') ? icon : ''}</div>
+    <div class="build-card-info">
+      <div class="build-card-name">${name}</div>
+      ${countStr ? `<div class="build-card-count">${countStr}</div>` : ''}
+      <div class="build-card-cost">${costHtmlStr}</div>
+    </div>
+  </div>`;
+}
+
 function renderBuildPanel() {
-  let html = `<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:6px;"><style>button[data-btab]{flex-shrink:0;padding:6px 12px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}</style>`;
+  // Внедряем стили для сетки прямо в HTML
+  let html = `<style>
+    .build-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+    @media (max-width: 360px) { .build-grid { grid-template-columns: repeat(2, 1fr); } }
+    .build-card { background: #222; border: 2px solid #444; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; cursor: pointer; transition: transform 0.1s, border-color 0.1s; }
+    .build-card:active { transform: scale(0.96); }
+    .build-card:not(.disabled):hover { border-color: #7fbf7f; }
+    .build-card.disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
+    .build-card-img { height: 50px; background-color: #1a1a1a; border-bottom: 1px solid #333; }
+    .build-card-info { padding: 4px 6px; display: flex; flex-direction: column; gap: 2px; }
+    .build-card-name { font-size: 11px; font-weight: bold; color: #fff; line-height: 1.1; }
+    .build-card-count { font-size: 9px; color: #888; }
+    .build-card-cost { font-size: 10px; color: #c8a040; display: flex; flex-wrap: wrap; gap: 2px; margin-top: 2px; }
+    .build-group-title { font-size: 13px; font-weight: bold; color: #aaa; margin: 12px 0 6px 4px; }
+  </style>`;
+
+  // Вкладки
+  html += `<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:8px;">`;
   for (const tab of BUILD_TABS) {
     const isActive = tab.id === activeBuildTab;
-    html += `<button data-btab="${tab.id}" style="border:2px solid ${isActive ? '#c8a040' : '#444'};background:${isActive ? '#3a3020' : '#2a2a2a'};color:${isActive ? '#ffd700' : '#aaa'};">${tab.name}</button>`;
+    html += `<button data-btab="${tab.id}" style="flex-shrink:0;padding:6px 12px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;border:2px solid ${isActive ? '#c8a040' : '#444'};background:${isActive ? '#3a3020' : '#2a2a2a'};color:${isActive ? '#ffd700' : '#aaa'};">${tab.name}</button>`;
   }
   html += `</div>`;
 
@@ -346,47 +385,56 @@ function renderBuildPanel() {
     const assemblerCount = countBuildings('assembler'), chemplantCount = countBuildings('chemplant');
     const storageCount = countBuildings('storage'), radarCount = countBuildings('radar'), inserterCount = countBuildings('inserter');
 
-    const mineOk = mineCount < state.LIMITS.mine && iron >= MINE_COST;
-    const furnaceOk = furnaceCount < state.LIMITS.furnace && iron >= FURNACE_COST;
-    const labOk = labCount < state.LIMITS.lab && canAffordLab();
-    const cutterOk = isBuildingUnlocked('cutter') && cutterCount < state.LIMITS.cutter && canAffordCutter();
-    const assemblerOk = isBuildingUnlocked('assembler') && assemblerCount < state.LIMITS.assembler && canAffordAssembler();
-    const chemplantOk = isBuildingUnlocked('chemplant') && chemplantCount < state.LIMITS.chemplant && canAffordChemplant();
-    const storageOk = isBuildingUnlocked('storage') && storageCount < state.LIMITS.storage && canAffordStorage();
-    const splitterOk = isBuildingUnlocked('splitter') && inventory[RES.IRON] >= SPLITTER_COST.iron && inventory[RES.PLATE_IRON] >= SPLITTER_COST.plate_iron;
-    const undergroundOk = isBuildingUnlocked('underground') && inventory[RES.IRON] >= UNDERGROUND_COST.iron;
-    const radarOk = radarCount < state.LIMITS.radar && canAffordRadar();
-    const inserterOk = inserterCount < state.LIMITS.inserter && canAffordInserter();
+    // --- ГРУППА 1: Добыча и плавка ---
+    html += `<div class="build-group-title">⛏ Добыча и плавка</div><div class="build-grid">`;
+    html += renderBuildCard('mine', 'Угольный бур', costHtml(MINE_COST, RES.IRON), mineCount < state.LIMITS.mine && iron >= MINE_COST, `${mineCount}/${state.LIMITS.mine}`);
+    html += renderBuildCard('furnace', 'Угольная печь', costHtml(FURNACE_COST, RES.IRON), furnaceCount < state.LIMITS.furnace && iron >= FURNACE_COST, `${furnaceCount}/${state.LIMITS.furnace}`);
+    html += `</div>`;
 
-    html += `
-      <button class="option-btn ${mineOk ? '' : 'disabled'}" data-type="mine" ${mineOk ? '' : 'disabled'}><span class="opt-icon">⛏</span><span class="opt-label">Угольный бур <span style="color:#888;font-size:11px;">(${mineCount}/${state.LIMITS.mine})</span></span><span class="opt-cost ${iron >= MINE_COST ? '' : 'disabled'}">${costHtml(MINE_COST, RES.IRON)}</span></button>
-      <button class="option-btn ${furnaceOk ? '' : 'disabled'}" data-type="furnace" ${furnaceOk ? '' : 'disabled'}><span class="opt-icon">🔥</span><span class="opt-label">Угольная печь <span style="color:#888;font-size:11px;">(${furnaceCount}/${state.LIMITS.furnace})</span></span><span class="opt-cost ${iron >= FURNACE_COST ? '' : 'disabled'}">${costHtml(FURNACE_COST, RES.IRON)}</span></button>
-      <button class="option-btn ${labOk ? '' : 'disabled'}" data-type="lab" ${labOk ? '' : 'disabled'}><span class="opt-icon">🧪</span><span class="opt-label">Лаборатория <span style="color:#888;font-size:11px;">(${labCount}/${state.LIMITS.lab})</span></span><span class="opt-cost ${canAffordLab() ? '' : 'disabled'}">${costHtml(LAB_IRON_COST, RES.PLATE_IRON)} + ${costHtml(LAB_COPPER_COST, RES.PLATE_COPPER)}</span></button>
-      ${isBuildingUnlocked('cutter') ? `<button class="option-btn ${cutterOk ? '' : 'disabled'}" data-type="cutter" ${cutterOk ? '' : 'disabled'}><span class="opt-icon">✂️</span><span class="opt-label">Резак <span style="color:#888;font-size:11px;">(${cutterCount}/${state.LIMITS.cutter})</span></span><span class="opt-cost ${canAffordCutter() ? '' : 'disabled'}">${costHtml(CUTTER_IRON_COST, RES.PLATE_IRON)} + ${costHtml(CUTTER_COPPER_COST, RES.PLATE_COPPER)}</span></button>` : ''}
-      ${isBuildingUnlocked('assembler') ? `<button class="option-btn ${assemblerOk ? '' : 'disabled'}" data-type="assembler" ${assemblerOk ? '' : 'disabled'}><span class="opt-icon">⚙️</span><span class="opt-label">Сборщик <span style="color:#888;font-size:11px;">(${assemblerCount}/${state.LIMITS.assembler})</span></span><span class="opt-cost ${canAffordAssembler() ? '' : 'disabled'}">${costHtml(ASSEMBLER_IRON_COST, RES.PLATE_IRON)} + ${costHtml(ASSEMBLER_COPPER_COST, RES.PLATE_COPPER)}</span></button>` : ''}
-      ${isBuildingUnlocked('chemplant') ? `<button class="option-btn ${chemplantOk ? '' : 'disabled'}" data-type="chemplant" ${chemplantOk ? '' : 'disabled'}><span class="opt-icon">🧪</span><span class="opt-label">Химзавод <span style="color:#888;font-size:11px;">(${chemplantCount}/${state.LIMITS.chemplant})</span></span><span class="opt-cost ${canAffordChemplant() ? '' : 'disabled'}">${costHtml(CHEMPLANT_IRON_COST, RES.PLATE_IRON)} + ${costHtml(CHEMPLANT_COPPER_COST, RES.PLATE_COPPER)} + ${costHtml(CHEMPLANT_WIRE_COST, RES.WIRE)}</span></button>` : ''}
-      ${isBuildingUnlocked('storage') ? `<button class="option-btn ${storageOk ? '' : 'disabled'}" data-type="storage" ${storageOk ? '' : 'disabled'}><span class="opt-icon">📦</span><span class="opt-label">Склад <span style="color:#888;font-size:11px;">(${storageCount}/${state.LIMITS.storage})</span></span><span class="opt-cost ${canAffordStorage() ? '' : 'disabled'}">${costHtml(STORAGE_IRON_COST, RES.PLATE_IRON)} + ${costHtml(STORAGE_COPPER_COST, RES.PLATE_COPPER)}</span></button>` : ''}
-      
-      <button class="option-btn ${radarOk ? '' : 'disabled'}" data-type="radar" ${radarOk ? '' : 'disabled'}><span class="opt-icon">📡</span><span class="opt-label">Радар <span style="color:#888;font-size:11px;">(${radarCount}/${state.LIMITS.radar})</span></span><span class="opt-cost ${canAffordRadar() ? '' : 'disabled'}">${costHtml(RADAR_COST.plate_iron, RES.PLATE_IRON)} + ${costHtml(RADAR_COST.corps, RES.CORPS)} + ${costHtml(RADAR_COST.circuit, RES.CIRCUIT)}</span></button>
+    // --- ГРУППА 2: Переработка ---
+    html += `<div class="build-group-title">⚙️ Переработка</div><div class="build-grid">`;
+    html += renderBuildCard('lab', 'Лаборатория', `${costHtml(LAB_IRON_COST, RES.PLATE_IRON)}+${costHtml(LAB_COPPER_COST, RES.PLATE_COPPER)}`, labCount < state.LIMITS.lab && canAffordLab(), `${labCount}/${state.LIMITS.lab}`);
+    if (isBuildingUnlocked('cutter')) html += renderBuildCard('cutter', 'Резак', `${costHtml(CUTTER_IRON_COST, RES.PLATE_IRON)}+${costHtml(CUTTER_COPPER_COST, RES.PLATE_COPPER)}`, cutterCount < state.LIMITS.cutter && canAffordCutter(), `${cutterCount}/${state.LIMITS.cutter}`);
+    if (isBuildingUnlocked('assembler')) html += renderBuildCard('assembler', 'Сборщик', `${costHtml(ASSEMBLER_IRON_COST, RES.PLATE_IRON)}+${costHtml(ASSEMBLER_COPPER_COST, RES.PLATE_COPPER)}`, assemblerCount < state.LIMITS.assembler && canAffordAssembler(), `${assemblerCount}/${state.LIMITS.assembler}`);
+    if (isBuildingUnlocked('chemplant')) html += renderBuildCard('chemplant', 'Химзавод', `${costHtml(CHEMPLANT_IRON_COST, RES.PLATE_IRON)}+${costHtml(CHEMPLANT_COPPER_COST, RES.PLATE_COPPER)}+${costHtml(CHEMPLANT_WIRE_COST, RES.WIRE)}`, chemplantCount < state.LIMITS.chemplant && canAffordChemplant(), `${chemplantCount}/${state.LIMITS.chemplant}`);
+    if (isBuildingUnlocked('storage')) html += renderBuildCard('storage', 'Склад', `${costHtml(STORAGE_IRON_COST, RES.PLATE_IRON)}+${costHtml(STORAGE_COPPER_COST, RES.PLATE_COPPER)}`, storageCount < state.LIMITS.storage && canAffordStorage(), `${storageCount}/${state.LIMITS.storage}`);
+    html += `</div>`;
 
-      <div style="margin-top:10px; margin-bottom:4px; font-size:12px; color:#888;">Логистика:</div>
-      <button class="option-btn" data-type="conveyor"><span class="opt-icon">↔️</span><span class="opt-label">Конвейер <span style="color:#7fbf7f;font-size:10px;">(drag)</span></span><span class="opt-cost ${iron >= CONVEYOR_COST ? '' : 'disabled'}">${costHtml(CONVEYOR_COST, RES.IRON)}</span></button>
-      <button class="option-btn ${inserterOk ? '' : 'disabled'}" data-type="inserter" ${inserterOk ? '' : 'disabled'}><span class="opt-icon">🦾</span><span class="opt-label">Манипулятор <span style="color:#888;font-size:11px;">(${inserterCount}/${state.LIMITS.inserter})</span></span><span class="opt-cost ${inserterOk ? '' : 'disabled'}">${costHtml(INSERTER_COST.iron, RES.IRON)} + ${costHtml(INSERTER_COST.gear, RES.GEAR)} + ${costHtml(INSERTER_COST.plate_iron, RES.PLATE_IRON)}</span></button>
-      ${isBuildingUnlocked('splitter') ? `<button class="option-btn ${splitterOk ? '' : 'disabled'}" data-type="splitter" ${splitterOk ? '' : 'disabled'}><span class="opt-icon">↔️</span><span class="opt-label">Распределитель</span><span class="opt-cost ${splitterOk ? '' : 'disabled'}">${costHtml(SPLITTER_COST.iron, RES.IRON)} + ${costHtml(SPLITTER_COST.plate_iron, RES.PLATE_IRON)}</span></button>` : ''}
-      ${isBuildingUnlocked('underground') ? `<button class="option-btn ${undergroundOk ? '' : 'disabled'}" data-type="underground" ${undergroundOk ? '' : 'disabled'}><span class="opt-icon">⬇️</span><span class="opt-label">Подземный <span style="color:#7fbf7f;font-size:10px;">(drag)</span></span><span class="opt-cost ${undergroundOk ? '' : 'disabled'}">${costHtml(UNDERGROUND_COST.iron, RES.IRON)}</span></button>` : ''}
-    `;
+    // --- ГРУППА 3: Логистика ---
+    html += `<div class="build-group-title">↔️ Логистика</div><div class="build-grid">`;
+    html += renderBuildCard('conveyor', 'Конвейер', costHtml(CONVEYOR_COST, RES.IRON), iron >= CONVEYOR_COST);
+    html += renderBuildCard('inserter', 'Манипулятор', `${costHtml(INSERTER_COST.iron, RES.IRON)}+${costHtml(INSERTER_COST.gear, RES.GEAR)}`, inserterCount < state.LIMITS.inserter && canAffordInserter(), `${inserterCount}/${state.LIMITS.inserter}`);
+    if (isBuildingUnlocked('splitter')) html += renderBuildCard('splitter', 'Распределитель', `${costHtml(SPLITTER_COST.iron, RES.IRON)}+${costHtml(SPLITTER_COST.plate_iron, RES.PLATE_IRON)}`, iron >= SPLITTER_COST.iron && inventory[RES.PLATE_IRON] >= SPLITTER_COST.plate_iron);
+    if (isBuildingUnlocked('underground')) html += renderBuildCard('underground', 'Подземный', costHtml(UNDERGROUND_COST.iron, RES.IRON), iron >= UNDERGROUND_COST.iron);
+    html += `</div>`;
+
+    // --- ГРУППА 4: Разное ---
+    html += `<div class="build-group-title">📡 Разное</div><div class="build-grid">`;
+    html += renderBuildCard('radar', 'Радар', `${costHtml(RADAR_COST.plate_iron, RES.PLATE_IRON)}+${costHtml(RADAR_COST.corps, RES.CORPS)}`, radarCount < state.LIMITS.radar && canAffordRadar(), `${radarCount}/${state.LIMITS.radar}`);
+    html += `</div>`;
+
   } else if (activeBuildTab === 'military') {
     const turretCount = countBuildings('turret'), turretUnlocked = isBuildingUnlocked('turret');
     const turretOk = turretUnlocked && turretCount < state.LIMITS.turret && canAffordTurret();
-    if (!turretUnlocked) html += `<div style="padding:40px 20px;text-align:center;color:#888;font-size:13px;">Изучи «Турель» в разделе 🧬</div>`;
-    else html += `<button class="option-btn ${turretOk ? '' : 'disabled'}" data-type="turret" ${turretOk ? '' : 'disabled'}><span class="opt-icon">🎯</span><span class="opt-label">Турель <span style="color:#888;font-size:11px;">(${turretCount}/${state.LIMITS.turret})</span></span><span class="opt-cost ${canAffordTurret() ? '' : 'disabled'}">${costHtml(TURRET_CORPS_COST, RES.CORPS)} + ${costHtml(TURRET_ENGINE_COST, RES.ENGINE)} + ${costHtml(TURRET_CIRCUIT_COST, RES.CIRCUIT)}</span></button>`;
-  } else html += `<div style="padding:40px 20px;text-align:center;color:#888;font-size:13px;">Генераторы и провода — скоро</div>`;
+    
+    if (!turretUnlocked) {
+      html += `<div style="padding:40px 20px;text-align:center;color:#888;font-size:13px;">Изучи «Пулемётную турель» в разделе 🧬</div>`;
+    } else {
+      html += `<div class="build-group-title">🎯 Оборона</div><div class="build-grid">`;
+      html += renderBuildCard('turret', 'Турель', `${costHtml(TURRET_CORPS_COST, RES.CORPS)}+${costHtml(TURRET_ENGINE_COST, RES.ENGINE)}+${costHtml(TURRET_CIRCUIT_COST, RES.CIRCUIT)}`, turretOk, `${turretCount}/${state.LIMITS.turret}`);
+      html += `</div>`;
+    }
+  } else {
+    html += `<div style="padding:40px 20px;text-align:center;color:#888;font-size:13px;">Генераторы и провода — скоро</div>`;
+  }
 
   panelContent.innerHTML = html;
+
+  // Обработчики кликов
   panelContent.querySelectorAll('[data-btab]').forEach(btn => btn.addEventListener('click', () => { activeBuildTab = btn.dataset.btab; renderBuildPanel(); }));
   panelContent.querySelectorAll('[data-type]').forEach(btn => {
     btn.addEventListener('click', () => {
-      if (btn.disabled) return;
+      if (btn.classList.contains('disabled')) return;
       state.selectedBuilding = btn.dataset.type;
       state.ghostPos = { tx: CORE.x + 3, ty: CORE.y };
       closeModal(); updateGhostPanel();
@@ -482,7 +530,6 @@ export function closeResearchPanel() { if (researchScreen) researchScreen.classL
 function renderResearchPanel() {
   uiLastStudyTechId = state.activeStudyTechId;
   
-  // Отрисовка вкладок
   researchTabs.innerHTML = '';
   for (const cat of CATEGORIES) {
     const isActive = cat.id === activeResearchCat;
@@ -653,7 +700,6 @@ function renderResearchPanel() {
 
         const midY = y1 + (y2 - y1) * 0.5;
         const strokeColor = isTechOwned(reqId) ? '#5a7a5a' : '#333';
-        // ОРТОГОНАЛЬНЫЕ ЛИНИИ (вниз, вбок, вниз)
         allSvgLines += `<path d="M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}" stroke="${strokeColor}" stroke-width="2" fill="none" stroke-linejoin="round" />`;
       }
     }
@@ -661,7 +707,6 @@ function renderResearchPanel() {
   }, 0);
 }
 
-// Простая карточка, БЕЗ кнопок
 function renderTechCardHtml(t) {
   const owned = isTechOwned(t.id), locked = t.requires.some(r => !isTechOwned(r));
   const isActive = state.activeStudyTechId === t.id, progressPct = getTechProgressPct(t.id);
@@ -682,7 +727,6 @@ function renderTechCardHtml(t) {
   </div>`;
 }
 
-// Всплывающее окно с деталями
 function showTechModal(t) {
   let modalEl = document.getElementById('tech-detail-modal');
   if (modalEl) modalEl.remove();
@@ -763,7 +807,7 @@ function closeTechModal() {
   if (el) el.remove();
 }
 
-// ==================== ОСТАЛЬНОЙ КОД (СТАТИСТИКА, ЗДАНИЯ И Т.Д.) ====================
+// ==================== СТАТИСТИКА И НАСТРОЙКИ ====================
 
 const STATS_TABS = [
   { id: 'resources', name: '📦 Ресурсы' },
