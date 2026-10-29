@@ -403,6 +403,7 @@ const researchSvg = document.getElementById('research-svg');
 const researchNodes = document.getElementById('research-nodes');
 
 let cam = { x: 0, y: 0, scale: 1 }, isDragging = false, startX = 0, startY = 0, initialCamX = 0, initialCamY = 0, uiLastStudyTechId = null;
+let researchFirstOpen = true;
 if (researchClose) researchClose.addEventListener('click', closeResearchPanel);
 function applyCamera() { researchWorld.style.transform = `translate(${cam.x}px, ${cam.y}px) scale(${cam.scale})`; }
 function resetCamera() { cam = { x: 0, y: 0, scale: 1 }; applyCamera(); }
@@ -464,7 +465,16 @@ function endPointer(e) {
 researchViewport.addEventListener('pointerup', endPointer);
 researchViewport.addEventListener('pointercancel', endPointer);
 
-export function openResearchPanel() { closeModal(); state.panel = 'research'; if (researchScreen) researchScreen.classList.remove('hidden'); renderResearchPanel(); }
+export function openResearchPanel() { 
+  closeModal(); 
+  state.panel = 'research'; 
+  if (researchScreen) researchScreen.classList.remove('hidden'); 
+  if (researchFirstOpen) {
+    cam = { x: 0, y: 0, scale: 1 };
+  }
+  renderResearchPanel(); 
+  researchFirstOpen = false;
+}
 export function closeResearchPanel() { if (researchScreen) researchScreen.classList.add('hidden'); state.panel = null; }
 
 function renderResearchPanel() {
@@ -477,16 +487,15 @@ function renderResearchPanel() {
   let maxTotalY = 0;
   
   const globalPositions = {};
-  let currentColumnStartX = 100; // Отступ слева
+  let currentColumnStartX = 100;
 
   for (const cat of CATEGORIES) {
     const catTechs = TECHNOLOGIES.filter(t => t.cat === cat.id && t.era === 1);
     
-    // Отрисовка заголовка колонки
     const header = document.createElement('div');
     header.textContent = cat.name;
     header.style.position = 'absolute';
-    header.style.top = '140px'; // Опустили ниже, чтобы не мешать надписи
+    header.style.top = '140px';
     header.style.fontSize = '26px'; 
     header.style.fontWeight = '900';
     header.style.color = '#ffd700';
@@ -498,7 +507,7 @@ function renderResearchPanel() {
 
     if (catTechs.length === 0) {
       header.style.left = (currentColumnStartX + NODE_W / 2) + 'px';
-      currentColumnStartX += 350; // Широкий отступ для пустых
+      currentColumnStartX += 350;
       continue;
     }
 
@@ -521,7 +530,7 @@ function renderResearchPanel() {
 
     function layoutNode(id, depth, startX) {
       const kids = children[id] || [];
-      globalPositions[id] = { y: 220 + depth * (NODE_H + GAP_Y) }; // Опустили карточки
+      globalPositions[id] = { y: 220 + depth * (NODE_H + GAP_Y) };
       
       if (kids.length === 0) {
         globalPositions[id].x = startX;
@@ -546,7 +555,7 @@ function renderResearchPanel() {
 
     for (const rid of roots) {
       const width = layoutNode(rid, 0, rootStartX);
-      rootStartX += width + 60; 
+      rootStartX += width + 80; // ВЕРНУЛИ НОРМАЛЬНЫЙ ОТСТУП
     }
     
     for (const id in globalPositions) {
@@ -560,7 +569,6 @@ function renderResearchPanel() {
     const colCenterX = (colMinX + colMaxX) / 2;
     header.style.left = colCenterX + 'px';
 
-    // Огромный отступ между колонками (350px), чтобы они визуально не сливались
     currentColumnStartX = colMaxX + 350;
   }
 
@@ -572,11 +580,10 @@ function renderResearchPanel() {
   researchNodes.style.width = totalWidth + 'px';
   researchNodes.style.height = totalHeight + 'px';
 
-  // Огромная надпись на фоне СВЕРХУ
   const bgText = document.createElement('div');
   bgText.textContent = 'I ЭПОХА';
   bgText.style.position = 'absolute';
-  bgText.style.top = '-20px'; // Самый верх
+  bgText.style.top = '-20px'; 
   bgText.style.left = (totalWidth / 2) + 'px';
   bgText.style.transform = 'translateX(-50%)';
   bgText.style.fontSize = '140px'; 
@@ -587,7 +594,6 @@ function renderResearchPanel() {
   bgText.style.zIndex = '0';
   researchNodes.appendChild(bgText);
 
-  // Карточки
   const cardElements = {};
   for (const id in globalPositions) {
     const t = TECHNOLOGIES.find(x => x.id === id);
@@ -603,7 +609,15 @@ function renderResearchPanel() {
     cardElements[id] = cardDiv;
   }
 
-  // Линии (только внутри одной колонки)
+  // Центрируем камеру на первой доступной карточке при первом открытии
+  if (researchFirstOpen && globalPositions['unlock_cutter']) {
+    const startNode = globalPositions['unlock_cutter'];
+    const vpRect = researchViewport.getBoundingClientRect();
+    cam.x = -(startNode.x - vpRect.width / 2 + NODE_W / 2);
+    cam.y = -(startNode.y - vpRect.height / 3);
+    applyCamera();
+  }
+
   setTimeout(() => {
     let allSvgLines = '';
     for (const id in globalPositions) {
@@ -612,7 +626,7 @@ function renderResearchPanel() {
 
       for (const reqId of (t.requires || [])) {
         const reqT = TECHNOLOGIES.find(x => x.id === reqId);
-        if (!reqT || reqT.cat !== t.cat) continue; // ТОЛЬКО ВНУТРИ КОЛОНКИ
+        if (!reqT || reqT.cat !== t.cat) continue;
 
         const parentEl = cardElements[reqId];
         const childEl = cardElements[id];
@@ -642,7 +656,7 @@ function renderTechCardHtml(t) {
   
   let statusText, statusColor;
   if (owned) { statusText = '✓'; statusColor = '#7fbf7f'; }
-  else if (t.isStub) { statusText = '⚙️'; statusColor = '#777'; } // Серый значок для заглушек
+  else if (t.isStub) { statusText = '⚙️'; statusColor = '#777'; }
   else if (locked) { statusText = '🔒'; statusColor = '#888'; }
   else if (isActive) { statusText = progressPct.toFixed(1) + '%'; statusColor = '#7fbfff'; }
   else if (progressPct > 0) { statusText = progressPct.toFixed(0) + '%'; statusColor = '#aaa'; }
@@ -671,6 +685,7 @@ function renderTechCardHtml(t) {
     <div class="tech-head"><div class="tech-name">${t.name}</div><div class="tech-status" style="color:${statusColor};">${statusText}</div></div>
     <div class="tech-desc">${t.desc}</div>${reqHtml}${barHtml}${btnHtml}</div>`;
 }
+
 const STATS_TABS = [
   { id: 'resources', name: '📦 Ресурсы' },
   { id: 'energy', name: '⚡ Электричество' },
