@@ -411,7 +411,7 @@ function resetCamera() { cam = { x: 0, y: 0, scale: 1 }; applyCamera(); }
 researchViewport.addEventListener('wheel', (e) => {
   e.preventDefault();
   const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-  const newScale = Math.max(0.4, Math.min(2, cam.scale * zoomFactor));
+  const newScale = Math.max(0.15, Math.min(2, cam.scale * zoomFactor)); // Мин. зум 0.15
   const rect = researchViewport.getBoundingClientRect();
   const mouseX = e.clientX - rect.left, mouseY = e.clientY - rect.top;
   cam.x = mouseX - (mouseX - cam.x) * (newScale / cam.scale);
@@ -444,7 +444,7 @@ researchViewport.addEventListener('pointermove', (e) => {
   } else if (activePointers.size === 2) {
     const pts = [...activePointers.values()];
     const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-    const newScale = Math.max(0.4, Math.min(2, initialScale * (dist / pinchStartDist)));
+    const newScale = Math.max(0.15, Math.min(2, initialScale * (dist / pinchStartDist)));
     const midX = (pts[0].x + pts[1].x) / 2, midY = (pts[0].y + pts[1].y) / 2;
     const rect = researchViewport.getBoundingClientRect();
     const localMidX = midX - rect.left, localMidY = midY - rect.top;
@@ -483,11 +483,12 @@ function renderResearchPanel() {
   researchNodes.innerHTML = ''; 
   researchSvg.innerHTML = '';
   
-  const NODE_W = 180, NODE_H = 140, GAP_Y = 60, GAP_X = 40;
+  // СЖАТЫЕ РАЗМЕРЫ
+  const NODE_W = 140, NODE_H = 80, GAP_Y = 30, GAP_X = 15;
   let maxTotalY = 0;
   
   const globalPositions = {};
-  let currentColumnStartX = 100;
+  let currentColumnStartX = 50;
 
   for (const cat of CATEGORIES) {
     const catTechs = TECHNOLOGIES.filter(t => t.cat === cat.id && t.era === 1);
@@ -495,8 +496,8 @@ function renderResearchPanel() {
     const header = document.createElement('div');
     header.textContent = cat.name;
     header.style.position = 'absolute';
-    header.style.top = '140px';
-    header.style.fontSize = '26px'; 
+    header.style.top = '90px';
+    header.style.fontSize = '20px'; 
     header.style.fontWeight = '900';
     header.style.color = '#ffd700';
     header.style.zIndex = '2';
@@ -507,7 +508,7 @@ function renderResearchPanel() {
 
     if (catTechs.length === 0) {
       header.style.left = (currentColumnStartX + NODE_W / 2) + 'px';
-      currentColumnStartX += 350;
+      currentColumnStartX += 200;
       continue;
     }
 
@@ -530,7 +531,7 @@ function renderResearchPanel() {
 
     function layoutNode(id, depth, startX) {
       const kids = children[id] || [];
-      globalPositions[id] = { y: 220 + depth * (NODE_H + GAP_Y) };
+      globalPositions[id] = { y: 150 + depth * (NODE_H + GAP_Y) };
       
       if (kids.length === 0) {
         globalPositions[id].x = startX;
@@ -555,7 +556,7 @@ function renderResearchPanel() {
 
     for (const rid of roots) {
       const width = layoutNode(rid, 0, rootStartX);
-      rootStartX += width + 80; // ВЕРНУЛИ НОРМАЛЬНЫЙ ОТСТУП
+      rootStartX += width + 40; // Меньше отступ
     }
     
     for (const id in globalPositions) {
@@ -569,11 +570,11 @@ function renderResearchPanel() {
     const colCenterX = (colMinX + colMaxX) / 2;
     header.style.left = colCenterX + 'px';
 
-    currentColumnStartX = colMaxX + 350;
+    currentColumnStartX = colMaxX + 150; // Меньше отступ между категориями
   }
 
   const totalWidth = currentColumnStartX;
-  const totalHeight = maxTotalY + 200;
+  const totalHeight = maxTotalY + 100;
 
   researchSvg.style.width = totalWidth + 'px';
   researchSvg.style.height = totalHeight + 'px';
@@ -583,10 +584,10 @@ function renderResearchPanel() {
   const bgText = document.createElement('div');
   bgText.textContent = 'I ЭПОХА';
   bgText.style.position = 'absolute';
-  bgText.style.top = '-20px'; 
+  bgText.style.top = '-10px'; 
   bgText.style.left = (totalWidth / 2) + 'px';
   bgText.style.transform = 'translateX(-50%)';
-  bgText.style.fontSize = '140px'; 
+  bgText.style.fontSize = '100px'; 
   bgText.style.fontWeight = '900';
   bgText.style.color = 'rgba(255, 255, 255, 0.05)'; 
   bgText.style.pointerEvents = 'none';
@@ -609,7 +610,6 @@ function renderResearchPanel() {
     cardElements[id] = cardDiv;
   }
 
-  // Центрируем камеру на первой доступной карточке при первом открытии
   if (researchFirstOpen && globalPositions['unlock_cutter']) {
     const startNode = globalPositions['unlock_cutter'];
     const vpRect = researchViewport.getBoundingClientRect();
@@ -640,7 +640,7 @@ function renderResearchPanel() {
         const ctrl1Y = y1 + (y2 - y1) * 0.4;
         const ctrl2Y = y2 - (y2 - y1) * 0.4;
         const strokeColor = isTechOwned(reqId) ? '#5a7a5a' : '#333';
-        allSvgLines += `<path d="M ${x1} ${y1} C ${x1} ${ctrl1Y}, ${x2} ${ctrl2Y}, ${x2} ${y2}" stroke="${strokeColor}" stroke-width="3" fill="none" />`;
+        allSvgLines += `<path d="M ${x1} ${y1} C ${x1} ${ctrl1Y}, ${x2} ${ctrl2Y}, ${x2} ${y2}" stroke="${strokeColor}" stroke-width="2" fill="none" />`;
       }
     }
     researchSvg.innerHTML = allSvgLines;
@@ -658,32 +658,33 @@ function renderTechCardHtml(t) {
   if (owned) { statusText = '✓'; statusColor = '#7fbf7f'; }
   else if (t.isStub) { statusText = '⚙️'; statusColor = '#777'; }
   else if (locked) { statusText = '🔒'; statusColor = '#888'; }
-  else if (isActive) { statusText = progressPct.toFixed(1) + '%'; statusColor = '#7fbfff'; }
+  else if (isActive) { statusText = progressPct.toFixed(0) + '%'; statusColor = '#7fbfff'; }
   else if (progressPct > 0) { statusText = progressPct.toFixed(0) + '%'; statusColor = '#aaa'; }
   else { statusText = `${t.studyPercent * 2}🧬`; statusColor = '#aaa'; }
 
   let barHtml = '';
   if (!owned && !locked && !t.isStub) {
-    barHtml = `<div style="height:4px;background:#333;border-radius:3px;margin-top:8px;overflow:hidden;"><div class="tech-progress-bar" style="height:100%;background:${isActive ? '#4a8aff' : '#555'};width:${progressPct}%;transition:width 0.3s;"></div></div>`;
+    barHtml = `<div style="height:3px;background:#333;border-radius:2px;margin-top:4px;overflow:hidden;"><div class="tech-progress-bar" style="height:100%;background:${isActive ? '#4a8aff' : '#555'};width:${progressPct}%;transition:width 0.3s;"></div></div>`;
   }
 
   let btnHtml = '';
   if (t.isStub) {
-    btnHtml = `<button class="option-btn" disabled style="margin-top:8px;padding:5px 8px;font-size:11px;justify-content:center;width:100%;opacity:0.5;cursor:not-allowed;border-color:#444;background:#1a1a1a;color:#888;">В РАЗРАБОТКЕ</button>`;
+    btnHtml = `<button class="option-btn" disabled style="margin-top:4px;padding:2px;font-size:9px;justify-content:center;width:100%;opacity:0.5;cursor:not-allowed;border-color:#444;background:#1a1a1a;color:#888;">В РАЗРАБОТКЕ</button>`;
   } else if (!owned && !locked) {
-    if (isActive) btnHtml = `<button class="option-btn" data-cancel-study="1" style="margin-top:8px;padding:5px 8px;font-size:11px;justify-content:center;width:100%;background:#7a3a3a;border-color:#a04040;color:#fff;">Отменить</button>`;
-    else btnHtml = `<button class="option-btn" data-start-study="${t.id}" style="margin-top:8px;padding:5px 8px;font-size:11px;justify-content:center;width:100%;">Изучать</button>`;
+    if (isActive) btnHtml = `<button class="option-btn" data-cancel-study="1" style="margin-top:4px;padding:2px;font-size:9px;justify-content:center;width:100%;background:#7a3a3a;border-color:#a04040;color:#fff;">Отменить</button>`;
+    else btnHtml = `<button class="option-btn" data-start-study="${t.id}" style="margin-top:4px;padding:2px;font-size:9px;justify-content:center;width:100%;">Изучать</button>`;
   }
 
   let reqHtml = '';
   if (locked && t.requires.length > 0) {
     const names = t.requires.map(r => { const rt = TECHNOLOGIES.find(x => x.id === r); return rt ? rt.name : r; });
-    reqHtml = `<div style="font-size:10px;color:#a06060;margin-top:4px;">Требуется: ${names.join(', ')}</div>`;
+    reqHtml = `<div style="font-size:9px;color:#a06060;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Треб: ${names.join(', ')}</div>`;
   }
 
-  return `<div class="tech-card ${owned ? 'owned' : ''} ${locked ? 'locked' : ''} ${isActive ? 'selected' : ''}" style="width:${180}px; ${t.isStub ? 'opacity:0.8; border-color:#444;' : ''}">
-    <div class="tech-head"><div class="tech-name">${t.name}</div><div class="tech-status" style="color:${statusColor};">${statusText}</div></div>
-    <div class="tech-desc">${t.desc}</div>${reqHtml}${barHtml}${btnHtml}</div>`;
+  return `<div class="tech-card ${owned ? 'owned' : ''} ${locked ? 'locked' : ''} ${isActive ? 'selected' : ''}" style="width:${140}px; padding:6px; box-sizing:border-box; ${t.isStub ? 'opacity:0.8; border-color:#444;' : ''}">
+    <div class="tech-head" style="margin-bottom:2px;"><div class="tech-name" style="font-size:11px; line-height:1.1;">${t.name}</div><div class="tech-status" style="font-size:9px; color:${statusColor}; margin-left:4px;">${statusText}</div></div>
+    <div class="tech-desc" style="font-size:9px; line-height:1.1; margin-bottom:2px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${t.desc}</div>
+    ${reqHtml}${barHtml}${btnHtml}</div>`;
 }
 
 const STATS_TABS = [
@@ -1112,7 +1113,7 @@ export function updateHUD() {
         const statusEl = activeCard.querySelector('.tech-status');
         const barEl = activeCard.querySelector('.tech-progress-bar');
         const pct = getTechProgressPct(state.activeStudyTechId);
-        if (statusEl) statusEl.textContent = pct.toFixed(1) + '%';
+        if (statusEl) statusEl.textContent = pct.toFixed(0) + '%';
         if (barEl) barEl.style.width = pct + '%';
       }
     }
