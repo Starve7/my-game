@@ -354,7 +354,6 @@ function renderBuildCard(type, name, costHtmlStr, isOk, countStr = '') {
 }
 
 function renderBuildPanel() {
-  // Внедряем стили для сетки прямо в HTML
   let html = `<style>
     .build-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
     @media (max-width: 360px) { .build-grid { grid-template-columns: repeat(2, 1fr); } }
@@ -370,7 +369,6 @@ function renderBuildPanel() {
     .build-group-title { font-size: 13px; font-weight: bold; color: #aaa; margin: 12px 0 6px 4px; }
   </style>`;
 
-  // Вкладки
   html += `<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:8px;">`;
   for (const tab of BUILD_TABS) {
     const isActive = tab.id === activeBuildTab;
@@ -385,13 +383,11 @@ function renderBuildPanel() {
     const assemblerCount = countBuildings('assembler'), chemplantCount = countBuildings('chemplant');
     const storageCount = countBuildings('storage'), radarCount = countBuildings('radar'), inserterCount = countBuildings('inserter');
 
-    // --- ГРУППА 1: Добыча и плавка ---
     html += `<div class="build-group-title">⛏ Добыча и плавка</div><div class="build-grid">`;
     html += renderBuildCard('mine', 'Угольный бур', costHtml(MINE_COST, RES.IRON), mineCount < state.LIMITS.mine && iron >= MINE_COST, `${mineCount}/${state.LIMITS.mine}`);
     html += renderBuildCard('furnace', 'Угольная печь', costHtml(FURNACE_COST, RES.IRON), furnaceCount < state.LIMITS.furnace && iron >= FURNACE_COST, `${furnaceCount}/${state.LIMITS.furnace}`);
     html += `</div>`;
 
-    // --- ГРУППА 2: Переработка ---
     html += `<div class="build-group-title">⚙️ Переработка</div><div class="build-grid">`;
     html += renderBuildCard('lab', 'Лаборатория', `${costHtml(LAB_IRON_COST, RES.PLATE_IRON)}+${costHtml(LAB_COPPER_COST, RES.PLATE_COPPER)}`, labCount < state.LIMITS.lab && canAffordLab(), `${labCount}/${state.LIMITS.lab}`);
     if (isBuildingUnlocked('cutter')) html += renderBuildCard('cutter', 'Резак', `${costHtml(CUTTER_IRON_COST, RES.PLATE_IRON)}+${costHtml(CUTTER_COPPER_COST, RES.PLATE_COPPER)}`, cutterCount < state.LIMITS.cutter && canAffordCutter(), `${cutterCount}/${state.LIMITS.cutter}`);
@@ -400,7 +396,6 @@ function renderBuildPanel() {
     if (isBuildingUnlocked('storage')) html += renderBuildCard('storage', 'Склад', `${costHtml(STORAGE_IRON_COST, RES.PLATE_IRON)}+${costHtml(STORAGE_COPPER_COST, RES.PLATE_COPPER)}`, storageCount < state.LIMITS.storage && canAffordStorage(), `${storageCount}/${state.LIMITS.storage}`);
     html += `</div>`;
 
-    // --- ГРУППА 3: Логистика ---
     html += `<div class="build-group-title">↔️ Логистика</div><div class="build-grid">`;
     html += renderBuildCard('conveyor', 'Конвейер', costHtml(CONVEYOR_COST, RES.IRON), iron >= CONVEYOR_COST);
     html += renderBuildCard('inserter', 'Манипулятор', `${costHtml(INSERTER_COST.iron, RES.IRON)}+${costHtml(INSERTER_COST.gear, RES.GEAR)}`, inserterCount < state.LIMITS.inserter && canAffordInserter(), `${inserterCount}/${state.LIMITS.inserter}`);
@@ -408,7 +403,6 @@ function renderBuildPanel() {
     if (isBuildingUnlocked('underground')) html += renderBuildCard('underground', 'Подземный', costHtml(UNDERGROUND_COST.iron, RES.IRON), iron >= UNDERGROUND_COST.iron);
     html += `</div>`;
 
-    // --- ГРУППА 4: Разное ---
     html += `<div class="build-group-title">📡 Разное</div><div class="build-grid">`;
     html += renderBuildCard('radar', 'Радар', `${costHtml(RADAR_COST.plate_iron, RES.PLATE_IRON)}+${costHtml(RADAR_COST.corps, RES.CORPS)}`, radarCount < state.LIMITS.radar && canAffordRadar(), `${radarCount}/${state.LIMITS.radar}`);
     html += `</div>`;
@@ -430,7 +424,6 @@ function renderBuildPanel() {
 
   panelContent.innerHTML = html;
 
-  // Обработчики кликов
   panelContent.querySelectorAll('[data-btab]').forEach(btn => btn.addEventListener('click', () => { activeBuildTab = btn.dataset.btab; renderBuildPanel(); }));
   panelContent.querySelectorAll('[data-type]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -461,7 +454,7 @@ function applyCamera() { researchWorld.style.transform = `translate(${cam.x}px, 
 researchViewport.addEventListener('wheel', (e) => {
   e.preventDefault();
   const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-  const newScale = Math.max(0.2, Math.min(2, cam.scale * zoomFactor));
+  const newScale = Math.max(0.15, Math.min(2, cam.scale * zoomFactor));
   const rect = researchViewport.getBoundingClientRect();
   const mouseX = e.clientX - rect.left, mouseY = e.clientY - rect.top;
   cam.x = mouseX - (mouseX - cam.x) * (newScale / cam.scale);
@@ -494,7 +487,7 @@ researchViewport.addEventListener('pointermove', (e) => {
   } else if (activePointers.size === 2) {
     const pts = [...activePointers.values()];
     const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-    const newScale = Math.max(0.2, Math.min(2, initialScale * (dist / pinchStartDist)));
+    const newScale = Math.max(0.15, Math.min(2, initialScale * (dist / pinchStartDist)));
     const midX = (pts[0].x + pts[1].x) / 2, midY = (pts[0].y + pts[1].y) / 2;
     const rect = researchViewport.getBoundingClientRect();
     const localMidX = midX - rect.left, localMidY = midY - rect.top;
@@ -543,7 +536,8 @@ function renderResearchPanel() {
   researchNodes.innerHTML = ''; 
   researchSvg.innerHTML = '';
   
-  const NODE_W = 160, NODE_H = 90, GAP_Y = 60, GAP_X = 20;
+  // СЖАТЫЕ РАЗМЕРЫ ДЛЯ КОМПАКТНОСТИ
+  const NODE_W = 130, NODE_H = 75, GAP_Y = 40, GAP_X = 12;
   let maxTotalY = 0;
   
   const globalPositions = {};
@@ -609,7 +603,7 @@ function renderResearchPanel() {
 
     for (const rid of roots) {
       const width = layoutNode(rid, 0, rootStartX);
-      rootStartX += width + 40; 
+      rootStartX += width + 30; // УМЕНЬШЕН ОТСТУП МЕЖДУ КОРНЯМИ
     }
     
     for (const id in globalPositions) {
@@ -718,15 +712,17 @@ function renderTechCardHtml(t) {
   else if (isActive) { statusText = progressPct.toFixed(0) + '%'; statusColor = '#7fbfff'; }
   else { statusText = `${t.studyPercent * 2}🧬`; statusColor = '#aaa'; }
 
-  return `<div class="tech-card ${owned ? 'owned' : ''} ${locked ? 'locked' : ''} ${isActive ? 'selected' : ''}" style="width:160px; padding:8px; box-sizing:border-box; cursor:pointer;">
-    <div class="tech-head" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-      <div class="tech-name" style="font-size:12px; font-weight:bold; line-height:1.2;">${t.name}</div>
-      <div class="tech-status" style="font-size:11px; color:${statusColor}; margin-left:4px;">${statusText}</div>
+  // УМЕНЬШЕНЫ ШРИФТЫ И РАЗМЕРЫ ВНУТРИ КАРТОЧКИ
+  return `<div class="tech-card ${owned ? 'owned' : ''} ${locked ? 'locked' : ''} ${isActive ? 'selected' : ''}" style="width:130px; padding:6px; box-sizing:border-box; cursor:pointer;">
+    <div class="tech-head" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+      <div class="tech-name" style="font-size:11px; font-weight:bold; line-height:1.1;">${t.name}</div>
+      <div class="tech-status" style="font-size:10px; color:${statusColor}; margin-left:2px;">${statusText}</div>
     </div>
-    <div class="tech-desc" style="font-size:10px; color:#888; line-height:1.2; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${t.desc}</div>
+    <div class="tech-desc" style="font-size:9px; color:#888; line-height:1.1; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${t.desc}</div>
   </div>`;
 }
 
+// Всплывающее окно с деталями (осталось без изменений)
 function showTechModal(t) {
   let modalEl = document.getElementById('tech-detail-modal');
   if (modalEl) modalEl.remove();
