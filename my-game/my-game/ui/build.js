@@ -1,10 +1,11 @@
 'use strict';
 
 import { state, inventory, RES } from '../game.js';
-import { CORE } from '../world.js'; // <--- ВОТ ТУТ ИСПРАВЛЕНО
+import { CORE } from '../world.js';
 import { buildingImages, isReady } from '../sprites.js';
 import { openModal, closeModal, panelContent } from './core.js';
-import { countBuildings, isBuildingUnlocked } from '../buildings.js';
+import { countBuildings } from '../buildings.js';
+import { isBuildingUnlocked } from '../research.js'; // <--- ВОТ ТУТ ИСПРАВЛЕНО
 import { 
   MINE_COST, FURNACE_COST, CONVEYOR_COST, SPLITTER_COST, UNDERGROUND_COST, RADAR_COST, INSERTER_COST,
   LAB_IRON_COST, LAB_COPPER_COST, CUTTER_IRON_COST, CUTTER_COPPER_COST, ASSEMBLER_IRON_COST, ASSEMBLER_COPPER_COST,
@@ -140,4 +141,4 @@ function renderBuildPanel() {
       closeModal(); import('./ghost.js').then(m => m.updateGhostPanel());
     });
   });
-}
+}ollEl
