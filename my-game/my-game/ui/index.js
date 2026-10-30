@@ -7,7 +7,7 @@ import { openBuildPanel } from './build.js';
 import { openResearchPanel } from './research.js';
 import { openStatsPanel } from './stats.js';
 import { openSettingsPanel } from './settings.js';
-import { buildHudResourcesDOM } from './hud.js'; // <--- ВОТ ТУТ
+import { buildHudResourcesDOM } from './hud.js';
 
 export * from './core.js';
 export * from './utils.js';
@@ -51,5 +51,7 @@ drawerTabs.forEach(btn => {
   });
 });
 
-// Строим HUD при загрузке
+// Строим HUD при загрузке и обновляем, когда подгрузятся PNG
 buildHudResourcesDOM();
+setTimeout(buildHudResourcesDOM, 500);
+setTimeout(buildHudResourcesDOM, 1500);

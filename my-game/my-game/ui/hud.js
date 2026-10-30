@@ -18,7 +18,8 @@ export function buildHudResourcesDOM() {
   state.hudResources.forEach(resId => {
     const div = document.createElement('div');
     div.className = 'res';
-    div.innerHTML = `<div class="res-dot" style="${iconStyle(resId)}"></div><span data-res-val="${resId}">${inventory[resId] || 0}</span>`;
+    // ЖЕСТКО ЗАДАЕМ РАЗМЕРЫ И ЗАПРЕЩАЕМ СЖАТИЕ
+    div.innerHTML = `<div class="res-dot" style="width:11px; height:11px; flex-shrink:0; display:block; border-radius:2px; ${iconStyle(resId)}"></div><span data-res-val="${resId}">${inventory[resId] || 0}</span>`;
     hudResourcesContainer.appendChild(div);
   });
 }

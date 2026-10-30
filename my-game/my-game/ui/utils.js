@@ -27,8 +27,8 @@ export function formatPct(p) { return (p < 10 ? p.toFixed(1) : Math.floor(p).toS
 
 export function iconStyle(resType) {
   const url = spriteUrl(resType);
-  if (url) return `background-image:${url}`;
-  return `background:${RES_COLOR[resType] || '#888'}`;
+  if (url) return `background-image:${url}; background-size:contain; background-repeat:no-repeat; background-position:center;`;
+  return `background-color:${RES_COLOR[resType] || '#888'};`; // Используем background-color, чтобы не сбрасывать размеры
 }
 
 export function costHtml(amount, resType) {
