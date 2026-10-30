@@ -10,7 +10,7 @@ export const MINE_COST = 10;
 export const FURNACE_COST = 25;
 export const MIN_ZOOM = 0.6;
 export const MAX_ZOOM = 3;
-export const DAY_LENGTH = 300; // БЫЛО 120, СТАЛО 300 (медленнее день)
+export const DAY_LENGTH = 300;
 
 export const DIR_DELTA = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
@@ -34,6 +34,7 @@ export const state = {
   LIMITS: { mine: 30, furnace: 10, lab: 5, cutter: 10, assembler: 5, chemplant: 5, storage: 5, turret: 15, radar: 20, inserter: 50 },
   techState: {}, statHistory: {}, activeStudyTechId: null, studyProgressByTech: {}, studyTickTimer: 0,
   day: 1, timeOfDay: 0.25,
+  hudResources: [1, 2, 3], // НОВОЕ: Ресурсы в HUD (Железо, Медь, Уголь)
 };
 
 export const STAT_WINDOW_SEC = 30;

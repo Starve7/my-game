@@ -1,12 +1,13 @@
 'use strict';
 
-import { drawerToggle, drawerHide, drawerTabs, modalClose, modalBackdrop, applyHudIcons, toggleDrawer, closeModal } from './core.js';
+import { drawerToggle, drawerHide, drawerTabs, modalClose, modalBackdrop, toggleDrawer, closeModal } from './core.js';
 import { state, showToast } from '../game.js';
 import { playClick } from '../audio.js';
 import { openBuildPanel } from './build.js';
 import { openResearchPanel } from './research.js';
 import { openStatsPanel } from './stats.js';
 import { openSettingsPanel } from './settings.js';
+import { buildHudResourcesDOM } from './hud.js'; // <--- ВОТ ТУТ
 
 export * from './core.js';
 export * from './utils.js';
@@ -50,4 +51,5 @@ drawerTabs.forEach(btn => {
   });
 });
 
-applyHudIcons(); setTimeout(applyHudIcons, 500); setTimeout(applyHudIcons, 1500);
+// Строим HUD при загрузке
+buildHudResourcesDOM();

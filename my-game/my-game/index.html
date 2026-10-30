@@ -11,9 +11,13 @@
 
   <div id="topbar">
     <div class="res" id="day-widget"><span id="ui-day">День 1</span></div>
-    <div class="res"><div class="res-dot" id="dot-iron" style="background-color:#c87d5e"></div><span id="ui-iron">0</span></div>
-    <div class="res"><div class="res-dot" id="dot-copper" style="background-color:#e89a4a"></div><span id="ui-copper">0</span></div>
-    <div class="res"><div class="res-dot" id="dot-coal" style="background-color:#555;border:1px solid #888"></div><span id="ui-coal">0</span></div>
+    
+    <!-- Сюда будут вставляться выбранные ресурсы -->
+    <div id="hud-resources" style="display:flex; gap:3px; flex-wrap:nowrap;"></div>
+    
+    <!-- Кнопка настройки HUD -->
+    <div class="res" id="hud-settings-btn" style="cursor:pointer; background:rgba(255,255,255,0.15); padding:3px 8px; font-size:14px;" title="Настроить HUD">⚙️</div>
+    
     <div class="res"><span>🧬</span><span id="ui-dna">0</span></div>
     <div id="pollution-widget" class="res">
       <span>☣</span><span id="ui-pollution">0.0%</span>
@@ -88,4 +92,4 @@
 
   <script type="module" src="main.js"></script>
 </body>
-</html>
+</html>rs

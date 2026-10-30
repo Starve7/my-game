@@ -1,16 +1,15 @@
 'use strict';
 
-import { state, showToast, RES } from '../game.js';
+import { state } from '../game.js';
 import { setHudIcon } from '../sprites.js';
 
 export const uiDay = document.getElementById('ui-day');
-export const uiIron = document.getElementById('ui-iron');
-export const uiCopper = document.getElementById('ui-copper');
-export const uiCoal = document.getElementById('ui-coal');
 export const uiDNA = document.getElementById('ui-dna');
 export const uiPollution = document.getElementById('ui-pollution');
 export const uiPollutionLevel = document.getElementById('ui-pollution-level');
 export const pollutionWidget = document.getElementById('pollution-widget');
+export const hudResourcesContainer = document.getElementById('hud-resources');
+export const hudSettingsBtn = document.getElementById('hud-settings-btn');
 export const drawerToggle = document.getElementById('drawer-toggle');
 export const drawer = document.getElementById('drawer');
 export const drawerHide = document.getElementById('drawer-hide');
@@ -62,10 +61,4 @@ export function closePanel() {
   state.panel = null; 
   state.activeBuilding = null; 
   state.activeConveyor = null; 
-}
-
-export function applyHudIcons() {
-  setHudIcon('dot-iron', RES.IRON); 
-  setHudIcon('dot-copper', RES.COPPER); 
-  setHudIcon('dot-coal', RES.COAL);
 }
