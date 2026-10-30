@@ -14,6 +14,7 @@ let currentInfoCardEntity = null;
 
 export function showInfoCard(e) {
   currentInfoCardEntity = e;
+  state.selectedInfoCard = e; 
   let html = '', title = '', icon = '';
 
   if (e.isMonster) {
@@ -146,7 +147,7 @@ export function showInfoCard(e) {
   }
 }
 
-export function hideInfoCard() { currentInfoCardEntity = null; infoCardEl.classList.add('hidden'); }
+export function hideInfoCard() { currentInfoCardEntity = null; infoCardEl.classList.add('hidden'); state.selectedInfoCard = null; }
 
 export function updateInfoCardLive() {
   if (!currentInfoCardEntity) return;

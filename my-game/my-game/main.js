@@ -4,14 +4,14 @@ import {
   TILE, RES, RES_COLOR, RES_NAME, DAY_LENGTH, MINE_INTERVAL, FURNACE_INTERVAL, MINE_COST, FURNACE_COST, POLLUTION_PER_PLATE,
   canvas, ctx, camera, inventory, state, popups, hooks, drawBackground, drawGhost, drawCore, drawPopups,
   drawMinimap, handleMinimapClick, updatePopups, safeCall, screenToCell, showToast, STAT_WINDOW_SEC,
-  WORLD_W, WORLD_H
+  WORLD_W, WORLD_H, drawRangeCircle // <--- ДОБАВЛЕНО
 } from './game.js';
 import { CORE, CORE_HP_MAX, world, oreAmount, oreInitial, fog } from './world.js';
 import { drawResIcon, drawCoreSprite } from './sprites.js';
 import {
   buildings, conveyors, splitters, undergrounds, turretBeams, tryPlaceBuilding, tryConveyorDragStep,
   updateConveyors, updateBuildings, drawConveyors, drawBuildings, canPlaceGhost,
-  getBuildingAt, getConveyorAt, getSplitterAt, getUndergroundAt, demolishAt,
+  getBuildingAt, getConveyorAt, getSplitterAt, getUndergroundAt, demolishAt, TURRET_RANGE_BASE // <--- ДОБАВЛЕНО
 } from './buildings.js';
 import { updateStudy, TECHNOLOGIES } from './research.js';
 import { updateHUD, openInfoPanel, openConveyorPanel, closePanel, showGameOver, updateModeBadge, showInfoCard, hideInfoCard } from './ui.js';
@@ -23,23 +23,16 @@ if (typeof window !== 'undefined') {
   window.__showGameOver = showGameOver;
   window.__showToast = showToast;
   window.__handleMonsterDeath = handleMonsterDeath;
-  window.__fog = fog; // Для миникарты
+  window.__fog = fog;
 
-
-// читы ебать
   window.cheat = (amount = 1000) => { for (let i = 1; i <= 12; i++) inventory[i] += amount; showToast(`💰 +${amount} всех ресурсов`); };
   window.cheatDna = (amount = 1000) => { state.dna += amount; showToast(`🧬 +${amount} ДНК`); };
   window.cheatUnlockAll = () => { for (const t of TECHNOLOGIES) { state.techState[t.id] = true; if (t.effect) t.effect(); } showToast('🔓 Все технологии изучены'); };
   window.cheatKill = () => { if (window.__monsters) window.__monsters.length = 0; showToast('💀 Все монстры убиты'); };
   window.cheatClear = () => { for (let i = 1; i <= 12; i++) inventory[i] = 0; state.dna = 0; showToast('🧹 Инвентарь и ДНК очищены'); };
   window.cheatReveal = () => { for (let y = 0; y < WORLD_H; y++) for (let x = 0; x < WORLD_W; x++) fog[y][x] = 0; showToast('🗺 Карта открыта'); };
-  window.cheatPollution = (amount = 100) => {
-    state.pollution = amount;
-    showToast(`☣ Загрязнение установлено на ${amount}%`);
-  };
+  window.cheatPollution = (amount = 100) => { state.pollution = amount; showToast(`☣ Загрязнение установлено на ${amount}%`); };
 }
-
-// конец читов ебать
 
 function updateTime(dt) {
   state.timeOfDay += dt / DAY_LENGTH;
@@ -98,7 +91,6 @@ function handleTap(sx, sy) {
   const monster = monsters.find(m => Math.hypot(m.x - worldX, m.y - worldY) < 20);
   if (monster) { monster.isMonster = true; showInfoCard(monster); return; }
   
-  // Проверка клика по кокону (гнезду)
   const nest = nests.find(n => n.hp > 0 && n.tx === tx && n.ty === ty);
   if (nest) {
     showInfoCard({ isNest: true, ...nest });
@@ -143,17 +135,14 @@ function update(dt) {
 function draw() {
   ctx.fillStyle = '#2a2a2a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
   
-  // === МИРОВЫЕ КООРДИНАТЫ (КАМЕРА) ===
   ctx.save();
   ctx.translate(canvas.width / 2, canvas.height / 2);
   ctx.scale(camera.zoom, camera.zoom);
   ctx.translate(-camera.x, -camera.y);
   ctx.imageSmoothingEnabled = false;
 
-  // Рисуем фон, руду
   drawBackground(world, oreAmount, oreInitial, getBuildingAt, drawResIcon, (tx,ty) => (tx*73856093 ^ ty*19349663)>>>0);
 
-  // Рисуем заражение и коконы ПОД зданиями
   safeCall(drawNestsAndInfection, 'drawNestsAndInfection');
 
   if (state.selectedBuilding && state.ghostPos) {
@@ -165,6 +154,23 @@ function draw() {
   safeCall(drawBuildings, 'drawBuildings');
   drawCore(CORE, CORE_HP_MAX, drawCoreSprite);
   safeCall(drawMonsters, 'drawMonsters');
+  
+  // === РИСУЕМ РАДИУСЫ СТРЕЛЬБЫ ===
+  if (state.selectedBuilding === 'turret' && state.ghostPos) {
+    const { tx, ty } = state.ghostPos;
+    const range = TURRET_RANGE_BASE + state.turretRangeBonus * TILE;
+    drawRangeCircle(tx * TILE + TILE/2, ty * TILE + TILE/2, range, true);
+  } else if (state.selectedInfoCard) {
+    if (state.selectedInfoCard.type === 'turret') {
+      const b = state.selectedInfoCard;
+      const range = TURRET_RANGE_BASE + state.turretRangeBonus * TILE;
+      drawRangeCircle(b.tx * TILE + TILE/2, b.ty * TILE + TILE/2, range, false);
+    } else if (state.selectedInfoCard.type === 'core') {
+      drawRangeCircle(CORE.x * TILE + TILE*1.5, CORE.y * TILE + TILE*1.5, TILE * 6, false);
+    }
+  }
+  // ================================
+
   drawPopups();
 
   // === РИСУЕМ ТУМАН ===
@@ -187,7 +193,7 @@ function draw() {
     }
   }
 
-  ctx.restore(); // Возвращаемся в экранные координаты
+  ctx.restore();
 
   drawAtmosphere();
   drawMinimap(CORE, buildings, conveyors, monsters, splitters, undergrounds);

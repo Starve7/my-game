@@ -400,6 +400,28 @@ export function handleMinimapClick(sx, sy) {
   return true;
 }
 
+export function drawRangeCircle(cx, cy, radius, isGhost = false) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  
+  // Настройка цветов
+  if (isGhost) {
+    ctx.fillStyle = 'rgba(120, 200, 120, 0.15)'; // Зеленоватый для призрака
+    ctx.strokeStyle = 'rgba(120, 200, 120, 0.6)';
+  } else {
+    ctx.fillStyle = 'rgba(255, 200, 100, 0.1)'; // Оранжевый для выделенного
+    ctx.strokeStyle = 'rgba(255, 200, 100, 0.6)';
+  }
+  
+  ctx.fill();
+  ctx.lineWidth = 2 / camera.zoom;
+  ctx.setLineDash([8 / camera.zoom, 8 / camera.zoom]); // Пунктирная линия
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
 const toastEl = document.getElementById('toast');
 let toastTimer;
 export function showToast(msg) {
@@ -407,4 +429,7 @@ export function showToast(msg) {
   toastEl.textContent = msg; toastEl.classList.add('show');
   clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1800);
 }
+
+
+
 console.debug('[game] loaded');
