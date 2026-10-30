@@ -15,7 +15,7 @@ if (typeof window !== 'undefined') {
   window.__nests = nests; 
 }
 
-const MONSTER_SPAWN_INTERVAL = 2.5, MONSTER_MAX_ALIVE = 20; // Снизили лимит с 30 до 20
+const MONSTER_SPAWN_INTERVAL = 2.5, MONSTER_MAX_ALIVE = 20;
 const CORE_ATTACK_INTERVAL = 0.6, CORE_ATTACK_DAMAGE = 1, CORE_ATTACK_RANGE = TILE * 6;
 let monsterSpawnTimer = 0, coreAttackTimer = 0;
 export const coreBeams = [];
@@ -27,16 +27,13 @@ const MONSTER_TYPES = {
   exploder: { hp: 30, dmg: 8, speed: 1.2, color: '#40a040', size: 24, explodeDmg: 50, explodeRadius: TILE * 2 }
 };
 
-// ======================
-// НОВОЕ: ГНЕЗДА И ЗАРАЖЕНИЕ
-// ======================
-const MAX_NESTS = 8;               // Максимум коконов на карте
-const NEST_POLLUTION_THRESHOLD = 70; // Появляются только при 70% загрязнения
-let nestSpawnTimer = 0;            // Таймер появления новых коконов
+const MAX_NESTS = 8;
+const NEST_POLLUTION_THRESHOLD = 70;
+let nestSpawnTimer = 0;
 
 export function trySpawnNest() {
   const angle = Math.random() * Math.PI * 2;
-  const dist = 40 + Math.random() * 50; // Подальше от ядра
+  const dist = 40 + Math.random() * 50;
   const tx = Math.floor(CORE.x + Math.cos(angle) * dist);
   const ty = Math.floor(CORE.y + Math.sin(angle) * dist);
 
@@ -54,22 +51,18 @@ export function trySpawnNest() {
 }
 
 export function updateNests(dt) {
-  // 1. Спавним новые коконы, если загрязнение высокое
   if (state.pollution >= NEST_POLLUTION_THRESHOLD && nests.length < MAX_NESTS) {
     nestSpawnTimer += dt;
-    if (nestSpawnTimer >= 45) { // Раз в 45 секунд пытаемся создать кокон
+    if (nestSpawnTimer >= 45) {
       nestSpawnTimer = 0;
       trySpawnNest();
     }
   }
 
-  // 2. Обновляем существующие коконы
   for (const n of nests) {
-    // Радиус заражения растет от загрязнения и дня
     n.radius = 3 + Math.floor(state.pollution / 50) + n.level;
     n.level = 1 + Math.floor(state.day / 3);
 
-    // Спавн монстров из кокона (раз в 20 секунд, а не 5)
     if (monsters.length < MONSTER_MAX_ALIVE) {
       n.spawnTimer += dt;
       if (n.spawnTimer >= 20) {
@@ -87,8 +80,9 @@ function spawnMonsterFromNest(nest) {
   else if (nest.level >= 1 && Math.random() < 0.4) type = 'runner';
 
   const base = MONSTER_TYPES[type];
-  const hpScale = 1 + (state.day - 1) * 0.1;
-  const dmgScale = 1 + (state.day - 1) * 0.1;
+  // УМЕНЬШЕН СКЕЙЛИНГ (было 0.1, стало 0.02)
+  const hpScale = 1 + (state.day - 1) * 0.02;
+  const dmgScale = 1 + (state.day - 1) * 0.02;
 
   monsters.push({
     x: nest.tx * TILE + TILE / 2 + (Math.random() - 0.5) * TILE,
@@ -109,7 +103,6 @@ function spawnMonsterFromNest(nest) {
 }
 
 export function drawNestsAndInfection() {
-  // 1. Рисуем заражение земли
   for (const n of nests) {
     if (n.hp <= 0) continue;
     const nx = n.tx * TILE + TILE / 2;
@@ -127,7 +120,6 @@ export function drawNestsAndInfection() {
     ctx.fill();
   }
 
-  // 2. Рисуем сами коконы
   for (const n of nests) {
     if (n.hp <= 0) continue;
     const sx = n.tx * TILE, sy = n.ty * TILE;
@@ -152,7 +144,6 @@ export function drawNestsAndInfection() {
     ctx.fillStyle = '#e040e0'; ctx.fillRect(sx + 2, sy - 6, (TILE - 4) * pct, 4);
   }
 }
-// ======================
 
 function findNearbyTarget(m, coreX, coreY) {
   let best = null;

@@ -2,7 +2,6 @@
 
 import { TILE, RES } from '../game.js';
 
-// Экспортируем константы из game.js, чтобы другие файлы их видели
 export { 
   MINE_COST, 
   FURNACE_COST, 
@@ -48,7 +47,8 @@ export const TURRET_AMMO_PER_SHOT = 1;
 
 export const BUILDING_HP = {
   mine: 100, furnace: 150, lab: 80, conveyor: 20, splitter: 50, underground: 30, 
-  cutter: 80, assembler: 120, chemplant: 150, storage: 200, turret: 150, radar: 100, inserter: 60
+  cutter: 80, assembler: 120, chemplant: 150, storage: 200, turret: 150, radar: 100, inserter: 60,
+  minicore: 500
 };
 
 export const DIR_DELTA = [[0, -1], [1, 0], [0, 1], [-1, 0]];
@@ -64,7 +64,7 @@ export const ASSEMBLER_RECIPES = [
   { id: 'corps', name: 'Корпус', output: RES.CORPS, inputs: [[RES.PLATE_IRON, 3]], count: 1, time: 2.0 },
   { id: 'circuit', name: 'Электросхема', output: RES.CIRCUIT, inputs: [[RES.PLATE_IRON, 1], [RES.WIRE, 3]], count: 1, time: 2.5 },
   { id: 'engine', name: 'Двигатель', output: RES.ENGINE, inputs: [[RES.CORPS, 1], [RES.GEAR, 2], [RES.CIRCUIT, 1]], count: 1, time: 4.0 },
-  { id: 'ammo', name: 'Патроны', output: RES.AMMO, inputs: [[RES.POWDER, 1], [RES.PLATE_IRON, 1]], count: 4, time: 1.5 },
+  { id: 'ammo', name: 'Патроны (базовые)', output: RES.AMMO, inputs: [[RES.POWDER, 1], [RES.PLATE_IRON, 1]], count: 4, time: 1.5 },
 ];
 export const CHEM_RECIPES = [
   { id: 'powder', name: 'Порох', output: RES.POWDER, inputs: [[RES.COAL, 1], [RES.PLATE_IRON, 1]], count: 2, time: 2.5 }

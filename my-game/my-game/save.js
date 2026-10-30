@@ -7,7 +7,7 @@ import {
 import { world, oreAmount, oreInitial, CORE, generateWorld, fog } from './world.js';
 import {
   buildings, conveyors, splitters, undergrounds, turretBeams, updateFog,
-  Mine, Furnace, Lab, Cutter, Assembler, Chemplant, Storage, Turret, Radar, Inserter,
+  Mine, Furnace, Lab, Cutter, Assembler, Chemplant, Storage, Turret, Radar, Inserter, MiniCore
 } from './buildings.js';
 import { monsters, coreBeams, explosions, nests } from './monsters.js';
 
@@ -168,6 +168,7 @@ function makeBuilding(data) {
     else if (data.type === 'turret') b = new Turret(data.tx, data.ty);
     else if (data.type === 'radar') b = new Radar(data.tx, data.ty);
     else if (data.type === 'inserter') b = new Inserter(data.tx, data.ty);
+    else if (data.type === 'minicore') b = new MiniCore(data.tx, data.ty);
     else return null;
   } catch (e) { console.error('[load] failed to create building:', data.type, e); return null; }
   Object.assign(b, data);

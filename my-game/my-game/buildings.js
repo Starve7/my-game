@@ -20,13 +20,20 @@ import {
   checkLimit, updateFog, drawArrow, drawBrokenOverlay, drawHpCircle 
 } from './buildings/index.js';
 
-import { Mine, Furnace, Lab, Cutter, Assembler, Chemplant, Storage } from './buildings/index.js';
+import { Mine, Furnace, Lab, Cutter, Assembler, Chemplant, Storage, MiniCore } from './buildings/index.js';
 import { Inserter, updateConveyors, drawConveyors } from './buildings/index.js';
 import { Turret, Radar } from './buildings/index.js';
 
 export function tryPlaceBuilding(type, tx, ty, isUnlockedFn) {
   if (fog[ty] && fog[ty][tx] === 1) { showToast('Нельзя строить в тумане'); return false; }
   if (isUnlockedFn && !isUnlockedFn(type)) { showToast('Здание не изучено'); return false; }
+  
+  // ПРОВЕРКА НА ЗАНЯТОСТЬ КЛЕТКИ (БАГ 1)
+  if (getBuildingAt(tx, ty) || getConveyorAt(tx, ty) || getSplitterAt(tx, ty) || getUndergroundAt(tx, ty)) { 
+    showToast('Место занято'); 
+    return false; 
+  }
+
   const nearCore = Math.abs(tx - CORE.x) <= 2 && Math.abs(ty - CORE.y) <= 2;
   const onCore = Math.abs(tx - CORE.x) <= 1 && Math.abs(ty - CORE.y) <= 1;
   if (type === 'conveyor' || type === 'underground' || type === 'splitter') { if (onCore) { showToast('На ядро нельзя'); return false; } } 
@@ -35,59 +42,63 @@ export function tryPlaceBuilding(type, tx, ty, isUnlockedFn) {
   let newBuilding = null;
 
   if (type === 'mine') {
-    if (!checkLimit('mine')) { showToast(`Лимит шахт (${state.LIMITS.mine})`); return false; }
+    if (!checkLimit('mine')) { showToast(`Лимит шахт`); return false; }
     const res = world[ty][tx];
     if (res === 0) { if (oreInitial[ty][tx] > 0) showToast('Эта жила истощена'); else showToast('Шахта — только на месторождение'); return false; }
     if (oreAmount[ty][tx] <= 0) { showToast('Эта жила истощена'); return false; }
     if (inventory[RES.IRON] < MINE_COST) { showToast('Не хватает железа'); return false; }
     inventory[RES.IRON] -= MINE_COST; newBuilding = new Mine(tx, ty, res);
   } else if (type === 'furnace') {
-    if (!checkLimit('furnace')) { showToast(`Лимит печей (${state.LIMITS.furnace})`); return false; }
+    if (!checkLimit('furnace')) { showToast(`Лимит печей`); return false; }
     if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
     if (inventory[RES.IRON] < FURNACE_COST) { showToast('Не хватает железа'); return false; }
     inventory[RES.IRON] -= FURNACE_COST; newBuilding = new Furnace(tx, ty);
   } else if (type === 'lab') {
-    if (!checkLimit('lab')) { showToast(`Лимит лабораторий (${state.LIMITS.lab})`); return false; }
+    if (!checkLimit('lab')) { showToast(`Лимит лабораторий`); return false; }
     if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
     if (inventory[RES.PLATE_IRON] < LAB_IRON_COST || inventory[RES.PLATE_COPPER] < LAB_COPPER_COST) { showToast('Не хватает плит'); return false; }
     inventory[RES.PLATE_IRON] -= LAB_IRON_COST; inventory[RES.PLATE_COPPER] -= LAB_COPPER_COST; newBuilding = new Lab(tx, ty);
   } else if (type === 'cutter') {
-    if (!checkLimit('cutter')) { showToast(`Лимит резаков (${state.LIMITS.cutter})`); return false; }
+    if (!checkLimit('cutter')) { showToast(`Лимит резаков`); return false; }
     if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
     if (inventory[RES.PLATE_IRON] < CUTTER_IRON_COST || inventory[RES.PLATE_COPPER] < CUTTER_COPPER_COST) { showToast('Не хватает плит'); return false; }
     inventory[RES.PLATE_IRON] -= CUTTER_IRON_COST; inventory[RES.PLATE_COPPER] -= CUTTER_COPPER_COST; newBuilding = new Cutter(tx, ty);
   } else if (type === 'assembler') {
-    if (!checkLimit('assembler')) { showToast(`Лимит сборщиков (${state.LIMITS.assembler})`); return false; }
+    if (!checkLimit('assembler')) { showToast(`Лимит сборщиков`); return false; }
     if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
     if (inventory[RES.PLATE_IRON] < ASSEMBLER_IRON_COST || inventory[RES.PLATE_COPPER] < ASSEMBLER_COPPER_COST) { showToast('Не хватает плит'); return false; }
     inventory[RES.PLATE_IRON] -= ASSEMBLER_IRON_COST; inventory[RES.PLATE_COPPER] -= ASSEMBLER_COPPER_COST; newBuilding = new Assembler(tx, ty);
   } else if (type === 'chemplant') {
-    if (!checkLimit('chemplant')) { showToast(`Лимит химзаводов (${state.LIMITS.chemplant})`); return false; }
+    if (!checkLimit('chemplant')) { showToast(`Лимит химзаводов`); return false; }
     if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
     if (inventory[RES.PLATE_IRON] < CHEMPLANT_IRON_COST || inventory[RES.PLATE_COPPER] < CHEMPLANT_COPPER_COST || inventory[RES.WIRE] < CHEMPLANT_WIRE_COST) { showToast('Не хватает ресурсов'); return false; }
     inventory[RES.PLATE_IRON] -= CHEMPLANT_IRON_COST; inventory[RES.PLATE_COPPER] -= CHEMPLANT_COPPER_COST; inventory[RES.WIRE] -= CHEMPLANT_WIRE_COST; newBuilding = new Chemplant(tx, ty);
   } else if (type === 'storage') {
-    if (!checkLimit('storage')) { showToast(`Лимит складов (${state.LIMITS.storage})`); return false; }
+    if (!checkLimit('storage')) { showToast(`Лимит складов`); return false; }
     if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
     if (inventory[RES.PLATE_IRON] < STORAGE_IRON_COST || inventory[RES.PLATE_COPPER] < STORAGE_COPPER_COST) { showToast('Не хватает плит'); return false; }
     inventory[RES.PLATE_IRON] -= STORAGE_IRON_COST; inventory[RES.PLATE_COPPER] -= STORAGE_COPPER_COST; newBuilding = new Storage(tx, ty);
   } else if (type === 'turret') {
-    if (!checkLimit('turret')) { showToast(`Лимит турелей (${state.LIMITS.turret})`); return false; }
+    if (!checkLimit('turret')) { showToast(`Лимит турелей`); return false; }
     if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
     if (inventory[RES.CORPS] < TURRET_CORPS_COST || inventory[RES.ENGINE] < TURRET_ENGINE_COST || inventory[RES.CIRCUIT] < TURRET_CIRCUIT_COST) { showToast('Не хватает деталей'); return false; }
     inventory[RES.CORPS] -= TURRET_CORPS_COST; inventory[RES.ENGINE] -= TURRET_ENGINE_COST; inventory[RES.CIRCUIT] -= TURRET_CIRCUIT_COST; newBuilding = new Turret(tx, ty);
   } else if (type === 'radar') {
-    if (!checkLimit('radar')) { showToast(`Лимит радаров (${state.LIMITS.radar})`); return false; }
+    if (!checkLimit('radar')) { showToast(`Лимит радаров`); return false; }
     if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
     if (inventory[RES.CIRCUIT] < RADAR_COST.circuit || inventory[RES.CORPS] < RADAR_COST.corps || inventory[RES.PLATE_IRON] < RADAR_COST.plate_iron) { showToast('Не хватает деталей'); return false; }
     inventory[RES.CIRCUIT] -= RADAR_COST.circuit; inventory[RES.CORPS] -= RADAR_COST.corps; inventory[RES.PLATE_IRON] -= RADAR_COST.plate_iron;
     newBuilding = new Radar(tx, ty);
   } else if (type === 'inserter') {
-    if (!checkLimit('inserter')) { showToast(`Лимит манипуляторов (${state.LIMITS.inserter})`); return false; }
+    if (!checkLimit('inserter')) { showToast(`Лимит манипуляторов`); return false; }
     if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
     if (inventory[RES.IRON] < INSERTER_COST.iron || inventory[RES.GEAR] < INSERTER_COST.gear || inventory[RES.PLATE_IRON] < INSERTER_COST.plate_iron) { showToast('Не хватает деталей'); return false; }
     inventory[RES.IRON] -= INSERTER_COST.iron; inventory[RES.GEAR] -= INSERTER_COST.gear; inventory[RES.PLATE_IRON] -= INSERTER_COST.plate_iron;
     newBuilding = new Inserter(tx, ty);
+  } else if (type === 'minicore') {
+    if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
+    if (inventory[RES.IRON] < 100) { showToast('Не хватает железа'); return false; }
+    inventory[RES.IRON] -= 100; newBuilding = new MiniCore(tx, ty);
   } else if (type === 'conveyor') {
     if (inventory[RES.IRON] < CONVEYOR_COST) { showToast('Не хватает железа'); return false; }
     inventory[RES.IRON] -= CONVEYOR_COST;
@@ -174,7 +185,12 @@ export function demolishAt(tx, ty) {
 
 export function demolishBuilding(b) {
   const half = (v) => Math.floor(v * 0.5);
-  if (b.type === 'mine') { inventory[RES.IRON] += half(b.paidCost); inventory[b.resourceType] += b.outputBuffer; }
+  
+  if (b.type === 'minicore') {
+    // При сносе мини-ядра ресурсы пропадают из инвентаря
+    for (const k in b.items) { inventory[k] -= b.items[k]; if (inventory[k] < 0) inventory[k] = 0; }
+  }
+  else if (b.type === 'mine') { inventory[RES.IRON] += half(b.paidCost); inventory[b.resourceType] += b.outputBuffer; }
   else if (b.type === 'furnace') { inventory[RES.IRON] += half(b.paidCost); if (b.inputOreType) inventory[b.inputOreType] += b.inputOre; inventory[RES.COAL] += b.inputCoal; if (b.outputBufferType) inventory[b.outputBufferType] += b.outputBuffer; }
   else if (b.type === 'lab') { inventory[RES.PLATE_IRON] += half(b.paidCost.ironPlate); inventory[RES.PLATE_COPPER] += half(b.paidCost.copperPlate); }
   else if (b.type === 'cutter') { inventory[RES.PLATE_IRON] += half(b.paidCost.ironPlate); inventory[RES.PLATE_COPPER] += half(b.paidCost.copperPlate); inventory[RES.PLATE_COPPER] += b.inputBuffer; if (b.outputBufferType) inventory[b.outputBufferType] += b.outputBuffer; }
@@ -184,6 +200,7 @@ export function demolishBuilding(b) {
   else if (b.type === 'turret') { inventory[RES.CORPS] += half(b.paidCost.corps); inventory[RES.ENGINE] += half(b.paidCost.engine); inventory[RES.CIRCUIT] += half(b.paidCost.circuit); }
   else if (b.type === 'radar') { inventory[RES.CIRCUIT] += half(b.paidCost.circuit); inventory[RES.CORPS] += half(b.paidCost.corps); inventory[RES.PLATE_IRON] += half(b.paidCost.plate_iron); }
   else if (b.type === 'inserter') { inventory[RES.IRON] += half(b.paidCost.iron); inventory[RES.GEAR] += half(b.paidCost.gear); inventory[RES.PLATE_IRON] += half(b.paidCost.plate_iron); }
+  
   const idx = buildings.indexOf(b); if (idx !== -1) buildings.splice(idx, 1);
   updateFog();
 }
@@ -235,6 +252,9 @@ export function repairBuilding(b) {
     const ci = half(b.paidCost.iron), cg = half(b.paidCost.gear), cp = half(b.paidCost.plate_iron);
     if (inventory[RES.IRON] < ci || inventory[RES.GEAR] < cg || inventory[RES.PLATE_IRON] < cp) return false;
     inventory[RES.IRON] -= ci; inventory[RES.GEAR] -= cg; inventory[RES.PLATE_IRON] -= cp;
+  } else if (b.type === 'minicore') {
+    if (inventory[RES.IRON] < half(b.paidCost)) return false;
+    inventory[RES.IRON] -= half(b.paidCost);
   }
   b.isBroken = false; b.hp = b.maxHp; return true;
 }
@@ -289,7 +309,7 @@ export function drawBuildings() {
   }
 }
 
-export { Mine, Furnace, Lab, Cutter, Assembler, Chemplant, Storage, Turret, Radar, Inserter };
+export { Mine, Furnace, Lab, Cutter, Assembler, Chemplant, Storage, Turret, Radar, Inserter, MiniCore };
 
 if (typeof window !== 'undefined') window.__monsters = window.__monsters || [];
 console.debug('[buildings] loaded');

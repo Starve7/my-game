@@ -10,7 +10,7 @@ export const MINE_COST = 10;
 export const FURNACE_COST = 25;
 export const MIN_ZOOM = 0.6;
 export const MAX_ZOOM = 3;
-export const DAY_LENGTH = 120;
+export const DAY_LENGTH = 300; // БЫЛО 120, СТАЛО 300 (медленнее день)
 
 export const DIR_DELTA = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
@@ -303,7 +303,7 @@ export function drawGhost(type, tx, ty, canPlace) {
     ctx.strokeStyle = canPlace ? '#9fe09f' : '#e07070';
     ctx.lineWidth = 2 / camera.zoom;
     ctx.strokeRect(sx + 1.5, sy + 1.5, TILE - 3, TILE - 3);
-    const icon = { mine: '⛏', furnace: '🔥', lab: '🧪', cutter: '✂️', assembler: '⚙️', chemplant: '🧪', storage: '📦', turret: '🎯', conveyor: '↔️', underground: '⬇️', splitter: '↔️', radar: '📡', inserter: '🦾' }[type] || '?';
+    const icon = { mine: '⛏', furnace: '🔥', lab: '🧪', cutter: '✂️', assembler: '⚙️', chemplant: '🧪', storage: '📦', turret: '🎯', conveyor: '↔️', underground: '⬇️', splitter: '↔️', radar: '📡', inserter: '🦾', minicore: '💠' }[type] || '?';
     ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillStyle = canPlace ? '#ffffff' : '#ffb0b0';
     ctx.fillText(icon, sx + TILE / 2, sy + TILE / 2);

@@ -260,3 +260,27 @@ export class Storage extends Building {
     drawProgressBar(sx, sy, pct, '#a0a0c0');
   }
 }
+
+export class MiniCore extends Building {
+  constructor(tx, ty) {
+    super(tx, ty, 'minicore', BUILDING_HP.minicore);
+    this.items = {};
+    this.paidCost = 100; // 100 железа
+    this.maxItems = 1000;
+  }
+  tryAccept(itemType) { return (this.items[itemType] || 0) < this.maxItems; }
+  accept(itemType) {
+    this.items[itemType] = (this.items[itemType] || 0) + 1;
+    inventory[itemType]++;
+  }
+  update(dt) {}
+  drawSpecific() {
+    const sx = this.tx * TILE, sy = this.ty * TILE;
+    ctx.fillStyle = '#1a2a3a'; ctx.fillRect(sx + 2, sy + 2, TILE - 4, TILE - 4);
+    ctx.fillStyle = '#3a6a9a'; ctx.fillRect(sx + 4, sy + 4, TILE - 8, TILE - 8);
+    const glow = 0.5 + 0.5 * Math.sin(performance.now() / 500);
+    ctx.fillStyle = `rgba(120, 180, 255, ${0.6 + glow * 0.4})`; 
+    ctx.beginPath(); ctx.arc(sx + TILE/2, sy + TILE/2, 6, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#e0f0ff'; ctx.beginPath(); ctx.arc(sx + TILE/2, sy + TILE/2, 3, 0, Math.PI*2); ctx.fill();
+  }
+}

@@ -5,10 +5,11 @@ import { TILE, WORLD_W, WORLD_H, RES, camera, clampCamera, initialZoom } from '.
 export const CORE = { x: Math.floor(WORLD_W / 2), y: Math.floor(WORLD_H / 2) };
 export const CORE_HP_MAX = 1000;
 
-const ORE_NEAR_MIN = 960,  ORE_NEAR_MAX = 1680;
-const ORE_MID_MIN  = 2160, ORE_MID_MAX  = 3960;
-const ORE_FAR_MIN  = 6000, ORE_FAR_MAX  = 10800;
-const ORE_EDGE_MIN = 20000, ORE_EDGE_MAX = 35000;
+// УВЕЛИЧЕНЫ ЗАПАСЫ РУДЫ
+const ORE_NEAR_MIN = 5000,  ORE_NEAR_MAX = 10000;
+const ORE_MID_MIN  = 10000, ORE_MID_MAX  = 20000;
+const ORE_FAR_MIN  = 20000, ORE_FAR_MAX  = 40000;
+const ORE_EDGE_MIN = 50000, ORE_EDGE_MAX = 100000;
 
 export const world = [];
 export const oreAmount = [];

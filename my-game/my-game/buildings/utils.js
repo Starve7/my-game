@@ -18,7 +18,9 @@ export function getSplitterAt(tx, ty) {
 export function getUndergroundAt(tx, ty) { return undergrounds.find(u => u.tx === tx && u.ty === ty); }
 export function isCoreTile(tx, ty) { return Math.abs(tx - CORE.x) <= 1 && Math.abs(ty - CORE.y) <= 1; }
 export function countBuildings(type) { return buildings.filter(b => b.type === type).length; }
-export function checkLimit(type) { if (type === 'conveyor' || type === 'splitter' || type === 'underground') return true; return countBuildings(type) < state.LIMITS[type]; }
+export function checkLimit(type) { 
+  return true; // ЛИМИТЫ ОТКЛЮЧЕНЫ
+}
 export function getStorageTotal(b) { let total = 0; for (const k in b.items) total += b.items[k]; return total; }
 
 export function getOutputConveyor(b) {
@@ -79,6 +81,14 @@ export function tryOutputItem(b, itemType) {
   const outC = getOutputConveyor(b);
   if (outC) {
     if (outC.items.length < CONVEYOR_CAPACITY) { outC.items.push({ type: itemType, progress: 0 }); return true; }
+  } else if (b.outputDir !== null && b.outputDir !== undefined) {
+    // ПРЯМАЯ ПЕРЕДАЧА В ЗДАНИЕ
+    const [dx, dy] = DIR_DELTA[b.outputDir];
+    const nextB = getBuildingAt(b.tx + dx, b.ty + dy);
+    if (nextB && tryAcceptItem(nextB, itemType)) {
+      acceptItem(nextB, itemType);
+      return true;
+    }
   }
   if (b.outputBuffer < b.outputBufferMax) { b.outputBuffer++; b.outputBufferType = itemType; return true; }
   return false;
@@ -91,6 +101,14 @@ export function flushOutputBuffer(b) {
     if (outC && outC.items.length < CONVEYOR_CAPACITY) {
       outC.items.push({ type: b.outputBufferType, progress: 0 });
       b.outputBuffer--;
+    } else if (!outC && b.outputDir !== null && b.outputDir !== undefined) {
+      // ПРЯМАЯ ПЕРЕДАЧА В ЗДАНИЕ
+      const [dx, dy] = DIR_DELTA[b.outputDir];
+      const nextB = getBuildingAt(b.tx + dx, b.ty + dy);
+      if (nextB && tryAcceptItem(nextB, b.outputBufferType)) {
+        acceptItem(nextB, b.outputBufferType);
+        b.outputBuffer--;
+      } else break;
     } else break;
   }
   if (b.outputBuffer === 0) b.outputBufferType = null;

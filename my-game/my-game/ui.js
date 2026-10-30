@@ -132,6 +132,15 @@ export function showInfoCard(e) {
             <div class="card-row"><span>HP:</span><span id="card-core-hp">${Math.round(state.coreHP)} / 1000</span></div>
             <div class="card-row"><span>Загрязнение:</span><span id="card-core-poll">${state.pollution.toFixed(1)}%</span></div>
             <div class="card-row"><span>День:</span><span>${state.day}</span></div>`;
+  } else if (e.type === 'minicore') {
+    title = 'Мини-ядро'; icon = '💠';
+    html = `<div class="card-header"><span>${icon} ${title}</span><button class="card-close">✕</button></div>
+            <div class="card-row"><span>HP:</span><span>${Math.round(e.hp)} / ${Math.round(e.maxHp)}</span></div>`;
+    const keys = Object.keys(e.items).filter(k => e.items[k] > 0);
+    if (keys.length === 0) html += `<div class="card-row"><span>Пусто</span><span></span></div>`;
+    else for (const k of keys) {
+      html += `<div class="card-row"><span>${RES_NAME[k]}:</span><span>${e.items[k]} / 1000</span></div>`;
+    }
   } else if (e.type === 'conveyor' || e.type === 'splitter' || e.type === 'underground') {
     if (e.type === 'conveyor') { title = 'Конвейер'; icon = '↔️'; }
     else if (e.type === 'splitter') { title = 'Распределитель'; icon = '↔️'; }
@@ -257,7 +266,7 @@ function costHtml(amount, resType) {
   return `${amount}<span style="display:inline-block;width:12px;height:12px;vertical-align:middle;margin:0 2px 2px 0;border-radius:2px;background-size:contain;background-repeat:no-repeat;background-position:center;image-rendering:pixelated;${iconStyle(resType)}"></span>`;
 }
 
-const BUILDING_ICONS = { mine: '⛏', furnace: '🔥', lab: '🧪', cutter: '✂️', assembler: '⚙️', chemplant: '🧪', storage: '📦', turret: '🎯', conveyor: '↔️', splitter: '↔️', underground: '⬇️', radar: '📡', inserter: '🦾' };
+const BUILDING_ICONS = { mine: '⛏', furnace: '🔥', lab: '🧪', cutter: '✂️', assembler: '⚙️', chemplant: '🧪', storage: '📦', turret: '🎯', conveyor: '↔️', splitter: '↔️', underground: '⬇️', radar: '📡', inserter: '🦾', minicore: '💠' };
 
 function updateGhostPanel() {
   if (!state.selectedBuilding) { ghostPanel.classList.add('hidden'); state.ghostPos = null; return; }
@@ -279,6 +288,7 @@ function updateGhostPanel() {
   else if (type === 'turret') label = 'Турель';
   else if (type === 'radar') label = 'Радар';
   else if (type === 'inserter') label = 'Манипулятор';
+  else if (type === 'minicore') label = 'Мини-ядро';
 
   const icon = BUILDING_ICONS[type] || '?';
   const costStr = cost ? ` · ${costHtml(cost, RES.IRON)}` : '';
@@ -383,39 +393,50 @@ function renderBuildPanel() {
     const assemblerCount = countBuildings('assembler'), chemplantCount = countBuildings('chemplant');
     const storageCount = countBuildings('storage'), radarCount = countBuildings('radar'), inserterCount = countBuildings('inserter');
 
+    const mineOk = iron >= MINE_COST;
+    const furnaceOk = iron >= FURNACE_COST;
+    const labOk = canAffordLab();
+    const cutterOk = isBuildingUnlocked('cutter') && canAffordCutter();
+    const assemblerOk = isBuildingUnlocked('assembler') && canAffordAssembler();
+    const chemplantOk = isBuildingUnlocked('chemplant') && canAffordChemplant();
+    const storageOk = isBuildingUnlocked('storage') && canAffordStorage();
+    const radarOk = canAffordRadar();
+    const inserterOk = canAffordInserter();
+
     html += `<div class="build-group-title">⛏ Добыча и плавка</div><div class="build-grid">`;
-    html += renderBuildCard('mine', 'Угольный бур', costHtml(MINE_COST, RES.IRON), mineCount < state.LIMITS.mine && iron >= MINE_COST, `${mineCount}/${state.LIMITS.mine}`);
-    html += renderBuildCard('furnace', 'Угольная печь', costHtml(FURNACE_COST, RES.IRON), furnaceCount < state.LIMITS.furnace && iron >= FURNACE_COST, `${furnaceCount}/${state.LIMITS.furnace}`);
+    html += renderBuildCard('mine', 'Угольный бур', costHtml(MINE_COST, RES.IRON), mineOk, `${mineCount}`);
+    html += renderBuildCard('furnace', 'Угольная печь', costHtml(FURNACE_COST, RES.IRON), furnaceOk, `${furnaceCount}`);
     html += `</div>`;
 
     html += `<div class="build-group-title">⚙️ Переработка</div><div class="build-grid">`;
-    html += renderBuildCard('lab', 'Лаборатория', `${costHtml(LAB_IRON_COST, RES.PLATE_IRON)}+${costHtml(LAB_COPPER_COST, RES.PLATE_COPPER)}`, labCount < state.LIMITS.lab && canAffordLab(), `${labCount}/${state.LIMITS.lab}`);
-    if (isBuildingUnlocked('cutter')) html += renderBuildCard('cutter', 'Резак', `${costHtml(CUTTER_IRON_COST, RES.PLATE_IRON)}+${costHtml(CUTTER_COPPER_COST, RES.PLATE_COPPER)}`, cutterCount < state.LIMITS.cutter && canAffordCutter(), `${cutterCount}/${state.LIMITS.cutter}`);
-    if (isBuildingUnlocked('assembler')) html += renderBuildCard('assembler', 'Сборщик', `${costHtml(ASSEMBLER_IRON_COST, RES.PLATE_IRON)}+${costHtml(ASSEMBLER_COPPER_COST, RES.PLATE_COPPER)}`, assemblerCount < state.LIMITS.assembler && canAffordAssembler(), `${assemblerCount}/${state.LIMITS.assembler}`);
-    if (isBuildingUnlocked('chemplant')) html += renderBuildCard('chemplant', 'Химзавод', `${costHtml(CHEMPLANT_IRON_COST, RES.PLATE_IRON)}+${costHtml(CHEMPLANT_COPPER_COST, RES.PLATE_COPPER)}+${costHtml(CHEMPLANT_WIRE_COST, RES.WIRE)}`, chemplantCount < state.LIMITS.chemplant && canAffordChemplant(), `${chemplantCount}/${state.LIMITS.chemplant}`);
-    if (isBuildingUnlocked('storage')) html += renderBuildCard('storage', 'Склад', `${costHtml(STORAGE_IRON_COST, RES.PLATE_IRON)}+${costHtml(STORAGE_COPPER_COST, RES.PLATE_COPPER)}`, storageCount < state.LIMITS.storage && canAffordStorage(), `${storageCount}/${state.LIMITS.storage}`);
+    html += renderBuildCard('lab', 'Лаборатория', `${costHtml(LAB_IRON_COST, RES.PLATE_IRON)}+${costHtml(LAB_COPPER_COST, RES.PLATE_COPPER)}`, labOk, `${labCount}`);
+    if (isBuildingUnlocked('cutter')) html += renderBuildCard('cutter', 'Резак', `${costHtml(CUTTER_IRON_COST, RES.PLATE_IRON)}+${costHtml(CUTTER_COPPER_COST, RES.PLATE_COPPER)}`, cutterOk, `${cutterCount}`);
+    if (isBuildingUnlocked('assembler')) html += renderBuildCard('assembler', 'Сборщик', `${costHtml(ASSEMBLER_IRON_COST, RES.PLATE_IRON)}+${costHtml(ASSEMBLER_COPPER_COST, RES.PLATE_COPPER)}`, assemblerOk, `${assemblerCount}`);
+    if (isBuildingUnlocked('chemplant')) html += renderBuildCard('chemplant', 'Химзавод', `${costHtml(CHEMPLANT_IRON_COST, RES.PLATE_IRON)}+${costHtml(CHEMPLANT_COPPER_COST, RES.PLATE_COPPER)}+${costHtml(CHEMPLANT_WIRE_COST, RES.WIRE)}`, chemplantOk, `${chemplantCount}`);
+    if (isBuildingUnlocked('storage')) html += renderBuildCard('storage', 'Склад', `${costHtml(STORAGE_IRON_COST, RES.PLATE_IRON)}+${costHtml(STORAGE_COPPER_COST, RES.PLATE_COPPER)}`, storageOk, `${storageCount}`);
     html += `</div>`;
 
     html += `<div class="build-group-title">↔️ Логистика</div><div class="build-grid">`;
     html += renderBuildCard('conveyor', 'Конвейер', costHtml(CONVEYOR_COST, RES.IRON), iron >= CONVEYOR_COST);
-    html += renderBuildCard('inserter', 'Манипулятор', `${costHtml(INSERTER_COST.iron, RES.IRON)}+${costHtml(INSERTER_COST.gear, RES.GEAR)}`, inserterCount < state.LIMITS.inserter && canAffordInserter(), `${inserterCount}/${state.LIMITS.inserter}`);
+    html += renderBuildCard('inserter', 'Манипулятор', `${costHtml(INSERTER_COST.iron, RES.IRON)}+${costHtml(INSERTER_COST.gear, RES.GEAR)}+${costHtml(INSERTER_COST.plate_iron, RES.PLATE_IRON)}`, inserterOk, `${inserterCount}`);
     if (isBuildingUnlocked('splitter')) html += renderBuildCard('splitter', 'Распределитель', `${costHtml(SPLITTER_COST.iron, RES.IRON)}+${costHtml(SPLITTER_COST.plate_iron, RES.PLATE_IRON)}`, iron >= SPLITTER_COST.iron && inventory[RES.PLATE_IRON] >= SPLITTER_COST.plate_iron);
     if (isBuildingUnlocked('underground')) html += renderBuildCard('underground', 'Подземный', costHtml(UNDERGROUND_COST.iron, RES.IRON), iron >= UNDERGROUND_COST.iron);
     html += `</div>`;
 
     html += `<div class="build-group-title">📡 Разное</div><div class="build-grid">`;
-    html += renderBuildCard('radar', 'Радар', `${costHtml(RADAR_COST.plate_iron, RES.PLATE_IRON)}+${costHtml(RADAR_COST.corps, RES.CORPS)}`, radarCount < state.LIMITS.radar && canAffordRadar(), `${radarCount}/${state.LIMITS.radar}`);
+    html += renderBuildCard('radar', 'Радар', `${costHtml(RADAR_COST.plate_iron, RES.PLATE_IRON)}+${costHtml(RADAR_COST.corps, RES.CORPS)}+${costHtml(RADAR_COST.circuit, RES.CIRCUIT)}`, radarOk, `${radarCount}`);
+    html += renderBuildCard('minicore', 'Мини-ядро', costHtml(100, RES.IRON), iron >= 100, '');
     html += `</div>`;
 
   } else if (activeBuildTab === 'military') {
     const turretCount = countBuildings('turret'), turretUnlocked = isBuildingUnlocked('turret');
-    const turretOk = turretUnlocked && turretCount < state.LIMITS.turret && canAffordTurret();
+    const turretOk = turretUnlocked && canAffordTurret();
     
     if (!turretUnlocked) {
       html += `<div style="padding:40px 20px;text-align:center;color:#888;font-size:13px;">Изучи «Пулемётную турель» в разделе 🧬</div>`;
     } else {
       html += `<div class="build-group-title">🎯 Оборона</div><div class="build-grid">`;
-      html += renderBuildCard('turret', 'Турель', `${costHtml(TURRET_CORPS_COST, RES.CORPS)}+${costHtml(TURRET_ENGINE_COST, RES.ENGINE)}+${costHtml(TURRET_CIRCUIT_COST, RES.CIRCUIT)}`, turretOk, `${turretCount}/${state.LIMITS.turret}`);
+      html += renderBuildCard('turret', 'Турель', `${costHtml(TURRET_CORPS_COST, RES.CORPS)}+${costHtml(TURRET_ENGINE_COST, RES.ENGINE)}+${costHtml(TURRET_CIRCUIT_COST, RES.CIRCUIT)}`, turretOk, `${turretCount}`);
       html += `</div>`;
     }
   } else {
@@ -536,7 +557,6 @@ function renderResearchPanel() {
   researchNodes.innerHTML = ''; 
   researchSvg.innerHTML = '';
   
-  // СЖАТЫЕ РАЗМЕРЫ ДЛЯ КОМПАКТНОСТИ
   const NODE_W = 130, NODE_H = 75, GAP_Y = 40, GAP_X = 12;
   let maxTotalY = 0;
   
@@ -603,7 +623,7 @@ function renderResearchPanel() {
 
     for (const rid of roots) {
       const width = layoutNode(rid, 0, rootStartX);
-      rootStartX += width + 30; // УМЕНЬШЕН ОТСТУП МЕЖДУ КОРНЯМИ
+      rootStartX += width + 30;
     }
     
     for (const id in globalPositions) {
@@ -712,7 +732,6 @@ function renderTechCardHtml(t) {
   else if (isActive) { statusText = progressPct.toFixed(0) + '%'; statusColor = '#7fbfff'; }
   else { statusText = `${t.studyPercent * 2}🧬`; statusColor = '#aaa'; }
 
-  // УМЕНЬШЕНЫ ШРИФТЫ И РАЗМЕРЫ ВНУТРИ КАРТОЧКИ
   return `<div class="tech-card ${owned ? 'owned' : ''} ${locked ? 'locked' : ''} ${isActive ? 'selected' : ''}" style="width:130px; padding:6px; box-sizing:border-box; cursor:pointer;">
     <div class="tech-head" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
       <div class="tech-name" style="font-size:11px; font-weight:bold; line-height:1.1;">${t.name}</div>
@@ -722,7 +741,6 @@ function renderTechCardHtml(t) {
   </div>`;
 }
 
-// Всплывающее окно с деталями (осталось без изменений)
 function showTechModal(t) {
   let modalEl = document.getElementById('tech-detail-modal');
   if (modalEl) modalEl.remove();
@@ -991,7 +1009,12 @@ function openRecipePicker(b) {
   renderRecipePicker(b);
 }
 function renderRecipePicker(b) {
-  const recipes = getRecipesForBuilding(b);
+  // БЛОКИРОВКА РЕЦЕПТА ПАТРОНОВ, ЕСЛИ НЕ ИЗУЧЕНО
+  let recipes = getRecipesForBuilding(b);
+  if (b.type === 'assembler' && !isTechOwned('unlock_basic_ammo')) {
+    recipes = recipes.filter(r => r.id !== 'ammo');
+  }
+
   let html = `<div style="font-size:12px;color:#888;margin-bottom:10px;">Выбери, что производить:</div>`;
   for (const r of recipes) {
     const isSelected = b.selectedRecipe === r.id;
@@ -1014,6 +1037,7 @@ export function openInfoPanel(b) {
   else if (b.type === 'turret') title = '🎯 Турель';
   else if (b.type === 'radar') title = '📡 Радар';
   else if (b.type === 'inserter') title = '🦾 Манипулятор';
+  else if (b.type === 'minicore') title = '💠 Мини-ядро';
   openModal(title);
   if (b.type === 'mine') renderMinePanel(b);
   else if (b.type === 'furnace') renderFurnacePanel(b);
@@ -1024,6 +1048,7 @@ export function openInfoPanel(b) {
   else if (b.type === 'turret') renderTurretPanel(b);
   else if (b.type === 'radar') renderRadarPanel(b);
   else if (b.type === 'inserter') renderInserterPanel(b);
+  else if (b.type === 'minicore') renderMiniCorePanel(b);
 }
 
 function getDirPickerHtml(currentDir) {
@@ -1095,6 +1120,14 @@ function renderStoragePanel(b) {
   if (keys.length === 0) rowsHtml = '<div class="row"><span style="color:#888;">Склад пуст</span><span></span></div>';
   else for (const k of keys) { const resType = parseInt(k); rowsHtml += `<div class="row"><span><div class="dot" style="display:inline-block;width:12px;height:12px;vertical-align:middle;margin-right:6px;background-size:contain;background-repeat:no-repeat;background-position:center;image-rendering:pixelated;${iconStyle(resType)}"></div>${RES_NAME[resType]}</span><span>${b.items[k]}</span></div>`; }
   panelContent.innerHTML = `<div class="info-line">Вместимость: <strong>${total} / ${STORAGE_CAPACITY}</strong></div><div style="height:8px;background:#333;border-radius:4px;margin:8px 0;overflow:hidden;"><div style="height:100%;background:#a0a0c0;width:${Math.round(pct * 100)}%;"></div></div><div class="info-line" style="color:#e06060;font-size:12px;">⚠ При разрушении всё содержимое пропадёт</div><div class="stats-box">${rowsHtml}</div><button class="remove-btn" id="remove-btn">Удалить (вернуть 50%)</button>`;
+  document.getElementById('remove-btn').addEventListener('click', () => { demolishBuilding(b); closePanel(); });
+}
+
+function renderMiniCorePanel(b) {
+  let rowsHtml = ''; const keys = Object.keys(b.items).filter(k => b.items[k] > 0);
+  if (keys.length === 0) rowsHtml = '<div class="row"><span style="color:#888;">Пусто</span><span></span></div>';
+  else for (const k of keys) { const resType = parseInt(k); rowsHtml += `<div class="row"><span><div class="dot" style="display:inline-block;width:12px;height:12px;vertical-align:middle;margin-right:6px;background-size:contain;background-repeat:no-repeat;background-position:center;image-rendering:pixelated;${iconStyle(resType)}"></div>${RES_NAME[resType]}</span><span>${b.items[k]} / 1000</span></div>`; }
+  panelContent.innerHTML = `<div class="info-line">Мини-ядро принимает ресурсы и добавляет их в общий инвентарь.</div><div class="info-line" style="color:#e06060;font-size:12px;">⚠ При разрушении накопленные ресурсы пропадут!</div><div class="stats-box">${rowsHtml}</div><button class="remove-btn" id="remove-btn">Удалить (вернуть 50%)</button>`;
   document.getElementById('remove-btn').addEventListener('click', () => { demolishBuilding(b); closePanel(); });
 }
 
