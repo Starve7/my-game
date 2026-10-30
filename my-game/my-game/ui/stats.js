@@ -11,20 +11,31 @@ const STATS_TABS = [
 ];
 let activeStatsTab = 'resources';
 
+// Подкатегории для ресурсов
+const RES_CATEGORIES = [
+  { id: 'raw', name: '🪨 Сырьё' },
+  { id: 'industry', name: '⚙️ Промышленность' },
+  { id: 'misc', name: '📦 Разное' }
+];
+let activeResCategory = 'raw';
+
 const STAT_ROWS = [
-  { key: 'iron', name: 'Железо', res: RES.IRON },
-  { key: 'copper', name: 'Медь', res: RES.COPPER },
-  { key: 'coal', name: 'Уголь', res: RES.COAL },
-  { key: 'plate_iron', name: 'Железные плиты', res: RES.PLATE_IRON },
-  { key: 'plate_copper', name: 'Медные плиты', res: RES.PLATE_COPPER },
-  { key: 'wire', name: 'Провод', res: RES.WIRE },
-  { key: 'gear', name: 'Шестерня', res: RES.GEAR },
-  { key: 'corps', name: 'Корпус', res: RES.CORPS },
-  { key: 'circuit', name: 'Электросхема', res: RES.CIRCUIT },
-  { key: 'engine', name: 'Двигатель', res: RES.ENGINE },
-  { key: 'powder', name: 'Порох', res: RES.POWDER },
-  { key: 'ammo', name: 'Патроны', res: RES.AMMO },
-  { key: 'dna', name: '🧬 ДНК', res: null },
+  // Сырьё
+  { key: 'iron', name: 'Железо', res: RES.IRON, cat: 'raw' },
+  { key: 'copper', name: 'Медь', res: RES.COPPER, cat: 'raw' },
+  { key: 'coal', name: 'Уголь', res: RES.COAL, cat: 'raw' },
+  // Промышленность
+  { key: 'plate_iron', name: 'Железные плиты', res: RES.PLATE_IRON, cat: 'industry' },
+  { key: 'plate_copper', name: 'Медные плиты', res: RES.PLATE_COPPER, cat: 'industry' },
+  { key: 'wire', name: 'Провод', res: RES.WIRE, cat: 'industry' },
+  { key: 'gear', name: 'Шестерня', res: RES.GEAR, cat: 'industry' },
+  { key: 'corps', name: 'Корпус', res: RES.CORPS, cat: 'industry' },
+  { key: 'circuit', name: 'Электросхема', res: RES.CIRCUIT, cat: 'industry' },
+  { key: 'engine', name: 'Двигатель', res: RES.ENGINE, cat: 'industry' },
+  // Разное
+  { key: 'powder', name: 'Порох', res: RES.POWDER, cat: 'misc' },
+  { key: 'ammo', name: 'Патроны', res: RES.AMMO, cat: 'misc' },
+  { key: 'dna', name: '🧬 ДНК', res: null, cat: 'misc' },
 ];
 
 function getStatValue(key) {
@@ -74,6 +85,7 @@ function renderStatRow(row) {
   let rateClass = 'zero', rateText = '0', color = '#666';
   if (rate > 0.5) { rateClass = 'positive'; rateText = '+' + Math.round(rate); color = '#7fbf7f'; }
   else if (rate < -0.5) { rateClass = 'negative'; rateText = Math.round(rate).toString(); color = '#e06060'; }
+  
   const iconHtml = row.res
     ? `<div class="stat-row-icon" style="${iconStyle(row.res)}"></div>`
     : `<div class="stat-row-icon stat-row-icon-dna">🧬</div>`;
@@ -94,6 +106,7 @@ function renderStatRow(row) {
 export function openStatsPanel() { openModal('📊 Статистика'); renderStatsPanel(); }
 
 function renderStatsPanel() {
+  // Главные вкладки
   let tabsHtml = `<div class="stats-tabs">`;
   for (const tab of STATS_TABS) {
     const isActive = tab.id === activeStatsTab;
@@ -104,8 +117,17 @@ function renderStatsPanel() {
   let contentHtml = '';
 
   if (activeStatsTab === 'resources') {
-    let totalAmount = 0;
-    let totalRate = 0;
+    // Подвкладки для ресурсов
+    let subTabsHtml = `<div style="display:flex; gap:4px; margin-bottom:12px; overflow-x:auto; padding-bottom:4px;">`;
+    for (const sub of RES_CATEGORIES) {
+      const isSubActive = sub.id === activeResCategory;
+      subTabsHtml += `<button data-res-cat="${sub.id}" style="flex-shrink:0; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; border:1px solid ${isSubActive ? '#c8a040' : '#444'}; background:${isSubActive ? '#3a3020' : '#1a1a1a'}; color:${isSubActive ? '#ffd700' : '#888'};">${sub.name}</button>`;
+    }
+    subTabsHtml += `</div>`;
+
+    // Считаем общую сумму только для текущей категории (или для всех?)
+    // Лучше считать общую сумму для всего, чтобы не путать.
+    let totalAmount = 0, totalRate = 0;
     for (const row of STAT_ROWS) {
       if (row.key === 'dna') continue;
       totalAmount += getStatValue(row.key);
@@ -129,12 +151,18 @@ function renderStatsPanel() {
       </div>
     </div>`;
 
-    contentHtml += `<div class="stats-section-title">📦 Все ресурсы</div><div class="stats-list">`;
-    for (const row of STAT_ROWS) {
+    contentHtml += subTabsHtml;
+    contentHtml += `<div class="stats-section-title">Список ресурсов</div><div class="stats-list">`;
+    
+    // Фильтруем строки по активной подкатегории
+    const filteredRows = STAT_ROWS.filter(r => r.cat === activeResCategory);
+    for (const row of filteredRows) {
       contentHtml += renderStatRow(row);
     }
+    
     contentHtml += `</div>`;
     contentHtml += `<div class="stats-footer-hint">График за последние ${STAT_WINDOW_SEC} секунд</div>`;
+
   } else if (activeStatsTab === 'energy') {
     contentHtml += `<div class="stats-coming-soon">
       <div class="stats-coming-soon-icon">⚡</div>
@@ -151,9 +179,18 @@ function renderStatsPanel() {
 
   panelContent.innerHTML = tabsHtml + contentHtml;
 
+  // Обработчики главных вкладок
   panelContent.querySelectorAll('[data-stat-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
       activeStatsTab = btn.dataset.statTab;
+      renderStatsPanel();
+    });
+  });
+
+  // Обработчики подвкладок ресурсов
+  panelContent.querySelectorAll('[data-res-cat]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeResCategory = btn.dataset.resCat;
       renderStatsPanel();
     });
   });
@@ -162,7 +199,10 @@ function renderStatsPanel() {
 export function updateStatsLive() {
   if (state.panel !== 'stats' || activeStatsTab !== 'resources') return;
   
-  STAT_ROWS.forEach(row => {
+  // Обновляем только те строки, которые сейчас видны
+  const filteredRows = STAT_ROWS.filter(r => r.cat === activeResCategory);
+  
+  filteredRows.forEach(row => {
     const rowEl = panelContent.querySelector(`[data-stat-key="${row.key}"]`);
     if (!rowEl) return;
 
