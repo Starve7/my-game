@@ -1,7 +1,7 @@
 'use strict';
 
 import { TILE, WORLD_W, WORLD_H, camera, clampCamera, initialZoom } from './game.js';
-import { RES } from './resources.js'; // ИМПОРТИРУЕМ НОВЫЕ РЕСУРСЫ
+import { RES } from './resources.js';
 
 export const CORE = { x: Math.floor(WORLD_W / 2), y: Math.floor(WORLD_H / 2) };
 export const CORE_HP_MAX = 1000;
@@ -48,13 +48,12 @@ function scatterResource(type, patchCount, minR, maxR, centerX, centerY, minDist
 
 // Специальная генерация для нефти (мелкие пятна)
 function scatterOilPatches() {
-  for (let p = 0; p < 25; p++) { // 25 пятен нефти
+  for (let p = 0; p < 35; p++) { // Увеличили с 25 до 35
     const cx = Math.floor(Math.random() * WORLD_W);
     const cy = Math.floor(Math.random() * WORLD_H);
     const distToCore = Math.hypot(cx - CORE.x, cy - CORE.y);
-    if (distToCore < 15) continue; // Не спавним близко к ядру
+    if (distToCore < 15) continue;
 
-    // Маленькое пятно (от 1 до 3 клеток)
     for (let i = 0; i < 3; i++) {
       const ox = cx + Math.floor(Math.random() * 3) - 1;
       const oy = cy + Math.floor(Math.random() * 3) - 1;
@@ -67,18 +66,17 @@ function scatterOilPatches() {
 
 // Специальная генерация озер
 function generateLakes() {
-  for (let l = 0; l < 5; l++) {
+  for (let l = 0; l < 7; l++) { // Увеличили с 5 до 7
     const cx = Math.floor(Math.random() * WORLD_W);
     const cy = Math.floor(Math.random() * WORLD_H);
     const distToCore = Math.hypot(cx - CORE.x, cy - CORE.y);
     if (distToCore < 20) continue;
 
-    const radius = 4 + Math.floor(Math.random() * 4); // 4-7 клеток радиус
+    const radius = 4 + Math.floor(Math.random() * 4);
     for (let y = cy - radius; y <= cy + radius; y++) {
       for (let x = cx - radius; x <= cx + radius; x++) {
         if (x >= 0 && x < WORLD_W && y >= 0 && y < WORLD_H) {
           const d = Math.hypot(x - cx, y - cy);
-          // Делаем края озера неровными
           if (d < radius + (Math.random() * 1.5 - 0.75) && world[y][x] === 0) {
              world[y][x] = RES.WATER;
           }
@@ -98,32 +96,40 @@ export function generateWorld() {
     }
   }
 
-  // 1. Старые ресурсы
-  scatterResource(RES.IRON,   7, 1, 2);
-  scatterResource(RES.COPPER, 5, 1, 2);
-  scatterResource(RES.COAL,   4, 1, 2);
-  scatterResource(RES.IRON,   3, 1, 2, CORE.x, CORE.y, 5, 9);
-  scatterResource(RES.COPPER, 3, 1, 2, CORE.x, CORE.y, 5, 9);
-  scatterResource(RES.COAL,   3, 1, 2, CORE.x, CORE.y, 5, 9);
-
-  // 2. Новые ресурсы
-  scatterResource(RES.STONE, 15, 1, 2); // Камень
-  scatterResource(RES.CLAY,  10, 1, 2); // Глина
-  scatterResource(RES.WOOD,  15, 1, 2); // Дерево (леса)
+  // 1. Базовые ресурсы (Стало больше патчей и они крупнее)
+  scatterResource(RES.IRON,   15, 1.5, 2.5);
+  scatterResource(RES.COPPER, 12, 1.5, 2.5);
+  scatterResource(RES.COAL,   12, 1.5, 2.5);
   
-  // Бокситы, свинец и т.д. (2-3 эпоха) - пока просто раскидаем
-  scatterResource(RES.BAUXITE, 5, 1, 2);
-  scatterResource(RES.TITANIUM, 3, 1, 2);
+  // Возле ядра (чтобы на старте было чем копать)
+  scatterResource(RES.IRON,   5, 1.5, 2, CORE.x, CORE.y, 5, 12); 
+  scatterResource(RES.COPPER, 5, 1.5, 2, CORE.x, CORE.y, 5, 12);
+  scatterResource(RES.COAL,   5, 1.5, 2, CORE.x, CORE.y, 5, 12);
+
+  // 2. Новые ресурсы (1 эпоха)
+  scatterResource(RES.STONE, 20, 1.5, 3); // Камня много
+  scatterResource(RES.CLAY,  15, 1.5, 2.5);
+  scatterResource(RES.WOOD,  30, 2, 4); // 30 лесных массивов (покрупнее)
+
+  // 3. Ресурсы 2-3 эпохи
+  scatterResource(RES.BAUXITE, 10, 1.5, 2.5);
+  scatterResource(RES.LEAD,    10, 1.5, 2.5);
+  scatterResource(RES.TIN,     10, 1.5, 2.5);
+  scatterResource(RES.ZINC,    10, 1.5, 2.5);
+  scatterResource(RES.TITANIUM,8, 1.5, 2.5);
+  scatterResource(RES.TUNGSTEN,8, 1.5, 2.5);
+  scatterResource(RES.URANIUM, 8, 1.5, 2.5);
+  scatterResource(RES.SILICON, 8, 1.5, 2.5);
 
   scatterOilPatches();
   generateLakes();
 
-  // 3. Очистка зоны вокруг ядра
+  // 4. Очистка зоны вокруг ядра
   for (let y = CORE.y - 4; y <= CORE.y + 4; y++)
     for (let x = CORE.x - 4; x <= CORE.x + 4; x++)
       if (x >= 0 && x < WORLD_W && y >= 0 && y < WORLD_H) world[y][x] = 0;
 
-  // 4. Расстановка запасов (кроме воды, нефти, дерева)
+  // 5. Расстановка запасов
   for (let y = 0; y < WORLD_H; y++) {
     for (let x = 0; x < WORLD_W; x++) {
       if (world[y][x] === 0 || world[y][x] === RES.WATER || world[y][x] === RES.OIL) continue;
@@ -135,7 +141,6 @@ export function generateWorld() {
       else if (dist >= 10) amount = ORE_MID_MIN + Math.random() * (ORE_MID_MAX - ORE_MID_MIN);
       else amount = ORE_NEAR_MIN + Math.random() * (ORE_NEAR_MAX - ORE_NEAR_MIN);
       
-      // Дерево не истощается, ставим бесконечность
       if (world[y][x] === RES.WOOD) amount = Infinity;
       
       amount = Math.round(amount);
