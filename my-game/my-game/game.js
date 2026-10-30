@@ -1,148 +1,5 @@
 'use strict';
 
-export const TILE = 32;
-export const WORLD_W = 200;
-export const WORLD_H = 200;
-export const MINE_INTERVAL = 1.5;
-export const FURNACE_INTERVAL = 2.0;
-export const POLLUTION_PER_PLATE = 0.01;
-export const MINE_COST = 10;
-export const FURNACE_COST = 25;
-export const MIN_ZOOM = 0.6;
-export const MAX_ZOOM = 3;
-export const DAY_LENGTH = 300;
-
-export const DIR_DELTA = [[0, -1], [1, 0], [0, 1], [-1, 0]];
-
-export const RES = { IRON: 1, COPPER: 2, COAL: 3, PLATE_IRON: 4, PLATE_COPPER: 5, WIRE: 6, GEAR: 7, CORPS: 8, CIRCUIT: 9, ENGINE: 10, POWDER: 11, AMMO: 12 };
-export const RES_COLOR = { 1: '#c87d5e', 2: '#e89a4a', 3: '#555555', 4: '#c0c0d0', 5: '#ff8844', 6: '#c08040', 7: '#888888', 8: '#606060', 9: '#40a040', 10: '#a040a0', 11: '#202020', 12: '#c0a040' };
-export const RES_NAME = { 1: 'Железо', 2: 'Медь', 3: 'Уголь', 4: 'Железные плиты', 5: 'Медные плиты', 6: 'Провод', 7: 'Шестерня', 8: 'Корпус', 9: 'Электросхема', 10: 'Двигатель', 11: 'Порох', 12: 'Патроны' };
-
-export const canvas = document.getElementById('game');
-export const ctx = canvas.getContext('2d');
-export const camera = { x: 0, y: 0, zoom: 1 };
-
-export const inventory = { 1: 25, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0 };
-
-export const state = {
-  panel: null, activeBuilding: null, activeConveyor: null, activeSplitter: null, selectedBuilding: null, ghostPos: null,
-  pollution: 0, coreHP: 1000, dna: 0, gameOver: false, newConveyorDir: 1, savedOutputDir: null,
-  miningSpeedMult: 1.0, labSpeedMult: 1.0, coreDamageBonus: 0, turretFireRateMult: 1.0,
-  turretRangeBonus: 0, turretDamageBonus: 0, turretHpBonus: 0,
-  soundEnabled: true, gameStarted: false, inMenu: true,
-  demolishMode: false, currentSaveSlot: null, totalKills: 0,
-  LIMITS: { mine: 30, furnace: 10, lab: 5, cutter: 10, assembler: 5, chemplant: 5, storage: 5, turret: 15, radar: 20, inserter: 50 },
-  techState: {}, statHistory: {}, activeStudyTechId: null, studyProgressByTech: {}, studyTickTimer: 0,
-  day: 1, timeOfDay: 0.25,
-  hudResources: [1, 2, 3], // НОВОЕ: Ресурсы в HUD (Железо, Медь, Уголь)
-};
-
-export const STAT_WINDOW_SEC = 30;
-
-export function getViewportSize() {
-  if (window.visualViewport) return { w: Math.floor(window.visualViewport.width), h: Math.floor(window.visualViewport.height) };
-  return { w: window.innerWidth, h: window.innerHeight };
-}
-
-export function clampCamera() {
-  const halfW = canvas.width / (2 * camera.zoom);
-  const halfH = canvas.height / (2 * camera.zoom);
-  const minX = halfW, maxX = WORLD_W * TILE - halfW;
-  const minY = halfH, maxY = WORLD_H * TILE - halfH;
-  camera.x = minX > maxX ? (minX + maxX) / 2 : Math.max(minX, Math.min(maxX, camera.x));
-  camera.y = minY > maxY ? (minY + maxY) / 2 : Math.max(minY, Math.min(maxY, camera.y));
-}
-
-export function initialZoom() {
-  const { w, h } = getViewportSize();
-  return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Math.min(w, h) / 400));
-}
-
-export function resize() {
-  const { w, h } = getViewportSize();
-  canvas.width = Math.max(1, w);
-  canvas.height = Math.max(1, h);
-  clampCamera();
-}
-
-resize();
-if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
-window.addEventListener('resize', resize);
-window.addEventListener('orientationchange', () => setTimeout(resize, 120));
-
-export const popups = [];
-const popupPool = [];
-
-export function addPopup(worldX, worldY, text, color) {
-  let p = popupPool.pop();
-  if (!p) p = {};
-  p.x = worldX; p.y = worldY; p.text = text; p.color = color || '#7fbf7f'; p.life = 1.2; p.maxLife = 1.2;
-  popups.push(p);
-}
-
-export function updatePopups(dt) {
-  for (let i = popups.length - 1; i >= 0; i--) {
-    popups[i].life -= dt;
-    popups[i].y -= dt * 30;
-    if (popups[i].life <= 0) { popupPool.push(popups[i]); popups.splice(i, 1); }
-  }
-}
-
-let _errorCount = 0;
-export function safeCall(fn, name, ...args) {
-  if (typeof fn !== 'function') return;
-  try { return fn(...args); } 
-  catch (e) { _errorCount++; if (_errorCount < 20) console.error(`[${name}] error #${_errorCount}:`, e); }
-}
-
-export const hooks = { onTap: null, onConveyorDragStep: null, onDemolishDrag: null };
-
-const pointers = new Map();
-let dragState = null, pinchState = null;
-
-function pinchDist() { const [a, b] = [...pointers.values()]; return Math.hypot(a.x - b.x, a.y - b.y); }
-function pinchMid() { const [a, b] = [...pointers.values()]; return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; }
-
-export function screenToCell(sx, sy) {
-  const wx = (sx - canvas.width / 2) / camera.zoom + camera.x;
-  const wy = (sy - canvas.height / 2) / camera.zoom + camera.y;
-  const tx = Math.floor(wx / TILE);
-  const ty = Math.floor(wy / TILE);
-  if (tx < 0 || tx >= WORLD_W || ty < 0 || ty >= WORLD_H) return null;
-  return { tx, ty };
-}
-
-canvas.addEventListener('pointerdown', e => {
-  canvas.setPointerCapture(e.pointerId);
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-  if (pointers.size === 1) {
-    if (state.selectedBuilding) {
-      const cell = screenToCell(e.clientX, e.clientY);
-      if (cell) state.ghostPos = cell;
-      if (state.selectedBuilding === 'conveyor' || state.selectedBuilding === 'underground') {
-        dragState = { mode: 'conveyor-drag', startX: e.clientX, startY: e.clientY, moved: 0, lastCell: cell };
-      } else {
-        dragState = { mode: 'ghost', startX: e.clientX, startY: e.clientY, moved: 0 };
-      }
-    } else if (state.demolishMode) {
-      dragState = { mode: 'demolish', startX: e.clientX, startY: e.clientY, moved: 0, lastCell: null };
-    } else {
-      dragState = { mode: 'camera', startX: e.clientX, startY: e.clientY, camX: camera.x, camY: camera.y, moved: 0 };
-    }
-    pinchState = null;
-  } else if (pointers.size === 2) {
-    const mid = pinchMid();
-    pinchState = { startDist: pinchDist(), startZoom: camera.zoom, startMidX: mid.x, startMidY: mid.y, startCamX: camera.x, startCamY: camera.y };
-    dragState = null;
-  }
-});
-
-canvas.addEventListener('pointermove', e => {
-  if (!pointers.has(e.pointerId)) return;
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-'use strict';
-
 // ИМПОРТИРУЕМ РЕСУРСЫ ИЗ НОВОГО ФАЙЛА
 import { RES, RES_NAME, RES_COLOR, RES_TYPE } from './resources.js';
 export { RES, RES_NAME, RES_COLOR };
@@ -165,7 +22,11 @@ export const canvas = document.getElementById('game');
 export const ctx = canvas.getContext('2d');
 export const camera = { x: 0, y: 0, zoom: 1 };
 
-export const inventory = { 1: 25, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0 };
+// Обновленный инвентарь со всеми новыми ресурсами (до 25)
+export const inventory = { 
+  1: 25, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0,
+  13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 0, 19: 0, 20: 0, 21: 0, 22: 0, 23: 0, 24: 0, 25: 0
+};
 
 export const state = {
   panel: null, activeBuilding: null, activeConveyor: null, activeSplitter: null, selectedBuilding: null, ghostPos: null,
@@ -381,26 +242,22 @@ function drawProceduralTile(resType, sx, sy, size) {
   if (resType === RES.WATER) {
     ctx.fillStyle = '#1e4a7a';
     ctx.fillRect(sx, sy, size, size);
-    // Блики воды
     ctx.fillStyle = 'rgba(80, 160, 255, 0.3)';
     ctx.beginPath(); ctx.ellipse(cx, cy, size*0.3, size*0.1, 0, 0, Math.PI*2); ctx.fill();
     return true;
   }
   
   if (resType === RES.OIL) {
-    ctx.fillStyle = '#111'; // Пятно нефти
+    ctx.fillStyle = '#111';
     ctx.beginPath(); ctx.arc(cx, cy, size*0.4, 0, Math.PI*2); ctx.fill();
-    // Фиолетовый отблеск
     ctx.fillStyle = 'rgba(100, 50, 150, 0.5)';
     ctx.beginPath(); ctx.arc(cx - 2, cy - 2, size*0.2, 0, Math.PI*2); ctx.fill();
     return true;
   }
 
   if (resType === RES.WOOD) {
-    // Ствол
     ctx.fillStyle = '#4a2a1a';
     ctx.fillRect(cx - 3, cy, 6, size/2);
-    // Крона (треугольник)
     ctx.fillStyle = '#1a4a1a';
     ctx.beginPath(); 
     ctx.moveTo(cx, sy + 4); 
@@ -426,7 +283,7 @@ function drawProceduralTile(resType, sx, sy, size) {
     return true;
   }
 
-  return false; // Если PNG нет, но мы не обработали вручную
+  return false;
 }
 
 export function drawBackground(world, oreAmount, oreInitial, getBuildingAt, drawResIcon, variantForTile) {
@@ -450,7 +307,6 @@ export function drawBackground(world, oreAmount, oreInitial, getBuildingAt, draw
         const hasBuilding = getBuildingAt && getBuildingAt(tx, ty);
         if (hasBuilding) continue;
         
-        // Если это новый ресурс - рисуем кодом
         const isProcedural = drawProceduralTile(r, sx, sy, TILE);
         
         if (!isProcedural) {
@@ -476,8 +332,6 @@ export function drawBackground(world, oreAmount, oreInitial, getBuildingAt, draw
     ctx.stroke();
   }
 }
-
-// ... (Остальные функции drawGhost, drawCore, drawPopups, drawMinimap и т.д. оставляем как есть)
 
 export function drawGhost(type, tx, ty, canPlace) {
   const sx = tx * TILE, sy = ty * TILE;
@@ -547,6 +401,27 @@ export function drawPopups() {
   }
 }
 
+export function drawRangeCircle(cx, cy, radius, isGhost = false) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  
+  if (isGhost) {
+    ctx.fillStyle = 'rgba(120, 200, 120, 0.15)';
+    ctx.strokeStyle = 'rgba(120, 200, 120, 0.6)';
+  } else {
+    ctx.fillStyle = 'rgba(255, 200, 100, 0.1)';
+    ctx.strokeStyle = 'rgba(255, 200, 100, 0.6)';
+  }
+  
+  ctx.fill();
+  ctx.lineWidth = 2 / camera.zoom;
+  ctx.setLineDash([8 / camera.zoom, 8 / camera.zoom]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
 const MINIMAP_SIZE = 100, MINIMAP_MARGIN = 12;
 export function getMinimapRect() { return { x: canvas.width - MINIMAP_SIZE - MINIMAP_MARGIN, y: 46 + MINIMAP_MARGIN, w: MINIMAP_SIZE, h: MINIMAP_SIZE }; }
 
@@ -607,28 +482,6 @@ export function handleMinimapClick(sx, sy) {
   return true;
 }
 
-export function drawRangeCircle(cx, cy, radius, isGhost = false) {
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  
-  // Настройка цветов
-  if (isGhost) {
-    ctx.fillStyle = 'rgba(120, 200, 120, 0.15)'; // Зеленоватый для призрака
-    ctx.strokeStyle = 'rgba(120, 200, 120, 0.6)';
-  } else {
-    ctx.fillStyle = 'rgba(255, 200, 100, 0.1)'; // Оранжевый для выделенного
-    ctx.strokeStyle = 'rgba(255, 200, 100, 0.6)';
-  }
-  
-  ctx.fill();
-  ctx.lineWidth = 2 / camera.zoom;
-  ctx.setLineDash([8 / camera.zoom, 8 / camera.zoom]); // Пунктирная линия
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.restore();
-}
-
 const toastEl = document.getElementById('toast');
 let toastTimer;
 export function showToast(msg) {
@@ -636,7 +489,4 @@ export function showToast(msg) {
   toastEl.textContent = msg; toastEl.classList.add('show');
   clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1800);
 }
-
-
-
 console.debug('[game] loaded');

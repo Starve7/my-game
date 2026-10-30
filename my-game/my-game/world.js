@@ -150,4 +150,4 @@ camera.x = CORE.x * TILE + TILE / 2;
 camera.y = CORE.y * TILE + TILE / 2;
 camera.zoom = initialZoom();
 clampCamera();
-console.debug('[world] generated, CORE:', CORE.x, CORE.y);l
+console.debug('[world] generated, CORE:', CORE.x, CORE.y);
