@@ -1,6 +1,7 @@
 'use strict';
 
-import { state, inventory, RES, CORE } from '../game.js';
+import { state, inventory, RES } from '../game.js';
+import { CORE } from '../world.js'; // <--- ВОТ ТУТ ИСПРАВЛЕНО
 import { buildingImages, isReady } from '../sprites.js';
 import { openModal, closeModal, panelContent } from './core.js';
 import { countBuildings, isBuildingUnlocked } from '../buildings.js';

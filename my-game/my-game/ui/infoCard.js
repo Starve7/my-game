@@ -1,6 +1,7 @@
 'use strict';
 
-import { RES, RES_NAME, inventory, state, oreAmount } from '../game.js';
+import { RES, RES_NAME, inventory, state } from '../game.js';
+import { oreAmount } from '../world.js'; // <--- ВОТ ТУТ ИСПРАВЛЕНО
 import { getStorageTotal, STORAGE_CAPACITY, CONVEYOR_CAPACITY, getRecipeById, repairBuilding, repairConveyor } from '../buildings.js';
 import { infoCardEl, infoCardContent } from './core.js';
 import { showToast } from '../game.js';

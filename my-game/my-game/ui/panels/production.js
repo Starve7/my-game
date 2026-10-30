@@ -1,7 +1,8 @@
 'use strict';
 
-import { state, inventory, RES, RES_NAME, oreAmount, oreInitial, TILE, MINE_INTERVAL, FURNACE_INTERVAL } from '../../game.js';
-import { LAB_INTERVAL, CUTTER_INTERVAL, flushOutputBuffer, getRecipeById, getRecipesForBuilding, demolishBuilding } from '../../buildings.js';
+import { state, inventory, RES, RES_NAME, TILE } from '../../game.js';
+import { oreAmount, oreInitial } from '../../world.js'; // <--- ВОТ ТУТ ИСПРАВЛЕНО
+import { MINE_INTERVAL, FURNACE_INTERVAL, LAB_INTERVAL, CUTTER_INTERVAL, flushOutputBuffer, getRecipeById, getRecipesForBuilding, demolishBuilding } from '../../buildings.js';
 import { isTechOwned } from '../../research.js';
 import { panelContent, closePanel, openModal } from '../core.js';
 import { iconStyle } from '../utils.js';

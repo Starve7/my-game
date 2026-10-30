@@ -1,6 +1,7 @@
 'use strict';
 
-import { state, oreAmount } from '../../game.js';
+import { state } from '../../game.js';
+import { oreAmount } from '../../world.js'; // <--- ВОТ ТУТ ИСПРАВЛЕНО
 import { openModal, panelContent } from '../core.js';
 
 import { renderMinePanel, renderFurnacePanel, renderLabPanel, renderCutterPanel, renderCrafterPanel } from './production.js';
