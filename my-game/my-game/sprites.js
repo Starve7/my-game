@@ -3,8 +3,8 @@
 import { RES, RES_COLOR, ctx } from './game.js';
 
 export const SPRITES = {
-  [RES.IRON]:         ['assets/iron_1.png',   'assets/iron_2.png',   'assets/iron_3.png'],
-  [RES.COPPER]:       ['assets/copper_1.png', 'assets/copper_2.png', 'assets/copper_3.png'],
+  [RES.IRON]:         ['assets/iron_1.png'],     // БЫЛО 3, СТАЛО 1
+  [RES.COPPER]:       ['assets/copper_1.png'],   // БЫЛО 3, СТАЛО 1
   [RES.COAL]:         ['assets/coal.png'],
   [RES.PLATE_IRON]:   ['assets/plate_iron.png'],
   [RES.PLATE_COPPER]: ['assets/plate_copper.png'],
