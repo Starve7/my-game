@@ -2,9 +2,18 @@
 
 import { RES, RES_COLOR, ctx } from './game.js';
 
+// НАСТРОЙКА МАСШТАБА ДЛЯ РЕСУРСОВ (1.0 - стандарт)
+export const RES_SCALE = {
+  [RES.IRON]: 1.2,      // Железо чуть увеличили
+  [RES.COPPER]: 2.0,    // Медь увеличили в 2 раза, чтобы не была мелкой
+  [RES.COAL]: 1.0,      // Уголь норм
+  [RES.STONE]: 0.7,     // Камень уменьшили, он слишком огромный
+  // Остальные будут по 1.0
+};
+
 export const SPRITES = {
-  [RES.IRON]:         ['assets/iron_1.png'],     // БЫЛО 3, СТАЛО 1
-  [RES.COPPER]:       ['assets/copper_1.png'],   // БЫЛО 3, СТАЛО 1
+  [RES.IRON]:         ['assets/iron_1.png'],
+  [RES.COPPER]:       ['assets/copper_1.png'],
   [RES.COAL]:         ['assets/coal.png'],
   [RES.PLATE_IRON]:   ['assets/plate_iron.png'],
   [RES.PLATE_COPPER]: ['assets/plate_copper.png'],
@@ -46,12 +55,8 @@ export const BUILDING_SCALE = {
 };
 
 const CONVEYOR_SPRITES = [
-  'assets/conveyor_n.png',
-  'assets/conveyor_e.png',
-  'assets/conveyor_s.png',
-  'assets/conveyor_w.png',
-  'assets/conveyor_ne.png',
-  'assets/conveyor_t.png'
+  'assets/conveyor_n.png', 'assets/conveyor_e.png', 'assets/conveyor_s.png',
+  'assets/conveyor_w.png', 'assets/conveyor_ne.png', 'assets/conveyor_t.png'
 ];
 
 const CORE_SPRITE = 'assets/core.png';
@@ -101,33 +106,39 @@ export function variantForTile(tx, ty) {
   return (tx * 73856093 ^ ty * 19349663) >>> 0;
 }
 
+// ОБНОВЛЕННАЯ ФУНКЦИЯ (Учитывает масштаб)
 export function drawResIcon(resType, x, y, size, variant = 0) {
   const arr = images[resType];
+  const scale = RES_SCALE[resType] || 1.0;
+  
+  // Вычисляем новый размер и центрируем
+  const finalSize = size * scale;
+  const offsetX = x + (size - finalSize) / 2;
+  const offsetY = y + (size - finalSize) / 2;
+
   if (arr) {
     if (variant < arr.length && imgReady(resType, variant)) {
-      ctx.drawImage(arr[variant], x, y, size, size);
+      ctx.drawImage(arr[variant], offsetX, offsetY, finalSize, finalSize);
       return;
     }
     if (imgReady(resType, 0)) {
-      ctx.drawImage(arr[0], x, y, size, size);
+      ctx.drawImage(arr[0], offsetX, offsetY, finalSize, finalSize);
       return;
     }
   }
   ctx.fillStyle = RES_COLOR[resType] || '#888';
-  ctx.fillRect(x, y, size, size);
+  ctx.fillRect(offsetX, offsetY, finalSize, finalSize);
 }
 
 export function drawBuildingSprite(type, sx, sy, size) {
   const img = buildingImages[type];
   if (!isReady(img)) return false;
-
   const scale = BUILDING_SCALE[type] || 1.0;
   const aspect = img.naturalHeight / img.naturalWidth;
   const w = size * scale;
   const h = w * aspect;
   const drawX = sx + size / 2 - w / 2;
   const drawY = sy + size - h;
-
   ctx.drawImage(img, drawX, drawY, w, h);
   return true;
 }
@@ -136,7 +147,6 @@ export function drawInserterArm(angle, heldItem, cx, cy) {
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(angle);
-  
   const img = buildingImages['inserter_arm'];
   if (isReady(img)) {
     const size = 32 * (BUILDING_SCALE['inserter_arm'] || 1.5);
@@ -145,7 +155,6 @@ export function drawInserterArm(angle, heldItem, cx, cy) {
     ctx.fillStyle = '#a0a0a0';
     ctx.fillRect(0, -3, 16 + 6, 6);
   }
-  
   if (heldItem) {
     const itemSize = 12;
     drawResIcon(heldItem, 20 - itemSize/2, -itemSize/2, itemSize, 0);
@@ -157,30 +166,22 @@ export function drawConveyorSprite(dir, sx, sy, size, inDirs = []) {
   const oppDir = (dir + 2) % 4;
   const hasStraight = inDirs.includes(oppDir);
   const sideIns = inDirs.filter(d => d !== oppDir);
-
   let imgIndex = dir;
   let angle = 0;
   let flipX = false;
 
   if (sideIns.length >= 2) {
     imgIndex = 5; 
-    if (dir === 0) angle = 0;
-    else if (dir === 1) angle = Math.PI / 2;
-    else if (dir === 2) angle = Math.PI;
-    else if (dir === 3) angle = -Math.PI / 2;
-  } 
-  else if (hasStraight && sideIns.length === 0) {
+    if (dir === 0) angle = 0; else if (dir === 1) angle = Math.PI / 2; else if (dir === 2) angle = Math.PI; else if (dir === 3) angle = -Math.PI / 2;
+  } else if (hasStraight && sideIns.length === 0) {
     imgIndex = dir;
-  } 
-  else if (sideIns.length === 1) {
+  } else if (sideIns.length === 1) {
     imgIndex = 4; 
     const inDir = sideIns[0];
-    
     if (inDir === 0 && dir === 1) { angle = 0; flipX = false; }             
     else if (inDir === 1 && dir === 2) { angle = Math.PI / 2; flipX = false; }  
     else if (inDir === 2 && dir === 3) { angle = Math.PI; flipX = false; }      
     else if (inDir === 3 && dir === 0) { angle = -Math.PI / 2; flipX = false; } 
-    
     else if (inDir === 0 && dir === 3) { angle = 0; flipX = true; }             
     else if (inDir === 1 && dir === 0) { angle = Math.PI / 2; flipX = true; }   
     else if (inDir === 2 && dir === 1) { angle = Math.PI; flipX = true; }       
@@ -218,9 +219,7 @@ export function drawShadow(sx, sy, size, type) {
   const rx = (size * 0.42) * Math.min(scale, 1.6);
   const ry = size * 0.14;
   ctx.fillStyle = 'rgba(0,0,0,0.28)';
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
 }
 
 export function setHudIcon(elId, resType) {

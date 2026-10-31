@@ -1,7 +1,7 @@
 'use strict';
 
 import { RES_COLOR, showToast } from '../game.js';
-import { spriteUrl } from '../sprites.js';
+import { spriteUrl, RES_SCALE } from '../sprites.js'; // Импортируем RES_SCALE
 
 export const POLLUTION_THRESHOLDS = [100, 300, 600, 1000];
 export let lastThresholdShown = 0;
@@ -27,8 +27,14 @@ export function formatPct(p) { return (p < 10 ? p.toFixed(1) : Math.floor(p).toS
 
 export function iconStyle(resType) {
   const url = spriteUrl(resType);
-  if (url) return `background-image:${url}; background-size:contain; background-repeat:no-repeat; background-position:center;`;
-  return `background-color:${RES_COLOR[resType] || '#888'};`; // Используем background-color, чтобы не сбрасывать размеры
+  const scale = RES_SCALE[resType] || 1.0;
+  
+  if (url) {
+    // Если масштаб больше 1, мы увеличиваем background-size, чтобы картинка не была крошечной
+    const bgSize = scale !== 1.0 ? `${scale * 100}%` : 'contain';
+    return `background-image:${url}; background-size:${bgSize}; background-repeat:no-repeat; background-position:center;`;
+  }
+  return `background-color:${RES_COLOR[resType] || '#888'};`;
 }
 
 export function costHtml(amount, resType) {
