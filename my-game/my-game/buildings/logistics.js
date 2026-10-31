@@ -2,8 +2,7 @@
 
 import { inventory, state, addPopup, TILE, WORLD_W, WORLD_H, RES, RES_COLOR, ctx } from '../game.js';
 import { playBuildSound } from '../audio.js';
-import { drawResIcon, drawConveyorSprite, drawInserterArm, drawBuildingSprite } from '../sprites.js';
-// ВОТ ТУТ Я ДОБАВИЛ МАССИВЫ: conveyors, splitters, undergrounds
+import { drawResIcon, drawConveyorSprite, drawInserterArm, drawBuildingSprite, drawSplitterSprite, drawUndergroundSprite } from '../sprites.js'; // <--- ДОБАВЛЕНЫ НОВЫЕ ИМПОРТЫ
 import { 
   Building, conveyors, splitters, undergrounds, 
   DIR_DELTA, CONVEYOR_SPEED, CONVEYOR_CAPACITY, BUILDING_HP,
@@ -48,17 +47,11 @@ export class Inserter extends Building {
   }
   tryPickup(sx, sy) {
     const c = getConveyorAt(sx, sy);
-    if (c && !c.isBroken && c.items.length > 0) {
-      this.heldItem = c.items.shift().type; this.animProgress = 0.01; return;
-    }
+    if (c && !c.isBroken && c.items.length > 0) { this.heldItem = c.items.shift().type; this.animProgress = 0.01; return; }
     const s = getSplitterAt(sx, sy);
-    if (s && !s.isBroken && s.items.length > 0) {
-      this.heldItem = s.items.shift().type; this.animProgress = 0.01; return;
-    }
+    if (s && !s.isBroken && s.items.length > 0) { this.heldItem = s.items.shift().type; this.animProgress = 0.01; return; }
     const u = getUndergroundAt(sx, sy);
-    if (u && !u.isBroken && u.items.length > 0) {
-      this.heldItem = u.items.shift().type; this.animProgress = 0.01; return;
-    }
+    if (u && !u.isBroken && u.items.length > 0) { this.heldItem = u.items.shift().type; this.animProgress = 0.01; return; }
     const b = getBuildingAt(sx, sy);
     if (b && !b.isBroken && b.outputBuffer > 0) {
       this.heldItem = b.outputBufferType; 
@@ -69,33 +62,20 @@ export class Inserter extends Building {
   }
   tryDrop(dx, dy) {
     const c = getConveyorAt(dx, dy);
-    if (c && !c.isBroken && c.items.length < CONVEYOR_CAPACITY) {
-      c.items.push({ type: this.heldItem, progress: 0 }); this.heldItem = null; return;
-    }
+    if (c && !c.isBroken && c.items.length < CONVEYOR_CAPACITY) { c.items.push({ type: this.heldItem, progress: 0 }); this.heldItem = null; return; }
     const s = getSplitterAt(dx, dy);
-    if (s && !s.isBroken && s.items.length < CONVEYOR_CAPACITY) {
-      s.items.push({ type: this.heldItem, progress: 0 }); this.heldItem = null; return;
-    }
+    if (s && !s.isBroken && s.items.length < CONVEYOR_CAPACITY) { s.items.push({ type: this.heldItem, progress: 0 }); this.heldItem = null; return; }
     const u = getUndergroundAt(dx, dy);
-    if (u && u.isEntrance && !u.isBroken && u.items.length < CONVEYOR_CAPACITY) {
-      u.items.push({ type: this.heldItem, progress: 0 }); this.heldItem = null; return;
-    }
+    if (u && u.isEntrance && !u.isBroken && u.items.length < CONVEYOR_CAPACITY) { u.items.push({ type: this.heldItem, progress: 0 }); this.heldItem = null; return; }
     const b = getBuildingAt(dx, dy);
-    if (b && !b.isBroken && tryAcceptItem(b, this.heldItem)) {
-      acceptItem(b, this.heldItem); this.heldItem = null; return;
-    }
+    if (b && !b.isBroken && tryAcceptItem(b, this.heldItem)) { acceptItem(b, this.heldItem); this.heldItem = null; return; }
   }
   drawSpecific() {
     const sx = this.tx * TILE, sy = this.ty * TILE;
     const cx = sx + TILE / 2, cy = sy + TILE / 2;
-    if (!drawBuildingSprite('inserter_base', sx, sy, TILE)) {
-      ctx.fillStyle = '#5a5a5a'; ctx.beginPath(); ctx.arc(cx, cy, TILE/2 - 2, 0, Math.PI*2); ctx.fill();
-    }
+    if (!drawBuildingSprite('inserter_base', sx, sy, TILE)) { ctx.fillStyle = '#5a5a5a'; ctx.beginPath(); ctx.arc(cx, cy, TILE/2 - 2, 0, Math.PI*2); ctx.fill(); }
     let baseAngle = 0;
-    if (this.dir === 0) baseAngle = -Math.PI / 2;
-    else if (this.dir === 1) baseAngle = 0;
-    else if (this.dir === 2) baseAngle = Math.PI / 2;
-    else if (this.dir === 3) baseAngle = Math.PI;
+    if (this.dir === 0) baseAngle = -Math.PI / 2; else if (this.dir === 1) baseAngle = 0; else if (this.dir === 2) baseAngle = Math.PI / 2; else if (this.dir === 3) baseAngle = Math.PI;
     const armAngle = baseAngle + (1 - this.animProgress) * Math.PI;
     drawInserterArm(armAngle, this.heldItem, cx, cy);
   }
@@ -125,11 +105,11 @@ export function tryConveyorDragStep(cell, prevCell) {
     }
     const u = { type: 'underground', tx: cell.tx, ty: cell.ty, dir, items: [], paidCost: UNDERGROUND_COST.iron, hp: BUILDING_HP.underground, maxHp: BUILDING_HP.underground, isBroken: false, isEntrance, partner };
     if (partner) partner.partner = u;
-    undergrounds.push(u); // <--- ВЕРНУЛ УСТАНОВКУ ПОДЗЕМКИ
+    undergrounds.push(u);
     return true;
   }
 
-  conveyors.push({ type: 'conveyor', tx: cell.tx, ty: cell.ty, dir, items: [], paidCost: CONVEYOR_COST, hp: BUILDING_HP.conveyor, maxHp: BUILDING_HP.conveyor, isBroken: false }); // <--- ВЕРНУЛ УСТАНОВКУ КОНВЕЙЕРА
+  conveyors.push({ type: 'conveyor', tx: cell.tx, ty: cell.ty, dir, items: [], paidCost: CONVEYOR_COST, hp: BUILDING_HP.conveyor, maxHp: BUILDING_HP.conveyor, isBroken: false });
   return true;
 }
 
@@ -183,28 +163,14 @@ export function updateConveyors(dt) {
       let targetX, targetY;
       let fallbackX = null, fallbackY = null;
 
-      if (s.filterLeft === it.type) {
-        targetX = out1x; targetY = out1y;
-      } else if (s.filterRight === it.type) {
-        targetX = out2x; targetY = out2y;
-      } else if (s.filterLeft !== null && s.filterRight !== null) {
-        it.progress = 1; continue; 
-      } else if (s.filterLeft !== null) {
-        if (s.filterLeft === it.type) { targetX = out1x; targetY = out1y; }
-        else { targetX = out2x; targetY = out2y; }
-      } else if (s.filterRight !== null) {
-        if (s.filterRight === it.type) { targetX = out2x; targetY = out2y; }
-        else { targetX = out1x; targetY = out1y; }
-      } else {
-        if (s.lastOut === 1) {
-          targetX = out1x; targetY = out1y;
-          fallbackX = out2x; fallbackY = out2y;
-          s.lastOut = 2;
-        } else {
-          targetX = out2x; targetY = out2y;
-          fallbackX = out1x; fallbackY = out1y;
-          s.lastOut = 1;
-        }
+      if (s.filterLeft === it.type) { targetX = out1x; targetY = out1y; } 
+      else if (s.filterRight === it.type) { targetX = out2x; targetY = out2y; } 
+      else if (s.filterLeft !== null && s.filterRight !== null) { it.progress = 1; continue; } 
+      else if (s.filterLeft !== null) { if (s.filterLeft === it.type) { targetX = out1x; targetY = out1y; } else { targetX = out2x; targetY = out2y; } } 
+      else if (s.filterRight !== null) { if (s.filterRight === it.type) { targetX = out2x; targetY = out2y; } else { targetX = out1x; targetY = out1y; } } 
+      else {
+        if (s.lastOut === 1) { targetX = out1x; targetY = out1y; fallbackX = out2x; fallbackY = out2y; s.lastOut = 2; } 
+        else { targetX = out2x; targetY = out2y; fallbackX = out1x; fallbackY = out1y; s.lastOut = 1; }
       }
 
       const tryPush = (tx, ty) => {
@@ -262,13 +228,7 @@ export function updateConveyors(dt) {
 export function drawConveyors() {
   for (const c of conveyors) {
     const sx = c.tx * TILE, sy = c.ty * TILE;
-    if (c.isBroken) { 
-      ctx.save(); ctx.globalAlpha = 0.35; 
-      ctx.fillStyle = '#3a3a3a'; ctx.fillRect(sx + 1, sy + 1, TILE - 2, TILE - 2); 
-      ctx.restore(); 
-      drawBrokenOverlay(sx, sy, TILE); 
-      continue; 
-    }
+    if (c.isBroken) { ctx.save(); ctx.globalAlpha = 0.35; ctx.fillStyle = '#3a3a3a'; ctx.fillRect(sx + 1, sy + 1, TILE - 2, TILE - 2); ctx.restore(); drawBrokenOverlay(sx, sy, TILE); continue; }
 
     const inDirs = [];
     for (let d = 0; d < 4; d++) {
@@ -277,10 +237,7 @@ export function drawConveyors() {
       let isInput = false;
 
       const nc = getConveyorAt(nx, ny);
-      if (nc && !nc.isBroken && d === (nc.dir + 2) % 4) {
-        if (c.dir !== d) inDirs.push(d);
-        continue;
-      }
+      if (nc && !nc.isBroken && d === (nc.dir + 2) % 4) { if (c.dir !== d) inDirs.push(d); continue; }
 
       const ns = getSplitterAt(nx, ny);
       if (ns && !ns.isBroken) {
@@ -288,21 +245,14 @@ export function drawConveyors() {
         const [pdx, pdy] = [sdy, sdx];
         const out1x = ns.tx + sdx, out1y = ns.ty + sdy;
         const out2x = ns.tx + pdx, out2y = ns.ty + pdy;
-        if ((out1x === c.tx && out1y === c.ty) || (out2x === c.tx && out2y === c.ty)) {
-          inDirs.push(d);
-          continue;
-        }
+        if ((out1x === c.tx && out1y === c.ty) || (out2x === c.tx && out2y === c.ty)) { inDirs.push(d); continue; }
       }
 
       const nu = getUndergroundAt(nx, ny);
-      if (nu && !nu.isBroken && !nu.isEntrance && d === (nu.dir + 2) % 4) {
-        if (c.dir !== d) inDirs.push(d);
-        continue;
-      }
+      if (nu && !nu.isBroken && !nu.isEntrance && d === (nu.dir + 2) % 4) { if (c.dir !== d) inDirs.push(d); continue; }
     }
 
     const spriteOk = drawConveyorSprite(c.dir, sx, sy, TILE, inDirs);
-    
     if (!spriteOk) {
       ctx.fillStyle = '#3a3a3a'; ctx.fillRect(sx + 1, sy + 1, TILE - 2, TILE - 2); 
       ctx.fillStyle = '#4a4a4a'; ctx.fillRect(sx + 3, sy + 3, TILE - 6, TILE - 6);
@@ -316,57 +266,72 @@ export function drawConveyors() {
       ctx.save(); ctx.globalAlpha = 0.35; 
       if (s.dir === 1 || s.dir === 3) ctx.fillStyle = '#5a4a2a', ctx.fillRect(sx, sy, TILE * 2, TILE); 
       else ctx.fillStyle = '#5a4a2a', ctx.fillRect(sx, sy, TILE, TILE * 2); 
-      ctx.restore(); 
-      drawBrokenOverlay(sx, sy, TILE * 2); 
-      continue; 
+      ctx.restore(); drawBrokenOverlay(sx, sy, TILE * 2); continue; 
     }
     
-    const isH = s.dir === 0 || s.dir === 2;
-    ctx.fillStyle = '#c8a040'; 
-    if (isH) ctx.fillRect(sx, sy, TILE * 2, TILE);
-    else ctx.fillRect(sx, sy, TILE, TILE * 2);
+    // ==================== НОВАЯ ОТРИСОВКА СПЛИТТЕРА ====================
+    const spriteOk = drawSplitterSprite(s.dir, sx, sy, TILE);
     
-    ctx.fillStyle = '#a07020';
-    if (isH) ctx.fillRect(sx + 4, sy + 4, TILE * 2 - 8, TILE - 8);
-    else ctx.fillRect(sx + 4, sy + 4, TILE - 8, TILE * 2 - 8);
-    
-    ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 3;
-    const cx = sx + (isH ? TILE : TILE/2);
-    const cy = sy + (isH ? TILE/2 : TILE);
-    const [dx, dy] = DIR_DELTA[s.dir];
-    
-    ctx.beginPath(); ctx.moveTo(cx - dx * TILE/2, cy - dy * TILE/2); ctx.lineTo(cx, cy); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx, cy);
-    if (isH) ctx.lineTo(cx + dx * TILE/2, cy - TILE/2); else ctx.lineTo(cx - TILE/2, cy + dy * TILE/2); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx, cy);
-    if (isH) ctx.lineTo(cx + dx * TILE/2, cy + TILE/2); else ctx.lineTo(cx + TILE/2, cy + dy * TILE/2); ctx.stroke();
-    
-    if (s.filterLeft) {
-      ctx.fillStyle = RES_COLOR[s.filterLeft] || '#fff';
-      let dotX, dotY;
-      if (isH) { dotX = cx + dx * TILE/2; dotY = cy - TILE/2; } else { dotX = cx - TILE/2; dotY = cy + dy * TILE/2; }
-      ctx.beginPath(); ctx.arc(dotX, dotY, 4, 0, Math.PI*2); ctx.fill();
+    if (!spriteOk) {
+      // Старый fallback
+      const isH = s.dir === 0 || s.dir === 2;
+      ctx.fillStyle = '#c8a040'; 
+      if (isH) ctx.fillRect(sx, sy, TILE * 2, TILE); else ctx.fillRect(sx, sy, TILE, TILE * 2);
+      ctx.fillStyle = '#a07020';
+      if (isH) ctx.fillRect(sx + 4, sy + 4, TILE * 2 - 8, TILE - 8); else ctx.fillRect(sx + 4, sy + 4, TILE - 8, TILE * 2 - 8);
+      ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 3;
+      const cx = sx + (isH ? TILE : TILE/2); const cy = sy + (isH ? TILE/2 : TILE);
+      const [dx, dy] = DIR_DELTA[s.dir];
+      ctx.beginPath(); ctx.moveTo(cx - dx * TILE/2, cy - dy * TILE/2); ctx.lineTo(cx, cy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx, cy);
+      if (isH) ctx.lineTo(cx + dx * TILE/2, cy - TILE/2); else ctx.lineTo(cx - TILE/2, cy + dy * TILE/2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx, cy);
+      if (isH) ctx.lineTo(cx + dx * TILE/2, cy + TILE/2); else ctx.lineTo(cx + TILE/2, cy + dy * TILE/2); ctx.stroke();
     }
-    if (s.filterRight) {
-      ctx.fillStyle = RES_COLOR[s.filterRight] || '#fff';
-      let dotX, dotY;
-      if (isH) { dotX = cx + dx * TILE/2; dotY = cy + TILE/2; } else { dotX = cx + TILE/2; dotY = cy + dy * TILE/2; }
-      ctx.beginPath(); ctx.arc(dotX, dotY, 4, 0, Math.PI*2); ctx.fill();
+    // =================================================================
+
+    // Рисуем фильтры (кружочки), даже если спрайт загружен
+    if (s.filterLeft || s.filterRight) {
+      const isH = s.dir === 1 || s.dir === 3;
+      const cx = sx + (isH ? TILE : TILE/2); const cy = sy + (isH ? TILE/2 : TILE);
+      const [dx, dy] = DIR_DELTA[s.dir];
+      
+      if (s.filterLeft) {
+        ctx.fillStyle = RES_COLOR[s.filterLeft] || '#fff';
+        let dotX, dotY;
+        if (isH) { dotX = cx + dx * TILE/2; dotY = cy - TILE/2; } else { dotX = cx - TILE/2; dotY = cy + dy * TILE/2; }
+        ctx.beginPath(); ctx.arc(dotX, dotY, 4, 0, Math.PI*2); ctx.fill();
+      }
+      if (s.filterRight) {
+        ctx.fillStyle = RES_COLOR[s.filterRight] || '#fff';
+        let dotX, dotY;
+        if (isH) { dotX = cx + dx * TILE/2; dotY = cy + TILE/2; } else { dotX = cx + TILE/2; dotY = cy + dy * TILE/2; }
+        ctx.beginPath(); ctx.arc(dotX, dotY, 4, 0, Math.PI*2); ctx.fill();
+      }
     }
   }
 
   for (const u of undergrounds) {
     const sx = u.tx * TILE, sy = u.ty * TILE;
     if (u.isBroken) { drawBrokenOverlay(sx, sy, TILE); continue; }
-    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(sx + TILE/2, sy + TILE/2, TILE/2 - 2, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(sx + TILE/2, sy + TILE/2, TILE/2 - 6, 0, Math.PI * 2); ctx.fill();
     
-    ctx.fillStyle = u.isEntrance ? '#7fbf7f' : '#ffaa00';
-    ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const [dx, dy] = DIR_DELTA[u.dir];
-    const arrow = dx === 1 ? '→' : dx === -1 ? '←' : dy === 1 ? '↓' : '↑';
-    ctx.fillText(arrow, sx + TILE/2, sy + TILE/2);
+    // ==================== НОВАЯ ОТРИСОВКА ПОДЗЕМКИ ====================
+    const spriteOk = drawUndergroundSprite(u.dir, u.isEntrance, sx, sy, TILE);
     
+    if (!spriteOk) {
+      // Старый fallback
+      ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(sx + TILE/2, sy + TILE/2, TILE/2 - 2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(sx + TILE/2, sy + TILE/2, TILE/2 - 6, 0, Math.PI * 2); ctx.fill();
+      
+      ctx.fillStyle = u.isEntrance ? '#7fbf7f' : '#ffaa00';
+      ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const [dx, dy] = DIR_DELTA[u.dir];
+      const arrow = dx === 1 ? '→' : dx === -1 ? '←' : dy === 1 ? '↓' : '↑';
+      ctx.fillText(arrow, sx + TILE/2, sy + TILE/2);
+    }
+    // =================================================================
+
+    // Рисуем линию партнера, если выбрано
     if (state.activeConveyor === u) {
       if (u.partner && !u.partner.isBroken) {
         ctx.strokeStyle = 'rgba(255, 220, 100, 0.8)'; ctx.lineWidth = 3; ctx.setLineDash([6, 6]);
@@ -374,6 +339,7 @@ export function drawConveyors() {
         ctx.lineTo(u.partner.tx * TILE + TILE/2, u.partner.ty * TILE + TILE/2); ctx.stroke();
         ctx.setLineDash([]);
       } else {
+        const [dx, dy] = DIR_DELTA[u.dir];
         ctx.strokeStyle = 'rgba(255, 80, 80, 0.8)'; ctx.lineWidth = 3; ctx.setLineDash([6, 6]);
         ctx.beginPath(); ctx.moveTo(sx + TILE/2, sy + TILE/2); 
         ctx.lineTo(sx + TILE/2 + dx * TILE * 4, sy + TILE/2 + dy * TILE * 4); ctx.stroke();
