@@ -526,4 +526,4 @@ export function showToast(msg) {
   toastEl.textContent = msg; toastEl.classList.add('show');
   clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1800);
 }
-console.debug('[game] loaded');ion
+console.debug('[game] loaded');
