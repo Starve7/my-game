@@ -184,22 +184,29 @@ export function drawSplitterSprite(dir, sx, sy, size) {
   const img = buildingImages['splitter'];
   if (!isReady(img)) return false;
 
-  const isH = dir === 1 || dir === 3; 
-  const w = isH ? size * 2 : size;
-  const h = isH ? size : size * 2;
-  const cx = sx + (isH ? size : size / 2);
-  const cy = sy + (isH ? size / 2 : size);
+  // ИСПРАВЛЕНО: Вправо/Влево - вертикальные (1x2). Вверх/Вниз - горизонтальные (2x1).
+  const isVertical = dir === 1 || dir === 3; 
+  const w = isVertical ? size : size * 2;
+  const h = isVertical ? size * 2 : size;
+
+  const cx = sx + w / 2;
+  const cy = sy + h / 2;
 
   let angle = 0;
-  if (dir === 1) angle = 0;
-  else if (dir === 2) angle = Math.PI / 2;
-  else if (dir === 3) angle = Math.PI;
-  else if (dir === 0) angle = -Math.PI / 2;
+  if (dir === 1) angle = 0;                 // Вправо
+  else if (dir === 2) angle = Math.PI / 2;  // Вниз
+  else if (dir === 3) angle = Math.PI;      // Влево
+  else if (dir === 0) angle = -Math.PI / 2; // Вверх
 
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(angle);
-  ctx.drawImage(img, -w / 2, -h / 2, w, h);
+  
+  // Так как твоя картинка квадратная (1:1), мы её растянем в прямоугольник 1:2
+  const drawW = size;
+  const drawH = size * 2;
+  
+  ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
   ctx.restore();
   return true;
 }

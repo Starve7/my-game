@@ -336,13 +336,16 @@ export function drawBackground(world, oreAmount, oreInitial, getBuildingAt, draw
 export function drawGhost(type, tx, ty, canPlace) {
   const sx = tx * TILE, sy = ty * TILE;
   
-  if (type === 'splitter') {
-    const dir = state.newConveyorDir;
-    const isH = dir === 0 || dir === 2; 
-    const w = isH ? TILE * 2 : TILE;
-    const h = isH ? TILE : TILE * 2;
-    
-    ctx.fillStyle = canPlace ? 'rgba(120, 200, 120, 0.45)' : 'rgba(220, 80, 80, 0.45)';
+ if (type === 'splitter') {
+  const dir = state.newConveyorDir;
+  // ИСПРАВЛЕНО: Вправо/Влево (1/3) - это вертикальный (1x2). Вверх/Вниз (0/2) - горизонтальный (2x1).
+  const isH = dir === 0 || dir === 2; 
+  const w = isH ? TILE * 2 : TILE;
+  const h = isH ? TILE : TILE * 2;
+  
+  ctx.fillStyle = canPlace ? 'rgba(120, 200, 120, 0.45)' : 'rgba(220, 80, 80, 0.45)';
+  ctx.fillRect(sx, sy, w, h);
+  // ... (остальной код рисования стрелочек в призраке оставляем как есть)
     ctx.fillRect(sx, sy, w, h);
     ctx.strokeStyle = canPlace ? '#9fe09f' : '#e07070';
     ctx.lineWidth = 2 / camera.zoom;
