@@ -1,5 +1,6 @@
 'use strict';
 
+// ИМПОРТИРУЕМ РЕСУРСЫ ИЗ НОВОГО ФАЙЛА
 import { RES, RES_NAME, RES_COLOR, RES_TYPE } from './resources.js';
 export { RES, RES_NAME, RES_COLOR };
 
@@ -21,6 +22,7 @@ export const canvas = document.getElementById('game');
 export const ctx = canvas.getContext('2d');
 export const camera = { x: 0, y: 0, zoom: 1 };
 
+// Инвентарь со всеми новыми ресурсами (до 25)
 export const inventory = { 
   1: 25, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0,
   13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 0, 19: 0, 20: 0, 21: 0, 22: 0, 23: 0, 24: 0, 25: 0
@@ -233,6 +235,7 @@ canvas.addEventListener('wheel', e => {
   clampCamera();
 }, { passive: false });
 
+// ОТРИСОВКА БЕЗ PNG (для новых ресурсов)
 function drawProceduralTile(resType, sx, sy, size) {
   const cx = sx + size / 2, cy = sy + size / 2;
   
@@ -283,6 +286,30 @@ function drawProceduralTile(resType, sx, sy, size) {
   return false;
 }
 
+// Вспомогательные функции для цвета зон
+function lerpColor(c1, c2, t) {
+  return {
+    r: Math.round(c1.r + (c2.r - c1.r) * t),
+    g: Math.round(c1.g + (c2.g - c1.g) * t),
+    b: Math.round(c1.b + (c2.b - c1.b) * t)
+  };
+}
+
+function getZoneColor(dist) {
+  const Z1 = { r: 74, g: 90, b: 58 };    // Сочная трава
+  const Z2 = { r: 60, g: 70, b: 42 };    // Болото
+  const Z3 = { r: 58, g: 38, b: 28 };    // Выжженная земля
+  const Z4 = { r: 30, g: 15, b: 30 };    // Заражение
+
+  if (dist < 35) return Z1;
+  if (dist < 42) return lerpColor(Z1, Z2, (dist - 35) / 7);
+  if (dist < 68) return Z2;
+  if (dist < 75) return lerpColor(Z2, Z3, (dist - 68) / 7);
+  if (dist < 103) return Z3;
+  if (dist < 110) return lerpColor(Z3, Z4, (dist - 103) / 7);
+  return Z4;
+}
+
 export function drawBackground(world, oreAmount, oreInitial, getBuildingAt, drawResIcon, variantForTile) {
   const left = camera.x - canvas.width / (2 * camera.zoom);
   const right = camera.x + canvas.width / (2 * camera.zoom);
@@ -293,10 +320,18 @@ export function drawBackground(world, oreAmount, oreInitial, getBuildingAt, draw
   const ty0 = Math.max(0, Math.floor(top / TILE));
   const ty1 = Math.min(WORLD_H - 1, Math.floor(bottom / TILE));
 
+  const coreX = WORLD_W / 2;
+  const coreY = WORLD_H / 2;
+
   for (let ty = ty0; ty <= ty1; ty++) {
     for (let tx = tx0; tx <= tx1; tx++) {
       const sx = tx * TILE, sy = ty * TILE;
-      ctx.fillStyle = ((tx + ty) & 1) ? '#4a5a3a' : '#475738';
+      
+      // Цвет в зависимости от зоны
+      const dist = Math.hypot(tx - coreX, ty - coreY);
+      const c = getZoneColor(dist);
+      const offset = ((tx + ty) & 1) ? 4 : 0;
+      ctx.fillStyle = `rgb(${c.r + offset}, ${c.g + offset}, ${c.b + offset})`;
       ctx.fillRect(sx, sy, TILE, TILE);
 
       const r = world[ty][tx];
@@ -491,4 +526,4 @@ export function showToast(msg) {
   toastEl.textContent = msg; toastEl.classList.add('show');
   clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1800);
 }
-console.debug('[game] loaded');
+console.debug('[game] loaded');ion
