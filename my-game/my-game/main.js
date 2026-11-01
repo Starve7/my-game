@@ -4,18 +4,18 @@ import {
   TILE, RES, RES_COLOR, RES_NAME, DAY_LENGTH, MINE_INTERVAL, FURNACE_INTERVAL, MINE_COST, FURNACE_COST, POLLUTION_PER_PLATE,
   canvas, ctx, camera, inventory, state, popups, hooks, drawBackground, drawGhost, drawCore, drawPopups,
   drawMinimap, handleMinimapClick, updatePopups, safeCall, screenToCell, showToast, STAT_WINDOW_SEC,
-  WORLD_W, WORLD_H, drawRangeCircle // <--- ДОБАВЛЕНО
+  WORLD_W, WORLD_H, drawRangeCircle
 } from './game.js';
 import { CORE, CORE_HP_MAX, world, oreAmount, oreInitial, fog } from './world.js';
 import { drawResIcon, drawCoreSprite } from './sprites.js';
 import {
   buildings, conveyors, splitters, undergrounds, turretBeams, tryPlaceBuilding, tryConveyorDragStep,
   updateConveyors, updateBuildings, drawConveyors, drawBuildings, canPlaceGhost,
-  getBuildingAt, getConveyorAt, getSplitterAt, getUndergroundAt, demolishAt, TURRET_RANGE_BASE // <--- ДОБАВЛЕНО
+  getBuildingAt, getConveyorAt, getSplitterAt, getUndergroundAt, demolishAt, TURRET_RANGE_BASE
 } from './buildings.js';
 import { updateStudy, TECHNOLOGIES } from './research.js';
 import { updateHUD, openInfoPanel, openConveyorPanel, closePanel, showGameOver, updateModeBadge, showInfoCard, hideInfoCard } from './ui.js';
-import { monsters, nests, updateMonsters, drawMonsters, drawMonstersHUD, handleMonsterDeath, drawNestsAndInfection } from './monsters.js';
+import { monsters, nests, updateMonsters, drawMonsters, handleMonsterDeath, drawNestsAndInfection } from './monsters.js';
 import { initAudio, playGameOver } from './audio.js';
 import { showMainMenu } from './menu.js';
 
@@ -25,11 +25,11 @@ if (typeof window !== 'undefined') {
   window.__handleMonsterDeath = handleMonsterDeath;
   window.__fog = fog;
 
-  window.cheat = (amount = 1000) => { for (let i = 1; i <= 12; i++) inventory[i] += amount; showToast(`💰 +${amount} всех ресурсов`); };
+  window.cheat = (amount = 1000) => { for (let i = 1; i <= 25; i++) inventory[i] += amount; showToast(`💰 +${amount} всех ресурсов`); };
   window.cheatDna = (amount = 1000) => { state.dna += amount; showToast(`🧬 +${amount} ДНК`); };
   window.cheatUnlockAll = () => { for (const t of TECHNOLOGIES) { state.techState[t.id] = true; if (t.effect) t.effect(); } showToast('🔓 Все технологии изучены'); };
   window.cheatKill = () => { if (window.__monsters) window.__monsters.length = 0; showToast('💀 Все монстры убиты'); };
-  window.cheatClear = () => { for (let i = 1; i <= 12; i++) inventory[i] = 0; state.dna = 0; showToast('🧹 Инвентарь и ДНК очищены'); };
+  window.cheatClear = () => { for (let i = 1; i <= 25; i++) inventory[i] = 0; state.dna = 0; showToast('🧹 Инвентарь и ДНК очищены'); };
   window.cheatReveal = () => { for (let y = 0; y < WORLD_H; y++) for (let x = 0; x < WORLD_W; x++) fog[y][x] = 0; showToast('🗺 Карта открыта'); };
   window.cheatPollution = (amount = 100) => { state.pollution = amount; showToast(`☣ Загрязнение установлено на ${amount}%`); };
 }
@@ -87,6 +87,7 @@ function handleTap(sx, sy) {
   }
   
   if (Math.abs(tx - CORE.x) <= 1 && Math.abs(ty - CORE.y) <= 1) { showInfoCard({ type: 'core' }); return; }
+  
   const worldX = tx * TILE + TILE / 2, worldY = ty * TILE + TILE / 2;
   const monster = monsters.find(m => Math.hypot(m.x - worldX, m.y - worldY) < 20);
   if (monster) { monster.isMonster = true; showInfoCard(monster); return; }
@@ -155,7 +156,7 @@ function draw() {
   drawCore(CORE, CORE_HP_MAX, drawCoreSprite);
   safeCall(drawMonsters, 'drawMonsters');
   
-  // === РИСУЕМ РАДИУСЫ СТРЕЛЬБЫ ===
+  // === РИСУЕМ РАДИУСЫ ===
   if (state.selectedBuilding === 'turret' && state.ghostPos) {
     const { tx, ty } = state.ghostPos;
     const range = TURRET_RANGE_BASE + state.turretRangeBonus * TILE;
@@ -167,6 +168,20 @@ function draw() {
       drawRangeCircle(b.tx * TILE + TILE/2, b.ty * TILE + TILE/2, range, false);
     } else if (state.selectedInfoCard.type === 'core') {
       drawRangeCircle(CORE.x * TILE + TILE*1.5, CORE.y * TILE + TILE*1.5, TILE * 6, false);
+    } else if (state.selectedInfoCard.isNest) {
+      const n = state.selectedInfoCard;
+      // Рисуем красный радиус агра для улья
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(n.tx * TILE + TILE/2, n.ty * TILE + TILE/2, n.aggroRadius, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 50, 50, 0.1)';
+      ctx.strokeStyle = 'rgba(255, 50, 50, 0.6)';
+      ctx.fill();
+      ctx.lineWidth = 2 / camera.zoom;
+      ctx.setLineDash([8 / camera.zoom, 8 / camera.zoom]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
     }
   }
   // ================================
@@ -197,7 +212,6 @@ function draw() {
 
   drawAtmosphere();
   drawMinimap(CORE, buildings, conveyors, monsters, splitters, undergrounds);
-  safeCall(drawMonstersHUD, 'drawMonstersHUD');
 }
 
 let lastTime = performance.now();

@@ -1,12 +1,11 @@
 'use strict';
 
 import { RES, RES_NAME, inventory, state } from '../game.js';
-import { oreAmount } from '../world.js'; // <--- ВОТ ТУТ ИСПРАВЛЕНО
+import { oreAmount } from '../world.js';
 import { getStorageTotal, STORAGE_CAPACITY, CONVEYOR_CAPACITY, getRecipeById, repairBuilding, repairConveyor } from '../buildings.js';
 import { infoCardEl, infoCardContent } from './core.js';
 import { showToast } from '../game.js';
-import { openConveyorPanel } from './panels/index.js';
-import { openInfoPanel } from './panels/index.js';
+import { openConveyorPanel, openInfoPanel } from './panels/index.js';
 import { iconStyle } from './utils.js';
 import { playClick } from '../audio.js';
 
@@ -14,7 +13,8 @@ let currentInfoCardEntity = null;
 
 export function showInfoCard(e) {
   currentInfoCardEntity = e;
-  state.selectedInfoCard = e; 
+  state.selectedInfoCard = e; // Сохраняем в стейт для отрисовки радиуса в main.js
+  
   let html = '', title = '', icon = '';
 
   if (e.isMonster) {
@@ -25,12 +25,12 @@ export function showInfoCard(e) {
             <div class="card-row"><span>Урон:</span><span>${Math.round(e.damage)}</span></div>
             <div class="card-row"><span>Скорость:</span><span>${e.speed.toFixed(1)}</span></div>`;
   } else if (e.isNest) {
-    title = 'Кокон'; icon = '🕸️';
+    title = 'Улей'; icon = '🕸️';
     html = `<div class="card-header"><span>${icon} ${title}</span><button class="card-close">✕</button></div>
             <div class="card-row"><span>HP:</span><span>${Math.ceil(e.hp)} / ${Math.ceil(e.maxHp)}</span></div>
             <div class="card-row"><span>Уровень:</span><span>${e.level}</span></div>
-            <div class="card-row"><span>Заражение:</span><span>${e.radius} клеток</span></div>
-            <div class="warn" style="margin-top:8px;">Уничтожать коконы можно будет с помощью ракет.</div>`;
+            <div class="card-row"><span>Статус:</span><span style="color:${e.isProvoked ? '#ff5050' : '#7fbf7f'}">${e.isProvoked ? 'РАЗЪЯРЕН' : 'Спокойно'}</span></div>
+            <div class="warn" style="margin-top:8px;">Атака только ракетами (не изучено).<br>Если постройка в радиусе 10 клеток — улей злится и шлет мобов на ядро!</div>`;
   } else if (e.type === 'core') {
     title = 'Ядро'; icon = '💎';
     html = `<div class="card-header"><span>${icon} ${title}</span><button class="card-close">✕</button></div>
@@ -147,13 +147,21 @@ export function showInfoCard(e) {
   }
 }
 
-export function hideInfoCard() { currentInfoCardEntity = null; infoCardEl.classList.add('hidden'); state.selectedInfoCard = null; }
+export function hideInfoCard() { 
+  currentInfoCardEntity = null; 
+  state.selectedInfoCard = null; // Очищаем при закрытии
+  infoCardEl.classList.add('hidden'); 
+}
 
 export function updateInfoCardLive() {
   if (!currentInfoCardEntity) return;
   const e = currentInfoCardEntity;
   if (e.isMonster) { 
     const hpEl = document.getElementById('card-monster-hp'); 
+    if (hpEl) hpEl.textContent = `${Math.ceil(e.hp)} / ${Math.ceil(e.maxHp)}`; 
+  }
+  else if (e.isNest) {
+    const hpEl = document.getElementById('card-nest-hp'); 
     if (hpEl) hpEl.textContent = `${Math.ceil(e.hp)} / ${Math.ceil(e.maxHp)}`; 
   }
   else if (e.type === 'core') {

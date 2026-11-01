@@ -1,7 +1,7 @@
 'use strict';
 
 import { TILE, WORLD_W, WORLD_H, state, canvas, ctx, RES_COLOR, RES } from './game.js';
-import { CORE, fog } from './world.js';
+import { CORE, fog, world } from './world.js';
 import { buildings, conveyors, damageBuildingAt, damageConveyorAt } from './buildings.js';
 import { drawResIcon } from './sprites.js';
 import { playExplosion } from './audio.js';
@@ -15,9 +15,9 @@ if (typeof window !== 'undefined') {
   window.__nests = nests; 
 }
 
-const MONSTER_SPAWN_INTERVAL = 2.5, MONSTER_MAX_ALIVE = 20;
+const MONSTER_MAX_ALIVE = 30; 
 const CORE_ATTACK_INTERVAL = 0.6, CORE_ATTACK_DAMAGE = 1, CORE_ATTACK_RANGE = TILE * 6;
-let monsterSpawnTimer = 0, coreAttackTimer = 0;
+let coreAttackTimer = 0;
 export const coreBeams = [];
 
 const MONSTER_TYPES = {
@@ -27,33 +27,34 @@ const MONSTER_TYPES = {
   exploder: { hp: 30, dmg: 8, speed: 1.2, color: '#40a040', size: 24, explodeDmg: 50, explodeRadius: TILE * 2 }
 };
 
-const MAX_NESTS = 8;
-const NEST_POLLUTION_THRESHOLD = 70;
+const NEST_POLLUTION_THRESHOLD = 150;
 let nestSpawnTimer = 0;
 
 export function trySpawnNest() {
   const angle = Math.random() * Math.PI * 2;
-  const dist = 40 + Math.random() * 50;
+  const dist = 50 + Math.random() * 50;
   const tx = Math.floor(CORE.x + Math.cos(angle) * dist);
   const ty = Math.floor(CORE.y + Math.sin(angle) * dist);
 
   if (tx > 0 && tx < WORLD_W && ty > 0 && ty < WORLD_H) {
     nests.push({
       tx, ty,
-      hp: 500,
-      maxHp: 500,
+      hp: 1500,
+      maxHp: 1500,
       level: 1 + Math.floor(state.day / 3),
       spawnTimer: 0,
-      radius: 3
+      radius: 3,
+      aggroRadius: TILE * 10, 
+      isProvoked: false, // Теперь это навсегда
     });
     if (window.__showToast) window.__showToast('⚠️ Загрязнение породило новый кокон!');
   }
 }
 
 export function updateNests(dt) {
-  if (state.pollution >= NEST_POLLUTION_THRESHOLD && nests.length < MAX_NESTS) {
+  if (state.pollution >= NEST_POLLUTION_THRESHOLD && nests.length < 5) {
     nestSpawnTimer += dt;
-    if (nestSpawnTimer >= 45) {
+    if (nestSpawnTimer >= 60) {
       nestSpawnTimer = 0;
       trySpawnNest();
     }
@@ -63,9 +64,24 @@ export function updateNests(dt) {
     n.radius = 3 + Math.floor(state.pollution / 50) + n.level;
     n.level = 1 + Math.floor(state.day / 3);
 
+    // ПРОВЕРКА НА АГР (теперь без таймеров)
+    if (!n.isProvoked) {
+      for (const b of buildings) {
+        if (b.isBroken) continue;
+        const d = Math.hypot(b.tx * TILE + TILE/2 - (n.tx * TILE + TILE/2), b.ty * TILE + TILE/2 - (n.ty * TILE + TILE/2));
+        if (d < n.aggroRadius) { 
+          n.isProvoked = true; 
+          if (window.__showToast) window.__showToast('🕷️ Улей разъярен!');
+          break; 
+        }
+      }
+    }
+
     if (monsters.length < MONSTER_MAX_ALIVE) {
       n.spawnTimer += dt;
-      if (n.spawnTimer >= 20) {
+      const currentSpawnCooldown = n.isProvoked ? 3 : 15; 
+      
+      if (n.spawnTimer >= currentSpawnCooldown) {
         n.spawnTimer = 0;
         spawnMonsterFromNest(n);
       }
@@ -80,7 +96,6 @@ function spawnMonsterFromNest(nest) {
   else if (nest.level >= 1 && Math.random() < 0.4) type = 'runner';
 
   const base = MONSTER_TYPES[type];
-  // УМЕНЬШЕН СКЕЙЛИНГ (было 0.1, стало 0.02)
   const hpScale = 1 + (state.day - 1) * 0.02;
   const dmgScale = 1 + (state.day - 1) * 0.02;
 
@@ -99,6 +114,7 @@ function spawnMonsterFromNest(nest) {
     attackRange: TILE * 1.5,
     attackTimer: 0,
     targetNest: nest,
+    isMonster: true
   });
 }
 
@@ -127,13 +143,13 @@ export function drawNestsAndInfection() {
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.beginPath(); ctx.ellipse(sx + TILE/2, sy + TILE - 4, TILE*0.7, TILE*0.2, 0, 0, Math.PI*2); ctx.fill();
     
-    ctx.fillStyle = '#3a1040';
+    ctx.fillStyle = n.isProvoked ? '#8a1010' : '#3a1040';
     ctx.beginPath();
     ctx.ellipse(sx + TILE/2, sy + TILE/2, TILE * 0.6, TILE * 0.7, 0, 0, Math.PI * 2);
     ctx.fill();
 
     const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 300 + n.tx);
-    ctx.strokeStyle = `rgba(200, 50, 255, ${0.3 + pulse * 0.4})`;
+    ctx.strokeStyle = n.isProvoked ? `rgba(255, 50, 50, ${0.5 + pulse * 0.5})` : `rgba(200, 50, 255, ${0.3 + pulse * 0.4})`;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(sx + TILE/2, sy + TILE/2, TILE * 0.4, 0, Math.PI * 2);
@@ -143,6 +159,12 @@ export function drawNestsAndInfection() {
     ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(sx + 2, sy - 6, TILE - 4, 4);
     ctx.fillStyle = '#e040e0'; ctx.fillRect(sx + 2, sy - 6, (TILE - 4) * pct, 4);
   }
+}
+
+function isWalkable(tx, ty) {
+  if (tx < 0 || tx >= WORLD_W || ty < 0 || ty >= WORLD_H) return false;
+  if (world[ty][tx] === RES.WATER) return false; 
+  return true;
 }
 
 function findNearbyTarget(m, coreX, coreY) {
@@ -214,6 +236,7 @@ export function updateMonsters(dt) {
 
   for (const m of monsters) {
     const dToCore = Math.hypot(coreX - m.x, coreY - m.y);
+    
     if (dToCore < m.attackRange + TILE * 1.5) {
       m.attackTimer += dt;
       while (m.attackTimer >= 1) {
@@ -227,6 +250,7 @@ export function updateMonsters(dt) {
       }
       continue;
     }
+
     const t = findNearbyTarget(m, coreX, coreY);
     if (t && t.kind !== 'core') {
       m.attackTimer += dt;
@@ -241,8 +265,30 @@ export function updateMonsters(dt) {
         }
       }
     } else {
-      const dx = coreX - m.x, dy = coreY - m.y, dist = Math.hypot(dx, dy);
-      if (dist > 0) { m.x += (dx / dist) * m.speed * TILE * dt; m.y += (dy / dist) * m.speed * TILE * dt; }
+      let targetX = coreX, targetY = coreY;
+      
+      if (m.targetNest && !m.targetNest.isProvoked) {
+        targetX = m.targetNest.tx * TILE + TILE/2;
+        targetY = m.targetNest.ty * TILE + TILE/2;
+        targetX += Math.sin(performance.now() / 1000 + m.hp) * TILE * 2;
+        targetY += Math.cos(performance.now() / 1000 + m.hp) * TILE * 2;
+      }
+
+      const dx = targetX - m.x, dy = targetY - m.y, dist = Math.hypot(dx, dy);
+      if (dist > 5) {
+        let nextX = m.x + (dx / dist) * m.speed * TILE * dt;
+        let nextY = m.y + (dy / dist) * m.speed * TILE * dt;
+
+        const cellX = Math.floor(nextX / TILE);
+        const cellY = Math.floor(nextY / TILE);
+        
+        if (!isWalkable(cellX, cellY)) {
+           nextX = m.x + (dy / dist) * m.speed * TILE * dt;
+           nextY = m.y - (dx / dist) * m.speed * TILE * dt;
+        }
+        m.x = nextX;
+        m.y = nextY;
+      }
     }
   }
 }
@@ -269,15 +315,3 @@ export function drawMonsters() {
     ctx.strokeStyle = `rgba(255, 255, 0, ${1 - p})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, e.radius * p, 0, Math.PI * 2); ctx.stroke();
   }
 }
-
-export function drawMonstersHUD() {
-  if (monsters.length === 0) return;
-  const text = `🐛 ${monsters.length}`;
-  ctx.font = 'bold 16px sans-serif';
-  const w = ctx.measureText(text).width + 24, h = 32;
-  const x = canvas.width - w - 16, y = 70;
-  ctx.fillStyle = 'rgba(140, 30, 30, 0.85)'; ctx.strokeStyle = 'rgba(230, 80, 80, 0.9)'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.roundRect(x, y, w, h, 8); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, x + w / 2, y + h / 2);
-}
-console.debug('[monsters] loaded');

@@ -1,12 +1,11 @@
 'use strict';
 
-// ИМПОРТИРУЕМ РЕСУРСЫ ИЗ НОВОГО ФАЙЛА
 import { RES, RES_NAME, RES_COLOR, RES_TYPE } from './resources.js';
 export { RES, RES_NAME, RES_COLOR };
 
 export const TILE = 32;
-export const WORLD_W = 200;
-export const WORLD_H = 200;
+export const WORLD_W = 300;
+export const WORLD_H = 300;
 export const MINE_INTERVAL = 1.5;
 export const FURNACE_INTERVAL = 2.0;
 export const POLLUTION_PER_PLATE = 0.01;
@@ -22,7 +21,6 @@ export const canvas = document.getElementById('game');
 export const ctx = canvas.getContext('2d');
 export const camera = { x: 0, y: 0, zoom: 1 };
 
-// Обновленный инвентарь со всеми новыми ресурсами (до 25)
 export const inventory = { 
   1: 25, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0,
   13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 0, 19: 0, 20: 0, 21: 0, 22: 0, 23: 0, 24: 0, 25: 0
@@ -235,7 +233,6 @@ canvas.addEventListener('wheel', e => {
   clampCamera();
 }, { passive: false });
 
-// ОТРИСОВКА БЕЗ PNG (для новых ресурсов)
 function drawProceduralTile(resType, sx, sy, size) {
   const cx = sx + size / 2, cy = sy + size / 2;
   
@@ -336,16 +333,13 @@ export function drawBackground(world, oreAmount, oreInitial, getBuildingAt, draw
 export function drawGhost(type, tx, ty, canPlace) {
   const sx = tx * TILE, sy = ty * TILE;
   
- if (type === 'splitter') {
-  const dir = state.newConveyorDir;
-  // ИСПРАВЛЕНО: Вправо/Влево (1/3) - это вертикальный (1x2). Вверх/Вниз (0/2) - горизонтальный (2x1).
-  const isH = dir === 0 || dir === 2; 
-  const w = isH ? TILE * 2 : TILE;
-  const h = isH ? TILE : TILE * 2;
-  
-  ctx.fillStyle = canPlace ? 'rgba(120, 200, 120, 0.45)' : 'rgba(220, 80, 80, 0.45)';
-  ctx.fillRect(sx, sy, w, h);
-  // ... (остальной код рисования стрелочек в призраке оставляем как есть)
+  if (type === 'splitter') {
+    const dir = state.newConveyorDir;
+    const isH = dir === 0 || dir === 2; 
+    const w = isH ? TILE * 2 : TILE;
+    const h = isH ? TILE : TILE * 2;
+    
+    ctx.fillStyle = canPlace ? 'rgba(120, 200, 120, 0.45)' : 'rgba(220, 80, 80, 0.45)';
     ctx.fillRect(sx, sy, w, h);
     ctx.strokeStyle = canPlace ? '#9fe09f' : '#e07070';
     ctx.lineWidth = 2 / camera.zoom;
@@ -460,16 +454,21 @@ export function drawMinimap(CORE, buildings, conveyors, monsters, splitters, und
   const coreMinX = rect.x + (CORE.x - 1) * TILE * scale, coreMinY = rect.y + (CORE.y - 1) * TILE * scale;
   ctx.fillRect(coreMinX, coreMinY, 3 * TILE * scale, 3 * TILE * scale);
   
+  // Мобы и Ульи БЕЗ ТУМАНА
   if (monsters && monsters.length > 0) {
     ctx.fillStyle = '#ff3030';
     for (const m of monsters) {
-      const mtx = Math.floor(m.x / TILE);
-      const mty = Math.floor(m.y / TILE);
-      if (fog[mty] && fog[mty][mtx] === 0) {
-        ctx.fillRect(rect.x + m.x * scale - 1, rect.y + m.y * scale - 1, 2, 2);
-      }
+      ctx.fillRect(rect.x + m.x * scale - 1, rect.y + m.y * scale - 1, 2, 2);
     }
   }
+  
+  if (window.__nests) {
+    ctx.fillStyle = '#ff00ff';
+    for (const n of window.__nests) {
+      ctx.fillRect(rect.x + n.tx * TILE * scale, rect.y + n.ty * TILE * scale, 3, 3);
+    }
+  }
+
   const camWorldX = camera.x - canvas.width / (2 * camera.zoom), camWorldY = camera.y - canvas.height / (2 * camera.zoom);
   const camWorldW = canvas.width / camera.zoom, camWorldH = canvas.height / camera.zoom;
   ctx.strokeStyle = 'rgba(255,220,60,0.9)'; ctx.lineWidth = 1;
