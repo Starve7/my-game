@@ -10,7 +10,7 @@ export const RES_SCALE = {
   [RES.STONE]: 0.8,
   [RES.WOOD]: 1.0,
   [RES.URANIUM]: 1.0,
-  [RES.LEAD]: 1.0,
+  [RES.LEAD]: 0.7,
 };
 
 export const SPRITES = {
