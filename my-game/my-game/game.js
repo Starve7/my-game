@@ -1,7 +1,7 @@
 'use strict';
 
 import { RES, RES_NAME, RES_COLOR, RES_TYPE } from './resources.js';
-import { imgReady } from './sprites.js'; // ИМПОРТИРУЕМ ПРОВЕРКУ
+import { imgReady } from './sprites.js'; 
 export { RES, RES_NAME, RES_COLOR };
 
 export const TILE = 32;
@@ -24,7 +24,7 @@ export const camera = { x: 0, y: 0, zoom: 1 };
 
 export const inventory = { 
   1: 100, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0,
-  13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 0, 19: 0, 20: 0, 21: 0, 22: 0, 23: 0, 24: 0, 25: 0
+  13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 0, 19: 0, 20: 0, 21: 0, 22: 0, 23: 0, 24: 0, 25: 0, 26: 0
 };
 
 export const state = {
@@ -34,7 +34,7 @@ export const state = {
   turretRangeBonus: 0, turretDamageBonus: 0, turretHpBonus: 0,
   soundEnabled: true, gameStarted: false, inMenu: true,
   demolishMode: false, currentSaveSlot: null, totalKills: 0,
-  LIMITS: { mine: 30, furnace: 10, lab: 5, cutter: 10, assembler: 5, chemplant: 5, storage: 5, turret: 15, radar: 20, inserter: 50 },
+  LIMITS: { mine: 30, furnace: 10, lab: 5, cutter: 10, assembler: 5, chemplant: 5, storage: 5, turret: 15, radar: 20, inserter: 50, lumberjack: 50 },
   techState: {}, statHistory: {}, activeStudyTechId: null, studyProgressByTech: {}, studyTickTimer: 0,
   day: 1, timeOfDay: 0.25,
   hudResources: [1, 2, 3],
@@ -234,7 +234,6 @@ canvas.addEventListener('wheel', e => {
   clampCamera();
 }, { passive: false });
 
-// ОТРИСОВКА БЕЗ PNG (для новых ресурсов)
 function drawProceduralTile(resType, sx, sy, size) {
   const cx = sx + size / 2, cy = sy + size / 2;
   
@@ -257,7 +256,6 @@ function drawProceduralTile(resType, sx, sy, size) {
   return false;
 }
 
-// Вспомогательные функции для цвета зон
 function lerpColor(c1, c2, t) {
   return {
     r: Math.round(c1.r + (c2.r - c1.r) * t),
@@ -309,19 +307,18 @@ export function drawBackground(world, oreAmount, oreInitial, getBuildingAt, draw
         const hasBuilding = getBuildingAt && getBuildingAt(tx, ty);
         if (hasBuilding) continue;
         
-        // СНАЧАЛА ПРОВЕРЯЕМ ПНГ
         if (imgReady(r, 0)) {
           const amount = oreAmount[ty][tx], initial = oreInitial[ty][tx];
           let alpha = 1;
+          // СТАНДАРТНАЯ ПРОВЕРКА (без Infinity)
           if (amount <= 0) alpha = 0.15;
-          else if (initial !== Infinity && initial > 0) alpha = 0.4 + 0.6 * (amount / initial);
+          else if (initial > 0) alpha = 0.4 + 0.6 * (amount / initial);
           
           ctx.globalAlpha = alpha;
           const v = variantForTile(tx, ty) % 3;
           drawResIcon(r, sx, sy, TILE, v);
           ctx.globalAlpha = 1;
         } else {
-          // ЕСЛИ ПНГ НЕТ - РИСУЕМ КОДОМ (вода, нефть)
           drawProceduralTile(r, sx, sy, TILE);
         }
       }
@@ -337,8 +334,6 @@ export function drawBackground(world, oreAmount, oreInitial, getBuildingAt, draw
     ctx.stroke();
   }
 }
-
-// ... Остальной код game.js (drawGhost, drawCore и т.д.) оставляем как есть
 
 export function drawGhost(type, tx, ty, canPlace) {
   const sx = tx * TILE, sy = ty * TILE;
@@ -372,7 +367,7 @@ export function drawGhost(type, tx, ty, canPlace) {
     ctx.strokeStyle = canPlace ? '#9fe09f' : '#e07070';
     ctx.lineWidth = 2 / camera.zoom;
     ctx.strokeRect(sx + 1.5, sy + 1.5, TILE - 3, TILE - 3);
-    const icon = { mine: '⛏', furnace: '🔥', lab: '🧪', cutter: '✂️', assembler: '⚙️', chemplant: '🧪', storage: '📦', turret: '🎯', conveyor: '↔️', underground: '⬇️', splitter: '↔️', radar: '📡', inserter: '🦾', minicore: '💠' }[type] || '?';
+    const icon = { mine: '⛏', furnace: '🔥', lab: '🧪', cutter: '✂️', assembler: '⚙️', chemplant: '🧪', storage: '📦', turret: '🎯', conveyor: '↔️', underground: '⬇️', splitter: '↔️', radar: '📡', inserter: '🦾', minicore: '💠', lumberjack: '🪓', sawmill: '🪚' }[type] || '?';
     ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillStyle = canPlace ? '#ffffff' : '#ffb0b0';
     ctx.fillText(icon, sx + TILE / 2, sy + TILE / 2);
@@ -464,7 +459,6 @@ export function drawMinimap(CORE, buildings, conveyors, monsters, splitters, und
   const coreMinX = rect.x + (CORE.x - 1) * TILE * scale, coreMinY = rect.y + (CORE.y - 1) * TILE * scale;
   ctx.fillRect(coreMinX, coreMinY, 3 * TILE * scale, 3 * TILE * scale);
   
-  // Мобы и Ульи БЕЗ ТУМАНА
   if (monsters && monsters.length > 0) {
     ctx.fillStyle = '#ff3030';
     for (const m of monsters) {

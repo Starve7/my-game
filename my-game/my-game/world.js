@@ -112,28 +112,20 @@ function generateNaturalNests() {
     { start: Math.PI * 1.5, end: PI2 }
   ];
 
-  // Зона 2: 8 слабых (по 2 на сектор)
   sectors.forEach(s => spawnNestsInSector(1, 2, 35, 70, s.start, s.end));
-
-  // Зона 3: 8 средних (по 2 на сектор)
   sectors.forEach(s => spawnNestsInSector(2, 2, 75, 105, s.start, s.end));
-
-  // Зона 4: 8 больших (по 2 на сектор)
   sectors.forEach(s => spawnNestsInSector(3, 2, 110, 140, s.start, s.end));
 
-  // Зона 4: 6 мутированных (случайно по секторам)
   for (let i = 0; i < 6; i++) {
     const s = sectors[Math.floor(Math.random() * 4)];
     spawnNestsInSector(4, 1, 110, 145, s.start, s.end);
   }
 
-  // 3 улья погибели
   for (let i = 0; i < 3; i++) {
     const s = sectors[Math.floor(Math.random() * 4)];
     spawnNestsInSector(5, 1, 130, 148, s.start, s.end);
   }
 
-  // 1 Король
   const s6 = sectors[Math.floor(Math.random() * 4)];
   const angle6 = s6.start + Math.random() * (s6.end - s6.start);
   initialNests.push({ 
@@ -211,7 +203,7 @@ export function generateWorld() {
       else if (dist >= 35) amount = ORE_MID_MIN + Math.random() * (ORE_MID_MAX - ORE_MID_MIN);
       else amount = ORE_NEAR_MIN + Math.random() * (ORE_NEAR_MAX - ORE_NEAR_MIN);
       
-      if (world[y][x] === RES.WOOD) amount = Infinity;
+      // ФИКС: Убираем Infinity, дерево теперь тоже истощается
       
       amount = Math.round(amount);
       oreAmount[y][x] = amount;

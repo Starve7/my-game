@@ -285,8 +285,6 @@ export class MiniCore extends Building {
   }
 }
 
-// В самый конец файла добавь:
-
 export class Lumberjack extends Building {
   constructor(tx, ty) {
     super(tx, ty, 'lumberjack', BUILDING_HP.lumberjack);
@@ -294,30 +292,51 @@ export class Lumberjack extends Building {
     this.outputBuffer = 0; this.outputBufferMax = FURNACE_OUTPUT_BUFFER_MAX; this.outputBufferType = RES.WOOD;
   }
   update(dt) {
-    // Лес бесконечный, поэтому проверяем только место в буфере/конвейере
+    // ТЕПЕРЬ ПРОВЕРЯЕМ ЗАПАС КАК У БУРА
+    if (oreAmount[this.ty][this.tx] <= 0) { flushOutputBuffer(this); return; }
+    
     const outC = getOutputConveyor(this);
     if (!(outC && outC.items.length < 2) && !(this.outputBuffer < this.outputBufferMax)) return;
     
     const interval = MINE_INTERVAL / state.miningSpeedMult;
     this.timer += dt;
-    while (this.timer >= interval) {
+    while (this.timer >= interval && oreAmount[this.ty][this.tx] > 0) {
       if (!tryOutputItem(this, RES.WOOD)) break;
       addPopup(this.tx * TILE + TILE / 2, this.ty * TILE + 4, '+1', RES_COLOR[RES.WOOD]);
       playMineSound(); this.timer -= interval;
+      
+      // УМЕНЬШАЕМ КОЛИЧЕСТВО
+      oreAmount[this.ty][this.tx]--;
+      if (oreAmount[this.ty][this.tx] <= 0) { 
+        oreAmount[this.ty][this.tx] = 0; 
+        world[this.ty][this.tx] = 0; // Дерево исчезает
+      }
     }
     flushOutputBuffer(this);
   }
   drawSpecific() {
     const sx = this.tx * TILE, sy = this.ty * TILE;
-    // Процедурная отрисовка: Пень и топор
-    ctx.fillStyle = '#5a3a1a'; ctx.fillRect(sx + 8, sy + 16, 16, 12); // Пень
-    ctx.fillStyle = '#3a2010'; ctx.fillRect(sx + 8, sy + 16, 16, 2); // Верх пня
-    // Топор
-    ctx.strokeStyle = '#a0a0a0'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(sx + 20, sy + 18); ctx.lineTo(sx + 26, sy + 10); ctx.stroke();
-    ctx.fillStyle = '#808080'; ctx.beginPath(); ctx.moveTo(sx + 24, sy + 8); ctx.lineTo(sx + 28, sy + 12); ctx.lineTo(sx + 26, sy + 14); ctx.lineTo(sx + 22, sy + 10); ctx.fill();
+    const empty = oreAmount[this.ty][this.tx] <= 0;
     
-    drawProgressBar(sx, sy, this.timer / (MINE_INTERVAL / state.miningSpeedMult), '#7fbf7f');
+    if (empty) {
+      ctx.globalAlpha = 0.4;
+      if (!drawBuildingSprite('lumberjack', sx, sy, TILE)) {
+        ctx.fillStyle = '#3a3a3a'; ctx.fillRect(sx + 2, sy + 2, TILE - 4, TILE - 4);
+      }
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(sx + 9, sy + 9); ctx.lineTo(sx + TILE - 9, sy + TILE - 9); ctx.moveTo(sx + TILE - 9, sy + 9); ctx.lineTo(sx + 9, sy + TILE - 9); ctx.stroke();
+    } else {
+      if (!drawBuildingSprite('lumberjack', sx, sy, TILE)) {
+        // Процедурная отрисовка
+        ctx.fillStyle = '#5a3a1a'; ctx.fillRect(sx + 8, sy + 16, 16, 12);
+        ctx.fillStyle = '#3a2010'; ctx.fillRect(sx + 8, sy + 16, 16, 2); 
+        ctx.strokeStyle = '#a0a0a0'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(sx + 20, sy + 18); ctx.lineTo(sx + 26, sy + 10); ctx.stroke();
+        ctx.fillStyle = '#808080'; ctx.beginPath(); ctx.moveTo(sx + 24, sy + 8); ctx.lineTo(sx + 28, sy + 12); ctx.lineTo(sx + 26, sy + 14); ctx.lineTo(sx + 22, sy + 10); ctx.fill();
+      }
+      drawProgressBar(sx, sy, this.timer / (MINE_INTERVAL / state.miningSpeedMult), '#7fbf7f');
+    }
     drawBufferBadge(sx, sy, this.outputBuffer, this.outputBufferType);
   }
 }

@@ -4,10 +4,10 @@ import {
   state, inventory, camera, TILE, WORLD_W, WORLD_H,
   clampCamera, initialZoom,
 } from './game.js';
-import { world, oreAmount, oreInitial, CORE, generateWorld, fog } from './world.js';
+import { world, oreAmount, oreInitial, CORE, generateWorld, fog, initialNests } from './world.js';
 import {
   buildings, conveyors, splitters, undergrounds, turretBeams, updateFog,
-  Mine, Furnace, Lab, Cutter, Assembler, Chemplant, Storage, Turret, Radar, Inserter, MiniCore
+  Mine, Furnace, Lab, Cutter, Assembler, Chemplant, Storage, Turret, Radar, Inserter, MiniCore, Lumberjack, Sawmill
 } from './buildings.js';
 import { monsters, coreBeams, explosions, nests } from './monsters.js';
 
@@ -159,6 +159,8 @@ function makeBuilding(data) {
   let b;
   try {
     if (data.type === 'mine') b = new Mine(data.tx, data.ty, data.resourceType);
+    else if (data.type === 'lumberjack') b = new Lumberjack(data.tx, data.ty);
+    else if (data.type === 'sawmill') b = new Sawmill(data.tx, data.ty);
     else if (data.type === 'furnace') b = new Furnace(data.tx, data.ty);
     else if (data.type === 'lab') b = new Lab(data.tx, data.ty);
     else if (data.type === 'cutter') b = new Cutter(data.tx, data.ty);
@@ -180,13 +182,13 @@ export function resetGameData() {
   state.gameOver = false; state.newConveyorDir = 1; state.savedOutputDir = null;
   state.miningSpeedMult = 1.0; state.labSpeedMult = 1.0; state.coreDamageBonus = 0;
   state.turretFireRateMult = 1.0; state.turretRangeBonus = 0; state.turretDamageBonus = 0; state.turretHpBonus = 0;
-  state.LIMITS = { mine: 30, furnace: 10, lab: 5, cutter: 10, assembler: 5, chemplant: 5, storage: 5, turret: 15, radar: 20, inserter: 50 };
+  state.LIMITS = { mine: 30, furnace: 10, lab: 5, cutter: 10, assembler: 5, chemplant: 5, storage: 5, turret: 15, radar: 20, inserter: 50, lumberjack: 50 };
   state.techState = {}; state.studyProgressByTech = {}; state.activeStudyTechId = null; state.studyTickTimer = 0;
   state.statHistory = {}; state.panel = null; state.activeBuilding = null; state.activeConveyor = null;
   state.selectedBuilding = null; state.ghostPos = null; state.demolishMode = false; state.currentSaveSlot = null; state.totalKills = 0;
 
   for (const k in inventory) delete inventory[k];
-  Object.assign(inventory, { 1: 100, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0 });
+  Object.assign(inventory, { 1: 100, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 0, 19: 0, 20: 0, 21: 0, 22: 0, 23: 0, 24: 0, 25: 0, 26: 0 });
   
   generateWorld();
   camera.x = CORE.x * TILE + TILE / 2; camera.y = CORE.y * TILE + TILE / 2;
