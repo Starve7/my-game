@@ -3,16 +3,15 @@
 import { RES, RES_COLOR, ctx } from './game.js';
 
 export const RES_SCALE = {
-  [RES.IRON]: 0.7, 
-  [RES.COPPER]: 0.7, 
+  [RES.IRON]: 0.8, 
+  [RES.COPPER]: 0.8, 
   [RES.COAL]: 1.0, 
   // НОВЫЕ РЕСУРСЫ (подкрути, если будут выглядеть не так)
   [RES.STONE]: 0.8,
   [RES.WOOD]: 1.0,
-  [RES.URANIUM]: 1.0,
-  [RES.LEAD]: 0.7,
-};
-
+  [RES.URANIUM]: 0.8,
+  [RES.LEAD]: 0.8,
+}
 export const SPRITES = {
   [RES.IRON]:         ['assets/iron_1.png'],
   [RES.COPPER]:       ['assets/copper_1.png'],
