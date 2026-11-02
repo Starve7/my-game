@@ -49,7 +49,7 @@ export const BUILDING_SPRITES = {
 };
 
 export const BUILDING_SCALE = {
-  mine:      1.4,
+  mine:      1.0,
   furnace:   1.0,
   lab:       1.0,
   cutter:    1.0,

@@ -12,7 +12,8 @@ import {
   MINE_COST, FURNACE_COST, CONVEYOR_COST, SPLITTER_COST, UNDERGROUND_COST, RADAR_COST, INSERTER_COST,
   LAB_IRON_COST, LAB_COPPER_COST, CUTTER_IRON_COST, CUTTER_COPPER_COST, ASSEMBLER_IRON_COST, ASSEMBLER_COPPER_COST,
   CHEMPLANT_IRON_COST, CHEMPLANT_COPPER_COST, CHEMPLANT_WIRE_COST, STORAGE_IRON_COST, STORAGE_COPPER_COST,
-  TURRET_CORPS_COST, TURRET_ENGINE_COST, TURRET_CIRCUIT_COST, BUILDING_HP, DIR_DELTA
+  TURRET_CORPS_COST, TURRET_ENGINE_COST, TURRET_CIRCUIT_COST, BUILDING_HP, DIR_DELTA,
+  LUMBERJACK_COST, SAWMILL_IRON_COST, SAWMILL_WOOD_COST, SAWMILL_WIRE_COST
 } from './buildings/index.js';
 
 import { 
@@ -20,7 +21,7 @@ import {
   checkLimit, updateFog, drawArrow, drawBrokenOverlay, drawHpCircle 
 } from './buildings/index.js';
 
-import { Mine, Furnace, Lab, Cutter, Assembler, Chemplant, Storage, MiniCore } from './buildings/index.js';
+import { Mine, Furnace, Lab, Cutter, Assembler, Chemplant, Storage, MiniCore, Lumberjack, Sawmill } from './buildings/index.js';
 import { Inserter, updateConveyors, drawConveyors } from './buildings/index.js';
 import { Turret, Radar } from './buildings/index.js';
 
@@ -28,7 +29,6 @@ export function tryPlaceBuilding(type, tx, ty, isUnlockedFn) {
   if (fog[ty] && fog[ty][tx] === 1) { showToast('Нельзя строить в тумане'); return false; }
   if (isUnlockedFn && !isUnlockedFn(type)) { showToast('Здание не изучено'); return false; }
   
-  // ПРОВЕРКА НА ЗАНЯТОСТЬ КЛЕТКИ (БАГ 1)
   if (getBuildingAt(tx, ty) || getConveyorAt(tx, ty) || getSplitterAt(tx, ty) || getUndergroundAt(tx, ty)) { 
     showToast('Место занято'); 
     return false; 
@@ -48,6 +48,20 @@ export function tryPlaceBuilding(type, tx, ty, isUnlockedFn) {
     if (oreAmount[ty][tx] <= 0) { showToast('Эта жила истощена'); return false; }
     if (inventory[RES.IRON] < MINE_COST) { showToast('Не хватает железа'); return false; }
     inventory[RES.IRON] -= MINE_COST; newBuilding = new Mine(tx, ty, res);
+  } else if (type === 'lumberjack') {
+    const res = world[ty][tx];
+    if (res !== RES.WOOD) { showToast('Лесорубка ставится только на деревья'); return false; }
+    if (inventory[RES.IRON] < LUMBERJACK_COST) { showToast('Не хватает железа'); return false; }
+    inventory[RES.IRON] -= LUMBERJACK_COST; newBuilding = new Lumberjack(tx, ty);
+  } else if (type === 'sawmill') {
+    if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
+    if (inventory[RES.PLATE_IRON] < SAWMILL_IRON_COST || inventory[RES.WOOD] < SAWMILL_WOOD_COST || inventory[RES.WIRE] < SAWMILL_WIRE_COST) { 
+      showToast('Не хватает ресурсов'); return false; 
+    }
+    inventory[RES.PLATE_IRON] -= SAWMILL_IRON_COST; 
+    inventory[RES.WOOD] -= SAWMILL_WOOD_COST; 
+    inventory[RES.WIRE] -= SAWMILL_WIRE_COST; 
+    newBuilding = new Sawmill(tx, ty);
   } else if (type === 'furnace') {
     if (!checkLimit('furnace')) { showToast(`Лимит печей`); return false; }
     if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
@@ -170,6 +184,7 @@ export function canPlaceGhost(type, tx, ty) {
   }
   
   if (type === 'mine') { if (world[ty][tx] === 0 || oreAmount[ty][tx] <= 0) return false; }
+  else if (type === 'lumberjack') { if (world[ty][tx] !== RES.WOOD) return false; }
   else if (type !== 'conveyor' && type !== 'underground' && type !== 'splitter') { if (world[ty][tx] !== 0) return false; }
   if (type !== 'conveyor' && type !== 'underground' && type !== 'splitter' && !checkLimit(type)) return false;
   return true;
@@ -187,10 +202,17 @@ export function demolishBuilding(b) {
   const half = (v) => Math.floor(v * 0.5);
   
   if (b.type === 'minicore') {
-    // При сносе мини-ядра ресурсы пропадают из инвентаря
     for (const k in b.items) { inventory[k] -= b.items[k]; if (inventory[k] < 0) inventory[k] = 0; }
   }
   else if (b.type === 'mine') { inventory[RES.IRON] += half(b.paidCost); inventory[b.resourceType] += b.outputBuffer; }
+  else if (b.type === 'lumberjack') { inventory[RES.IRON] += half(b.paidCost); inventory[RES.WOOD] += b.outputBuffer; }
+  else if (b.type === 'sawmill') { 
+    inventory[RES.PLATE_IRON] += half(b.paidCost.ironPlate); 
+    inventory[RES.WOOD] += half(b.paidCost.wood); 
+    inventory[RES.WIRE] += half(b.paidCost.wire); 
+    for (const r in b.inputBuffer) inventory[r] += b.inputBuffer[r]; 
+    if (b.outputBufferType) inventory[b.outputBufferType] += b.outputBuffer; 
+  }
   else if (b.type === 'furnace') { inventory[RES.IRON] += half(b.paidCost); if (b.inputOreType) inventory[b.inputOreType] += b.inputOre; inventory[RES.COAL] += b.inputCoal; if (b.outputBufferType) inventory[b.outputBufferType] += b.outputBuffer; }
   else if (b.type === 'lab') { inventory[RES.PLATE_IRON] += half(b.paidCost.ironPlate); inventory[RES.PLATE_COPPER] += half(b.paidCost.copperPlate); }
   else if (b.type === 'cutter') { inventory[RES.PLATE_IRON] += half(b.paidCost.ironPlate); inventory[RES.PLATE_COPPER] += half(b.paidCost.copperPlate); inventory[RES.PLATE_COPPER] += b.inputBuffer; if (b.outputBufferType) inventory[b.outputBufferType] += b.outputBuffer; }
@@ -228,7 +250,7 @@ export function demolishUnderground(u) {
 export function repairBuilding(b) {
   if (!b.isBroken) return false;
   const half = (v) => Math.floor(v * 0.5);
-  if (b.type === 'mine' || b.type === 'furnace') {
+  if (b.type === 'mine' || b.type === 'furnace' || b.type === 'lumberjack') {
     const cost = half(b.paidCost);
     if (inventory[RES.IRON] < cost) return false;
     inventory[RES.IRON] -= cost;
@@ -236,8 +258,8 @@ export function repairBuilding(b) {
     const ci = half(b.paidCost.ironPlate), cc = half(b.paidCost.copperPlate);
     if (inventory[RES.PLATE_IRON] < ci || inventory[RES.PLATE_COPPER] < cc) return false;
     inventory[RES.PLATE_IRON] -= ci; inventory[RES.PLATE_COPPER] -= cc;
-  } else if (b.type === 'chemplant') {
-    const ci = half(b.paidCost.ironPlate), cc = half(b.paidCost.copperPlate), cw = half(b.paidCost.wire);
+  } else if (b.type === 'chemplant' || b.type === 'sawmill') {
+    const ci = half(b.paidCost.ironPlate), cc = half(b.paidCost.copperPlate || 0), cw = half(b.paidCost.wire || 0);
     if (inventory[RES.PLATE_IRON] < ci || inventory[RES.PLATE_COPPER] < cc || inventory[RES.WIRE] < cw) return false;
     inventory[RES.PLATE_IRON] -= ci; inventory[RES.PLATE_COPPER] -= cc; inventory[RES.WIRE] -= cw;
   } else if (b.type === 'turret') {
@@ -309,7 +331,7 @@ export function drawBuildings() {
   }
 }
 
-export { Mine, Furnace, Lab, Cutter, Assembler, Chemplant, Storage, Turret, Radar, Inserter, MiniCore };
+export { Mine, Furnace, Lab, Cutter, Assembler, Chemplant, Storage, Turret, Radar, Inserter, MiniCore, Lumberjack, Sawmill };
 
 if (typeof window !== 'undefined') window.__monsters = window.__monsters || [];
 console.debug('[buildings] loaded');

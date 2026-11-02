@@ -284,3 +284,77 @@ export class MiniCore extends Building {
     ctx.fillStyle = '#e0f0ff'; ctx.beginPath(); ctx.arc(sx + TILE/2, sy + TILE/2, 3, 0, Math.PI*2); ctx.fill();
   }
 }
+
+// В самый конец файла добавь:
+
+export class Lumberjack extends Building {
+  constructor(tx, ty) {
+    super(tx, ty, 'lumberjack', BUILDING_HP.lumberjack);
+    this.timer = 0; this.paidCost = LUMBERJACK_COST; this.outputDir = state.savedOutputDir;
+    this.outputBuffer = 0; this.outputBufferMax = FURNACE_OUTPUT_BUFFER_MAX; this.outputBufferType = RES.WOOD;
+  }
+  update(dt) {
+    // Лес бесконечный, поэтому проверяем только место в буфере/конвейере
+    const outC = getOutputConveyor(this);
+    if (!(outC && outC.items.length < 2) && !(this.outputBuffer < this.outputBufferMax)) return;
+    
+    const interval = MINE_INTERVAL / state.miningSpeedMult;
+    this.timer += dt;
+    while (this.timer >= interval) {
+      if (!tryOutputItem(this, RES.WOOD)) break;
+      addPopup(this.tx * TILE + TILE / 2, this.ty * TILE + 4, '+1', RES_COLOR[RES.WOOD]);
+      playMineSound(); this.timer -= interval;
+    }
+    flushOutputBuffer(this);
+  }
+  drawSpecific() {
+    const sx = this.tx * TILE, sy = this.ty * TILE;
+    // Процедурная отрисовка: Пень и топор
+    ctx.fillStyle = '#5a3a1a'; ctx.fillRect(sx + 8, sy + 16, 16, 12); // Пень
+    ctx.fillStyle = '#3a2010'; ctx.fillRect(sx + 8, sy + 16, 16, 2); // Верх пня
+    // Топор
+    ctx.strokeStyle = '#a0a0a0'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(sx + 20, sy + 18); ctx.lineTo(sx + 26, sy + 10); ctx.stroke();
+    ctx.fillStyle = '#808080'; ctx.beginPath(); ctx.moveTo(sx + 24, sy + 8); ctx.lineTo(sx + 28, sy + 12); ctx.lineTo(sx + 26, sy + 14); ctx.lineTo(sx + 22, sy + 10); ctx.fill();
+    
+    drawProgressBar(sx, sy, this.timer / (MINE_INTERVAL / state.miningSpeedMult), '#7fbf7f');
+    drawBufferBadge(sx, sy, this.outputBuffer, this.outputBufferType);
+  }
+}
+
+export class Sawmill extends Crafter {
+  constructor(tx, ty) {
+    super(tx, ty, 'sawmill', BUILDING_HP.sawmill, { 
+      ironPlate: SAWMILL_IRON_COST, 
+      wood: SAWMILL_WOOD_COST, 
+      wire: SAWMILL_WIRE_COST 
+    });
+    this.selectedRecipe = 'board'; // По умолчанию крафтит доски
+  }
+  getRecipes() { return SAWMILL_RECIPES; }
+  
+  // Переопределяем отрисовку (процедурная: стол с пилой)
+  drawSpecific() {
+    const sx = this.tx * TILE, sy = this.ty * TILE;
+    ctx.fillStyle = '#4a2a1a'; ctx.fillRect(sx + 2, sy + 10, TILE - 4, TILE - 12); // Деревянный стол
+    ctx.fillStyle = '#606060'; ctx.beginPath(); ctx.arc(sx + TILE/2, sy + TILE/2, 8, 0, Math.PI*2); ctx.fill(); // Пила
+    // Зубья пилы
+    ctx.strokeStyle = '#999'; ctx.lineWidth = 1.5;
+    for(let i=0; i<8; i++){
+      const a = (i/8)*Math.PI*2;
+      ctx.beginPath();
+      ctx.moveTo(sx + TILE/2 + Math.cos(a)*8, sy + TILE/2 + Math.sin(a)*8);
+      ctx.lineTo(sx + TILE/2 + Math.cos(a)*11, sy + TILE/2 + Math.sin(a)*11);
+      ctx.stroke();
+    }
+    
+    // Отрисовка прогресса (используем базу)
+    const recipe = getRecipeById(this.selectedRecipe);
+    if (recipe) {
+      let canCraft = true;
+      for (const [resType, count] of recipe.inputs) { if ((this.inputBuffer[resType] || 0) < count) { canCraft = false; break; } }
+      if (canCraft) drawProgressBar(sx, sy, this.timer / recipe.time, '#7fbf7f');
+    }
+    drawBufferBadge(sx, sy, this.outputBuffer, this.outputBufferType);
+  }
+}

@@ -36,19 +36,38 @@ export const CHEMPLANT_WIRE_COST = 5;
 export const STORAGE_IRON_COST = 30;
 export const STORAGE_COPPER_COST = 10;
 
+// СТОИМОСТЬ ДЛЯ НОВЫХ ЗДАНИЙ
+export const LUMBERJACK_COST = 10;
+export const SAWMILL_IRON_COST = 20;
+export const SAWMILL_WOOD_COST = 15;
+export const SAWMILL_WIRE_COST = 5;
+
 export const TURRET_CORPS_COST = 5;
 export const TURRET_ENGINE_COST = 2;
 export const TURRET_CIRCUIT_COST = 3;
 export const TURRET_HP_BASE = 150;
-export const TURRET_DAMAGE_BASE = 10; // <--- БЫЛО 2, СТАЛО 10
+export const TURRET_DAMAGE_BASE = 10; 
 export const TURRET_RANGE_BASE = TILE * 6;
 export const TURRET_FIRE_INTERVAL = 1.0;
 export const TURRET_AMMO_PER_SHOT = 1;
 
 export const BUILDING_HP = {
-  mine: 100, furnace: 150, lab: 80, conveyor: 20, splitter: 50, underground: 30, 
-  cutter: 80, assembler: 120, chemplant: 150, storage: 200, turret: 150, radar: 100, inserter: 60,
-  minicore: 500
+  mine: 100, 
+  furnace: 150, 
+  lab: 80, 
+  conveyor: 20, 
+  splitter: 50, 
+  underground: 30, 
+  cutter: 80, 
+  assembler: 120, 
+  chemplant: 150, 
+  storage: 200, 
+  turret: 150, 
+  radar: 100, 
+  inserter: 60,
+  minicore: 500,
+  lumberjack: 100, // ДОБАВЛЕНО
+  sawmill: 120     // ДОБАВЛЕНО
 };
 
 export const DIR_DELTA = [[0, -1], [1, 0], [0, 1], [-1, 0]];
@@ -66,15 +85,27 @@ export const ASSEMBLER_RECIPES = [
   { id: 'engine', name: 'Двигатель', output: RES.ENGINE, inputs: [[RES.CORPS, 1], [RES.GEAR, 2], [RES.CIRCUIT, 1]], count: 1, time: 4.0 },
   { id: 'ammo', name: 'Патроны (базовые)', output: RES.AMMO, inputs: [[RES.POWDER, 1], [RES.PLATE_IRON, 1]], count: 4, time: 1.5 },
 ];
+
 export const CHEM_RECIPES = [
   { id: 'powder', name: 'Порох', output: RES.POWDER, inputs: [[RES.COAL, 1], [RES.PLATE_IRON, 1]], count: 2, time: 2.5 }
 ];
 
-export function getRecipeById(id) { return ASSEMBLER_RECIPES.find(r => r.id === id) || CHEM_RECIPES.find(r => r.id === id); }
+// НОВЫЕ РЕЦЕПТЫ ДЛЯ КОМБИНАТА
+export const SAWMILL_RECIPES = [
+  { id: 'board', name: 'Доски', output: RES.BOARD, inputs: [[RES.WOOD, 2]], count: 1, time: 2.0 }
+];
+
+export function getRecipeById(id) { 
+  return ASSEMBLER_RECIPES.find(r => r.id === id) || 
+         CHEM_RECIPES.find(r => r.id === id) || 
+         SAWMILL_RECIPES.find(r => r.id === id); 
+}
+
 export function getRecipesForBuilding(b) {
   if (b && typeof b.getRecipes === 'function') return b.getRecipes();
   if (b && b.type === 'assembler') return ASSEMBLER_RECIPES;
   if (b && b.type === 'chemplant') return CHEM_RECIPES;
+  if (b && b.type === 'sawmill') return SAWMILL_RECIPES;
   return [];
 }
 

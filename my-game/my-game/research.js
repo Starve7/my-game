@@ -11,11 +11,11 @@ export const CATEGORIES = [
 
 export const TECHNOLOGIES = [
   // ================= ПРОИЗВОДСТВО =================
-  // --- Корневые технологии ---
   { id: 'unlock_cutter', era: 1, cat: 'production', name: 'Резак', desc: '1 медная плита → 2 провода', studyPercent: 10, requires: [], effect: () => {} },
   { id: 'unlock_logistics', era: 1, cat: 'production', name: 'Логистика', desc: 'Базовые манипуляторы и распределители', studyPercent: 15, requires: [], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_sawmill', isStub: true, era: 1, cat: 'production', name: 'Лесопильный комбинат', desc: 'Доски, брусья', studyPercent: 15, requires: [], effect: () => {} },
+  
+  // РАЗБЛОКИРОВАНО
+  { id: 'unlock_sawmill', era: 1, cat: 'production', name: 'Лесопильный комбинат', desc: 'Доски, брусья из брёвен', studyPercent: 20, requires: [], effect: () => {} },
 
   // --- Ветка Логистики ---
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
@@ -80,18 +80,18 @@ export const TECHNOLOGIES = [
   { id: 'unlock_concrete_walls', isStub: true, era: 1, cat: 'military', name: 'Бетонные стены', desc: 'Максимальная прочность', studyPercent: 40, requires: ['unlock_stone_walls', 'unlock_concrete_factory'], effect: () => {} },
 
   // --- Ветка Вооружения ---
-  // ВОТ ТУТ УБРАН IS_STUB У ПОРОХА
-  { id: 'unlock_powder_tech', era: 1, cat: 'military', name: 'Порох', desc: 'Основа для боеприпасов', studyPercent: 35, requires: ['unlock_chemplant'], effect: () => {} },
+  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
+  { id: 'unlock_powder_tech', isStub: true, era: 1, cat: 'military', name: 'Порох', desc: 'Основа для боеприпасов', studyPercent: 35, requires: ['unlock_chemplant'], effect: () => {} },
   
   // От Пороха идут Патроны и Снаряды
-  // ВОТ ТУТ УБРАН IS_STUB У ПАТРОНОВ
-  { id: 'unlock_basic_ammo', era: 1, cat: 'military', name: 'Патроны (базовые)', desc: 'Боеприпасы для турелей', studyPercent: 30, requires: ['unlock_powder_tech', 'unlock_assembler'], effect: () => {} },
+  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
+  { id: 'unlock_basic_ammo', isStub: true, era: 1, cat: 'military', name: 'Патроны (базовые)', desc: 'Боеприпасы для турелей', studyPercent: 30, requires: ['unlock_powder_tech', 'unlock_assembler'], effect: () => {} },
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_artillery_shells', isStub: true, era: 1, cat: 'military', name: 'Артиллерийские снаряды', desc: 'Для тяжелых орудий', studyPercent: 60, requires: ['unlock_powder_tech', 'unlock_assembly_plant'], effect: () => {} },
 
   // Ветка от Патронов:
-  // ВОТ ТУТ УБРАН IS_STUB У ТУРЕЛИ
-  { id: 'unlock_mg_turret', era: 1, cat: 'military', name: 'Пулемётная турель', desc: 'Стреляет простыми патронами', studyPercent: 45, requires: ['unlock_basic_ammo', 'unlock_assembler'], effect: () => {} },
+  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
+  { id: 'unlock_mg_turret', isStub: true, era: 1, cat: 'military', name: 'Пулемётная турель', desc: 'Стреляет простыми патронами', studyPercent: 45, requires: ['unlock_basic_ammo', 'unlock_assembler'], effect: () => {} },
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_incendiary_mix', isStub: true, era: 1, cat: 'military', name: 'Огнесмесь', desc: 'Топливо для огнемётов', studyPercent: 50, requires: ['unlock_basic_ammo'], effect: () => {} },
   // TODO: УДАЛИТЬ_ЗАГЛУШКУ
@@ -188,13 +188,14 @@ export function updateStudy(dt) {
 }
 
 export function isBuildingUnlocked(type) {
-  if (type === 'mine' || type === 'furnace' || type === 'lab' || type === 'conveyor') return true;
+  if (type === 'mine' || type === 'furnace' || type === 'lab' || type === 'conveyor' || type === 'lumberjack') return true;
   if (type === 'splitter' || type === 'underground') return isTechOwned('unlock_logistics');
   if (type === 'cutter') return isTechOwned('unlock_cutter');
   if (type === 'assembler') return isTechOwned('unlock_assembler');
   if (type === 'chemplant') return isTechOwned('unlock_chemplant');
   if (type === 'storage') return isTechOwned('unlock_storage');
   if (type === 'turret') return isTechOwned('unlock_mg_turret');
+  if (type === 'sawmill') return isTechOwned('unlock_sawmill');
   return true;
 }
 
