@@ -197,4 +197,4 @@ export function updateInfoCardLive() {
   else if (e.type === 'lab') { 
     const el = document.getElementById('card-lab-dna'); if (el) el.textContent = state.dna; 
   }
-}tn
+}
