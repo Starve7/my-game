@@ -6,7 +6,7 @@ import {
   drawMinimap, handleMinimapClick, updatePopups, safeCall, screenToCell, showToast, STAT_WINDOW_SEC,
   WORLD_W, WORLD_H, drawRangeCircle
 } from './game.js';
-import { CORE, CORE_HP_MAX, world, oreAmount, oreInitial, fog } from './world.js';
+import { CORE, CORE_HP_MAX, world, oreAmount, oreInitial, fog, initialNests } from './world.js';
 import { drawResIcon, drawCoreSprite } from './sprites.js';
 import {
   buildings, conveyors, splitters, undergrounds, turretBeams, tryPlaceBuilding, tryConveyorDragStep,
@@ -15,7 +15,7 @@ import {
 } from './buildings.js';
 import { updateStudy, TECHNOLOGIES } from './research.js';
 import { updateHUD, openInfoPanel, openConveyorPanel, closePanel, showGameOver, updateModeBadge, showInfoCard, hideInfoCard } from './ui.js';
-import { monsters, nests, updateMonsters, drawMonsters, handleMonsterDeath, drawNestsAndInfection } from './monsters.js';
+import { monsters, nests, updateMonsters, drawMonsters, handleMonsterDeath, drawNestsAndInfection, trySpawnNest } from './monsters.js';
 import { initAudio, playGameOver } from './audio.js';
 import { showMainMenu } from './menu.js';
 
@@ -32,6 +32,13 @@ if (typeof window !== 'undefined') {
   window.cheatClear = () => { for (let i = 1; i <= 25; i++) inventory[i] = 0; state.dna = 0; showToast('🧹 Инвентарь и ДНК очищены'); };
   window.cheatReveal = () => { for (let y = 0; y < WORLD_H; y++) for (let x = 0; x < WORLD_W; x++) fog[y][x] = 0; showToast('🗺 Карта открыта'); };
   window.cheatPollution = (amount = 100) => { state.pollution = amount; showToast(`☣ Загрязнение установлено на ${amount}%`); };
+}
+
+export function initNaturalNests() {
+  nests.length = 0;
+  for (const n of initialNests) {
+    trySpawnNest(n.level, n.tx, n.ty);
+  }
 }
 
 function updateTime(dt) {
@@ -170,7 +177,6 @@ function draw() {
       drawRangeCircle(CORE.x * TILE + TILE*1.5, CORE.y * TILE + TILE*1.5, TILE * 6, false);
     } else if (state.selectedInfoCard.isNest) {
       const n = state.selectedInfoCard;
-      // Рисуем красный радиус агра для улья
       ctx.save();
       ctx.beginPath();
       ctx.arc(n.tx * TILE + TILE/2, n.ty * TILE + TILE/2, n.aggroRadius, 0, Math.PI * 2);
@@ -215,14 +221,25 @@ function draw() {
 }
 
 let lastTime = performance.now();
+let initialNestsSpawned = false;
+
 function loop(now) {
   const dt = Math.min(0.1, (now - lastTime) / 1000);
   lastTime = now;
   if (!state.inMenu) {
+    // Инициализация природных ульев при первом кадре игры
+    if (!initialNestsSpawned && nests.length === 0) {
+      initNaturalNests();
+      initialNestsSpawned = true;
+    }
+    
     safeCall(update, 'update', dt);
     safeCall(updateHUD, 'updateHUD');
     safeCall(updateMonsters, 'updateMonsters', dt);
     safeCall(draw, 'draw');
+  } else {
+    // Если вышли в меню, сбрасываем флаг для следующей игры
+    initialNestsSpawned = false;
   }
   requestAnimationFrame(loop);
 }
