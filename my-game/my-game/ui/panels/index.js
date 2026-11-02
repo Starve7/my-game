@@ -1,10 +1,10 @@
 'use strict';
 
 import { state } from '../../game.js';
-import { oreAmount } from '../../world.js'; // <--- ВОТ ТУТ ИСПРАВЛЕНО
+import { oreAmount } from '../../world.js';
 import { openModal, panelContent } from '../core.js';
 
-import { renderMinePanel, renderFurnacePanel, renderLabPanel, renderCutterPanel, renderCrafterPanel } from './production.js';
+import { renderMinePanel, renderFurnacePanel, renderLabPanel, renderCutterPanel, renderCrafterPanel, renderLumberjackPanel, renderSawmillPanel } from './production.js';
 import { renderStoragePanel, renderInserterPanel, renderConveyorPanel } from './logistics.js';
 import { renderTurretPanel, renderRadarPanel } from './defense.js';
 import { renderMiniCorePanel } from './misc.js';
@@ -13,6 +13,8 @@ export function openInfoPanel(b) {
   state.panel = 'info'; state.activeBuilding = b;
   let title = '';
   if (b.type === 'mine') title = '⛏ Угольный бур';
+  else if (b.type === 'lumberjack') title = '🪓 Лесорубка';
+  else if (b.type === 'sawmill') title = '🪚 Лесопильный комбинат';
   else if (b.type === 'furnace') title = '🔥 Угольная печь';
   else if (b.type === 'lab') title = '🧪 Лаборатория';
   else if (b.type === 'cutter') title = '✂️ Резак';
@@ -27,6 +29,8 @@ export function openInfoPanel(b) {
   openModal(title);
   
   if (b.type === 'mine') renderMinePanel(b);
+  else if (b.type === 'lumberjack') renderLumberjackPanel(b);
+  else if (b.type === 'sawmill') renderSawmillPanel(b);
   else if (b.type === 'furnace') renderFurnacePanel(b);
   else if (b.type === 'lab') renderLabPanel(b);
   else if (b.type === 'cutter') renderCutterPanel(b);
@@ -51,6 +55,8 @@ export function updateActivePanelLive() {
     if (b.type === 'mine') {
       const el = document.getElementById('mine-remaining'); if (el) el.textContent = Math.round(oreAmount[b.ty][b.tx]);
       const el2 = document.getElementById('mine-buf'); if (el2) el2.textContent = b.outputBuffer + ' / ' + b.outputBufferMax;
+    } else if (b.type === 'lumberjack') {
+      const el = document.getElementById('lumberjack-buf'); if (el) el.textContent = b.outputBuffer + ' / ' + b.outputBufferMax;
     } else if (b.type === 'furnace') {
       const el = document.getElementById('furnace-buffer-ore'); if (el) el.textContent = b.inputOre;
       const el2 = document.getElementById('furnace-buffer-coal'); if (el2) el2.textContent = b.inputCoal;
@@ -61,7 +67,7 @@ export function updateActivePanelLive() {
     else if (b.type === 'cutter') {
       const el = document.getElementById('cutter-in'); if (el) el.textContent = b.inputBuffer;
       const el2 = document.getElementById('cutter-out'); if (el2) el2.textContent = b.outputBuffer + ' / ' + b.outputBufferMax;
-    } else if (b.type === 'assembler' || b.type === 'chemplant') { 
+    } else if (b.type === 'assembler' || b.type === 'chemplant' || b.type === 'sawmill') { 
       const el = document.getElementById('crafter-buf-out'); if (el) el.textContent = b.outputBuffer + ' / ' + b.outputBufferMax; 
     }
     else if (b.type === 'turret') {

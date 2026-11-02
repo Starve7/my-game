@@ -10,7 +10,8 @@ import {
   MINE_COST, FURNACE_COST, CONVEYOR_COST, SPLITTER_COST, UNDERGROUND_COST, RADAR_COST, INSERTER_COST,
   LAB_IRON_COST, LAB_COPPER_COST, CUTTER_IRON_COST, CUTTER_COPPER_COST, ASSEMBLER_IRON_COST, ASSEMBLER_COPPER_COST,
   CHEMPLANT_IRON_COST, CHEMPLANT_COPPER_COST, CHEMPLANT_WIRE_COST, STORAGE_IRON_COST, STORAGE_COPPER_COST,
-  TURRET_CORPS_COST, TURRET_ENGINE_COST, TURRET_CIRCUIT_COST
+  TURRET_CORPS_COST, TURRET_ENGINE_COST, TURRET_CIRCUIT_COST,
+  LUMBERJACK_COST, SAWMILL_IRON_COST, SAWMILL_WOOD_COST, SAWMILL_WIRE_COST
 } from '../buildings.js';
 import { costHtml, BUILDING_ICONS } from './utils.js';
 import { playClick } from '../audio.js';
@@ -26,6 +27,7 @@ function canAffordStorage() { return inventory[RES.PLATE_IRON] >= STORAGE_IRON_C
 function canAffordTurret() { return inventory[RES.CORPS] >= TURRET_CORPS_COST && inventory[RES.ENGINE] >= TURRET_ENGINE_COST && inventory[RES.CIRCUIT] >= TURRET_CIRCUIT_COST; }
 function canAffordRadar() { return inventory[RES.CIRCUIT] >= RADAR_COST.circuit && inventory[RES.CORPS] >= RADAR_COST.corps && inventory[RES.PLATE_IRON] >= RADAR_COST.plate_iron; }
 function canAffordInserter() { return inventory[RES.IRON] >= INSERTER_COST.iron && inventory[RES.GEAR] >= INSERTER_COST.gear && inventory[RES.PLATE_IRON] >= INSERTER_COST.plate_iron; }
+function canAffordSawmill() { return inventory[RES.PLATE_IRON] >= SAWMILL_IRON_COST && inventory[RES.WOOD] >= SAWMILL_WOOD_COST && inventory[RES.WIRE] >= SAWMILL_WIRE_COST; }
 
 function getBuildingSpriteStyle(type) {
   const img = buildingImages[type];
@@ -78,8 +80,10 @@ function renderBuildPanel() {
     const labCount = countBuildings('lab'), cutterCount = countBuildings('cutter');
     const assemblerCount = countBuildings('assembler'), chemplantCount = countBuildings('chemplant');
     const storageCount = countBuildings('storage'), radarCount = countBuildings('radar'), inserterCount = countBuildings('inserter');
+    const lumberjackCount = countBuildings('lumberjack'), sawmillCount = countBuildings('sawmill');
 
     const mineOk = iron >= MINE_COST;
+    const lumberjackOk = iron >= LUMBERJACK_COST;
     const furnaceOk = iron >= FURNACE_COST;
     const labOk = canAffordLab();
     const cutterOk = isBuildingUnlocked('cutter') && canAffordCutter();
@@ -88,14 +92,21 @@ function renderBuildPanel() {
     const storageOk = isBuildingUnlocked('storage') && canAffordStorage();
     const radarOk = canAffordRadar();
     const inserterOk = canAffordInserter();
+    const sawmillOk = isBuildingUnlocked('sawmill') && canAffordSawmill();
 
     html += `<div class="build-group-title">⛏ Добыча и плавка</div><div class="build-grid">`;
     html += renderBuildCard('mine', 'Угольный бур', costHtml(MINE_COST, RES.IRON), mineOk, `${mineCount}`);
+    html += renderBuildCard('lumberjack', 'Лесорубка', costHtml(LUMBERJACK_COST, RES.IRON), lumberjackOk, `${lumberjackCount}`);
     html += renderBuildCard('furnace', 'Угольная печь', costHtml(FURNACE_COST, RES.IRON), furnaceOk, `${furnaceCount}`);
     html += `</div>`;
 
     html += `<div class="build-group-title">⚙️ Переработка</div><div class="build-grid">`;
     html += renderBuildCard('lab', 'Лаборатория', `${costHtml(LAB_IRON_COST, RES.PLATE_IRON)}+${costHtml(LAB_COPPER_COST, RES.PLATE_COPPER)}`, labOk, `${labCount}`);
+    
+    if (isBuildingUnlocked('sawmill')) {
+      html += renderBuildCard('sawmill', 'Лесопильный комбинат', `${costHtml(SAWMILL_IRON_COST, RES.PLATE_IRON)}+${costHtml(SAWMILL_WOOD_COST, RES.WOOD)}+${costHtml(SAWMILL_WIRE_COST, RES.WIRE)}`, sawmillOk, `${sawmillCount}`);
+    }
+
     if (isBuildingUnlocked('cutter')) html += renderBuildCard('cutter', 'Резак', `${costHtml(CUTTER_IRON_COST, RES.PLATE_IRON)}+${costHtml(CUTTER_COPPER_COST, RES.PLATE_COPPER)}`, cutterOk, `${cutterCount}`);
     if (isBuildingUnlocked('assembler')) html += renderBuildCard('assembler', 'Сборщик', `${costHtml(ASSEMBLER_IRON_COST, RES.PLATE_IRON)}+${costHtml(ASSEMBLER_COPPER_COST, RES.PLATE_COPPER)}`, assemblerOk, `${assemblerCount}`);
     if (isBuildingUnlocked('chemplant')) html += renderBuildCard('chemplant', 'Химзавод', `${costHtml(CHEMPLANT_IRON_COST, RES.PLATE_IRON)}+${costHtml(CHEMPLANT_COPPER_COST, RES.PLATE_COPPER)}+${costHtml(CHEMPLANT_WIRE_COST, RES.WIRE)}`, chemplantOk, `${chemplantCount}`);
@@ -142,4 +153,3 @@ function renderBuildPanel() {
     });
   });
 }
-// КОНЕЦ ФАЙЛА ui/build.js

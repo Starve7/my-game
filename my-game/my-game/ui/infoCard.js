@@ -72,6 +72,8 @@ export function showInfoCard(e) {
   } else {
     let name = '';
     if (e.type === 'mine') { name = 'Угольный бур'; icon = '⛏'; }
+    else if (e.type === 'lumberjack') { name = 'Лесорубка'; icon = '🪓'; }
+    else if (e.type === 'sawmill') { name = 'Лесопильный комбинат'; icon = '🪚'; }
     else if (e.type === 'furnace') { name = 'Угольная печь'; icon = '🔥'; }
     else if (e.type === 'lab') { name = 'Лаборатория'; icon = '🧪'; }
     else if (e.type === 'cutter') { name = 'Резак'; icon = '✂️'; }
@@ -92,6 +94,11 @@ export function showInfoCard(e) {
       html += `<div class="card-row"><span>Добывает:</span><span>${RES_NAME[e.resourceType]}</span></div>`;
       html += `<div class="card-row"><span>Остаток в жиле:</span><span id="card-mine-amount">${amount <= 0 ? 'Истощено' : Math.round(amount)}</span></div>`;
       html += `<div class="card-row"><span>В буфере:</span><span id="card-mine-buf">${e.outputBuffer}</span></div>`;
+    } else if (e.type === 'lumberjack') {
+      html += `<div class="card-row"><span>Добывает:</span><span>Дерево</span></div>`;
+      html += `<div class="card-row"><span>В буфере:</span><span id="card-mine-buf">${e.outputBuffer}</span></div>`;
+    } else if (e.type === 'sawmill') {
+      html += `<div class="card-row"><span>Рецепт:</span><span>Доски</span></div>`;
     } else if (e.type === 'furnace') {
       html += `<div class="card-row"><span>Руда в буфере:</span><span id="card-furn-ore">${e.inputOre} ${e.inputOreType ? RES_NAME[e.inputOreType] : ''}</span></div>`;
       html += `<div class="card-row"><span>Уголь:</span><span id="card-furn-coal">${e.inputCoal}</span></div>`;
@@ -175,6 +182,8 @@ export function updateInfoCardLive() {
     const amountEl = document.getElementById('card-mine-amount');
     if (amountEl) { const amt = oreAmount[e.ty][e.tx]; amountEl.textContent = amt <= 0 ? 'Истощено' : Math.round(amt); }
     const bufEl = document.getElementById('card-mine-buf'); if (bufEl) bufEl.textContent = e.outputBuffer;
+  } else if (e.type === 'lumberjack') {
+    const bufEl = document.getElementById('card-mine-buf'); if (bufEl) bufEl.textContent = e.outputBuffer;
   } else if (e.type === 'furnace') {
     const oreEl = document.getElementById('card-furn-ore'); if (oreEl) oreEl.textContent = `${e.inputOre} ${e.inputOreType ? RES_NAME[e.inputOreType] : ''}`;
     const coalEl = document.getElementById('card-furn-coal'); if (coalEl) coalEl.textContent = e.inputCoal;
@@ -188,4 +197,4 @@ export function updateInfoCardLive() {
   else if (e.type === 'lab') { 
     const el = document.getElementById('card-lab-dna'); if (el) el.textContent = state.dna; 
   }
-}
+}tn

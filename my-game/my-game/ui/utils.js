@@ -1,7 +1,7 @@
 'use strict';
 
 import { RES_COLOR, showToast } from '../game.js';
-import { spriteUrl, RES_SCALE } from '../sprites.js'; // Импортируем RES_SCALE
+import { spriteUrl, RES_SCALE } from '../sprites.js';
 
 export const POLLUTION_THRESHOLDS = [100, 300, 600, 1000];
 export let lastThresholdShown = 0;
@@ -30,7 +30,6 @@ export function iconStyle(resType) {
   const scale = RES_SCALE[resType] || 1.0;
   
   if (url) {
-    // Если масштаб больше 1, мы увеличиваем background-size, чтобы картинка не была крошечной
     const bgSize = scale !== 1.0 ? `${scale * 100}%` : 'contain';
     return `background-image:${url}; background-size:${bgSize}; background-repeat:no-repeat; background-position:center;`;
   }
@@ -44,5 +43,6 @@ export function costHtml(amount, resType) {
 export const BUILDING_ICONS = { 
   mine: '⛏', furnace: '🔥', lab: '🧪', cutter: '✂️', assembler: '⚙️', chemplant: '🧪', 
   storage: '📦', turret: '🎯', conveyor: '↔️', splitter: '↔️', underground: '⬇️', 
-  radar: '📡', inserter: '🦾', minicore: '💠' 
+  radar: '📡', inserter: '🦾', minicore: '💠',
+  lumberjack: '🪓', sawmill: '🪚' // НОВЫЕ ИКОНКИ
 };

@@ -44,6 +44,7 @@ export function tryPlaceBuilding(type, tx, ty, isUnlockedFn) {
   if (type === 'mine') {
     if (!checkLimit('mine')) { showToast(`Лимит шахт`); return false; }
     const res = world[ty][tx];
+    if (res === RES.WOOD) { showToast('Для дерева нужна Лесорубка'); return false; } // ФИКС
     if (res === 0) { if (oreInitial[ty][tx] > 0) showToast('Эта жила истощена'); else showToast('Шахта — только на месторождение'); return false; }
     if (oreAmount[ty][tx] <= 0) { showToast('Эта жила истощена'); return false; }
     if (inventory[RES.IRON] < MINE_COST) { showToast('Не хватает железа'); return false; }
@@ -183,9 +184,13 @@ export function canPlaceGhost(type, tx, ty) {
     if (getBuildingAt(tx2, ty2) || getConveyorAt(tx2, ty2) || getSplitterAt(tx2, ty2) || getUndergroundAt(tx2, ty2)) return false;
   }
   
-  if (type === 'mine') { if (world[ty][tx] === 0 || oreAmount[ty][tx] <= 0) return false; }
+  if (type === 'mine') { 
+    if (world[ty][tx] === RES.WOOD) return false; // ФИКС
+    if (world[ty][tx] === 0 || oreAmount[ty][tx] <= 0) return false; 
+  }
   else if (type === 'lumberjack') { if (world[ty][tx] !== RES.WOOD) return false; }
   else if (type !== 'conveyor' && type !== 'underground' && type !== 'splitter') { if (world[ty][tx] !== 0) return false; }
+  
   if (type !== 'conveyor' && type !== 'underground' && type !== 'splitter' && !checkLimit(type)) return false;
   return true;
 }

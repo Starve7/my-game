@@ -1,8 +1,11 @@
 'use strict';
 
 import { state, inventory, RES, RES_NAME, TILE } from '../../game.js';
-import { oreAmount, oreInitial } from '../../world.js'; // <--- ВОТ ТУТ ИСПРАВЛЕНО
-import { MINE_INTERVAL, FURNACE_INTERVAL, LAB_INTERVAL, CUTTER_INTERVAL, flushOutputBuffer, getRecipeById, getRecipesForBuilding, demolishBuilding } from '../../buildings.js';
+import { oreAmount, oreInitial } from '../../world.js';
+import { 
+  MINE_INTERVAL, FURNACE_INTERVAL, LAB_INTERVAL, CUTTER_INTERVAL, 
+  flushOutputBuffer, getRecipeById, getRecipesForBuilding, demolishBuilding 
+} from '../../buildings.js';
 import { isTechOwned } from '../../research.js';
 import { panelContent, closePanel, openModal } from '../core.js';
 import { iconStyle } from '../utils.js';
@@ -40,6 +43,19 @@ export function renderMinePanel(b) {
   document.getElementById('remove-btn').addEventListener('click', () => { playClick(); demolishBuilding(b); closePanel(); });
 }
 
+export function renderLumberjackPanel(b) {
+  const interval = MINE_INTERVAL / state.miningSpeedMult;
+  panelContent.innerHTML = `<div class="info-line">Рубит лес и производит <strong>Брёвна</strong>.</div>
+    <div class="info-line">Скорость: 1 бревно / ${interval.toFixed(2)} сек</div>
+    <div class="stats-box">
+      <div class="row"><span>В буфере</span><span id="lumberjack-buf">${b.outputBuffer} / ${b.outputBufferMax}</span></div>
+    </div>
+    ${getDirPickerHtml(b.outputDir)}
+    <button class="remove-btn" id="remove-btn">Удалить (вернуть 50%)</button>`;
+  bindDirPicker(b);
+  document.getElementById('remove-btn').addEventListener('click', () => { playClick(); demolishBuilding(b); closePanel(); });
+}
+
 export function renderFurnacePanel(b) {
   const oreName = b.inputOreType === RES.IRON ? 'Железо' : b.inputOreType === RES.COPPER ? 'Медь' : '—';
   let recipeHtml = b.inputOreType ? `<div class="recipe"><div class="item"><div class="dot" style="${iconStyle(b.inputOreType)}"></div>1</div><span class="arrow">+</span><div class="item"><div class="dot" style="${iconStyle(RES.COAL)}"></div>1 уголь</div><span class="arrow">→</span><div class="item"><div class="dot" style="${iconStyle(b.inputOreType === RES.IRON ? RES.PLATE_IRON : RES.PLATE_COPPER)}"></div>1 плита</div></div>` : '<div class="recipe" style="color:#888">Ожидание руды с конвейера…</div>';
@@ -73,7 +89,7 @@ export function recipeInputsHtml(recipe, b) {
 
 export function openRecipePicker(b) {
   state.panel = 'recipe-pick'; state.activeBuilding = b;
-  openModal(b.type === 'assembler' ? '⚙️ Сборщик — рецепт' : '🧪 Химзавод — рецепт');
+  openModal(b.type === 'assembler' ? '⚙️ Сборщик — рецепт' : b.type === 'sawmill' ? '🪚 Комбинат — рецепт' : '🧪 Химзавод — рецепт');
   renderRecipePicker(b);
 }
 
@@ -103,3 +119,6 @@ export function renderCrafterPanel(b) {
   document.getElementById('change-recipe-btn').addEventListener('click', () => { playClick(); openRecipePicker(b); });
   document.getElementById('remove-btn').addEventListener('click', () => { playClick(); demolishBuilding(b); closePanel(); });
 }
+
+// Комбинат использует ту же панель, что и крафтер, просто вызываем для него renderCrafterPanel
+export const renderSawmillPanel = renderCrafterPanel;
