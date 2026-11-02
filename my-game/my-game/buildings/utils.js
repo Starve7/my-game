@@ -2,8 +2,7 @@
 
 import { inventory, state, showToast, TILE, RES, RES_COLOR, ctx } from '../game.js';
 import { CORE } from '../world.js';
-import { buildings, conveyors, splitters, undergrounds, CONVEYOR_CAPACITY, DIR_DELTA, updateFog } from './data.js';
-import { updateFog as defenseUpdateFog } from './defense.js'; // Импорт для вызова при поломке
+import { buildings, conveyors, splitters, undergrounds, CONVEYOR_CAPACITY, DIR_DELTA } from './data.js';
 
 export function getConveyorAt(tx, ty) { return conveyors.find(c => c.tx === tx && c.ty === ty); }
 export function getBuildingAt(tx, ty) { return buildings.find(b => b.tx === tx && b.ty === ty); }
@@ -45,7 +44,7 @@ export function damageBuildingAt(tx, ty, dmg) {
   b.hp -= dmg;
   if (b.hp <= 0) { 
     b.hp = 0; b.isBroken = true; 
-    defenseUpdateFog(); // ОБНОВЛЯЕМ ТУМАН ПРИ ПОЛОМКЕ РАДАРА
+    state.needsFogUpdate = true; // <--- СТАВИМ ФЛАГ ВМЕСТО ПРЯМОГО ВЫЗОВА
     return true; 
   }
   return false;

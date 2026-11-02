@@ -304,6 +304,10 @@ export function updateBuildings(dt) {
   for (const b of buildings) { if (b.isBroken) continue; b.update(dt); }
   for (let i = turretBeams.length - 1; i >= 0; i--) { turretBeams[i].life -= dt; if (turretBeams[i].life <= 0) turretBeams.splice(i, 1); }
   // Убрали updateFog отсюда! Теперь туман обновляется только при постройке/сносе/поломке
+  if (state.needsFogUpdate) {
+    updateFog();
+    state.needsFogUpdate = false;
+  }
 }
 
 export function drawBuildings() {

@@ -38,7 +38,8 @@ export const state = {
   techState: {}, statHistory: {}, activeStudyTechId: null, studyProgressByTech: {}, studyTickTimer: 0,
   day: 1, timeOfDay: 0.25,
   hudResources: [1, 2, 3],
-  selectedInfoCard: null
+  selectedInfoCard: null,
+  needFogUpdate: false
 };
 
 export const STAT_WINDOW_SEC = 30;
