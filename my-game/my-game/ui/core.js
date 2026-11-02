@@ -1,6 +1,6 @@
 'use strict';
 
-import { state } from '../game.js';
+import { state, showToast, RES } from '../game.js';
 import { setHudIcon } from '../sprites.js';
 
 export const uiDay = document.getElementById('ui-day');
@@ -26,34 +26,37 @@ export const infoCardContent = document.getElementById('info-card-content');
 let modalBlockTimer = null;
 
 export function toggleDrawer(forceOpen) {
+  if (!drawer) return;
   const isHidden = drawer.classList.contains('hidden');
   if (forceOpen === true || (forceOpen === undefined && isHidden)) {
-    drawer.classList.remove('hidden'); drawerToggle.classList.add('open');
+    drawer.classList.remove('hidden'); if (drawerToggle) drawerToggle.classList.add('open');
   } else {
-    drawer.classList.add('hidden'); drawerToggle.classList.remove('open');
+    drawer.classList.add('hidden'); if (drawerToggle) drawerToggle.classList.remove('open');
   }
 }
 
 export function openModal(title) {
-  panelTitle.textContent = title; 
+  if (!modal) return;
+  if (panelTitle) panelTitle.textContent = title; 
   modal.classList.remove('hidden'); 
-  modalBackdrop.classList.remove('hidden');
+  if (modalBackdrop) modalBackdrop.classList.remove('hidden');
   modal.style.pointerEvents = 'none'; 
-  modalBackdrop.style.pointerEvents = 'none';
+  if (modalBackdrop) modalBackdrop.style.pointerEvents = 'none';
   clearTimeout(modalBlockTimer);
   modalBlockTimer = setTimeout(() => { 
     modal.style.pointerEvents = ''; 
-    modalBackdrop.style.pointerEvents = ''; 
+    if (modalBackdrop) modalBackdrop.style.pointerEvents = ''; 
     modalBlockTimer = null; 
   }, 250);
 }
 
 export function closeModal() {
+  if (!modal) return;
   modal.classList.add('hidden'); 
-  modalBackdrop.classList.add('hidden');
+  if (modalBackdrop) modalBackdrop.classList.add('hidden');
   if (modalBlockTimer) { clearTimeout(modalBlockTimer); modalBlockTimer = null; }
   modal.style.pointerEvents = ''; 
-  modalBackdrop.style.pointerEvents = '';
+  if (modalBackdrop) modalBackdrop.style.pointerEvents = '';
 }
 
 export function closePanel() { 
@@ -61,4 +64,12 @@ export function closePanel() {
   state.panel = null; 
   state.activeBuilding = null; 
   state.activeConveyor = null; 
+}
+
+export function applyHudIcons() {
+  if (typeof setHudIcon === 'function') {
+    setHudIcon('dot-iron', RES.IRON); 
+    setHudIcon('dot-copper', RES.COPPER); 
+    setHudIcon('dot-coal', RES.COAL);
+  }
 }

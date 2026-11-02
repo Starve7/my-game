@@ -1,7 +1,6 @@
 'use strict';
 
 import { RES, RES_NAME, RES_COLOR, RES_TYPE } from './resources.js';
-import { imgReady } from './sprites.js'; 
 export { RES, RES_NAME, RES_COLOR };
 
 export const TILE = 32;
@@ -39,7 +38,7 @@ export const state = {
   day: 1, timeOfDay: 0.25,
   hudResources: [1, 2, 3],
   selectedInfoCard: null,
-  needFogUpdate: false
+  needsFogUpdate: false // ДОБАВИЛИ ФЛАГ
 };
 
 export const STAT_WINDOW_SEC = 30;
@@ -308,20 +307,22 @@ export function drawBackground(world, oreAmount, oreInitial, getBuildingAt, draw
         const hasBuilding = getBuildingAt && getBuildingAt(tx, ty);
         if (hasBuilding) continue;
         
-        if (imgReady(r, 0)) {
-          const amount = oreAmount[ty][tx], initial = oreInitial[ty][tx];
-          let alpha = 1;
-          // СТАНДАРТНАЯ ПРОВЕРКА (без Infinity)
-          if (amount <= 0) alpha = 0.15;
-          else if (initial > 0) alpha = 0.4 + 0.6 * (amount / initial);
-          
-          ctx.globalAlpha = alpha;
-          const v = variantForTile(tx, ty) % 3;
-          drawResIcon(r, sx, sy, TILE, v);
-          ctx.globalAlpha = 1;
-        } else {
+        const amount = oreAmount[ty][tx], initial = oreInitial[ty][tx];
+        let alpha = 1;
+        if (amount <= 0) alpha = 0.15;
+        else if (initial !== null && initial !== undefined && initial > 0) alpha = 0.4 + 0.6 * (amount / initial);
+        
+        ctx.globalAlpha = alpha;
+        const v = variantForTile(tx, ty) % 3;
+        
+        // ФИКС: drawResIcon сам возвращает true, если нарисовал ПНГ, и false, если нарисовал квадрат
+        const drawn = drawResIcon(r, sx, sy, TILE, v);
+        
+        if (!drawn) {
           drawProceduralTile(r, sx, sy, TILE);
         }
+        
+        ctx.globalAlpha = 1;
       }
     }
   }

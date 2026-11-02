@@ -1,6 +1,6 @@
 'use strict';
 
-import { drawerToggle, drawerHide, drawerTabs, modalClose, modalBackdrop, toggleDrawer, closeModal } from './core.js';
+import { drawerToggle, drawerHide, drawerTabs, modalClose, modalBackdrop, toggleDrawer, closeModal, applyHudIcons } from './core.js';
 import { state, showToast } from '../game.js';
 import { playClick } from '../audio.js';
 import { openBuildPanel } from './build.js';
@@ -21,37 +21,38 @@ export * from './settings.js';
 export * from './gameOver.js';
 export * from './panels/index.js';
 
-// Инициализация меню
-drawerToggle.addEventListener('click', () => { playClick(); toggleDrawer(); });
-drawerHide.addEventListener('click', () => { toggleDrawer(false); });
-modalClose.addEventListener('click', () => { playClick(); closeModal(); });
-modalBackdrop.addEventListener('click', () => { closeModal(); });
+// ЗАЩИТА ОТ NULL (если index.html не заменен)
+if (drawerToggle) drawerToggle.addEventListener('click', () => { playClick(); toggleDrawer(); });
+if (drawerHide) drawerHide.addEventListener('click', () => { toggleDrawer(false); });
+if (modalClose) modalClose.addEventListener('click', () => { playClick(); closeModal(); });
+if (modalBackdrop) modalBackdrop.addEventListener('click', () => { closeModal(); });
 
-drawerTabs.forEach(btn => {
-  btn.addEventListener('click', () => {
-    playClick();
-    const tab = btn.dataset.tab;
+if (drawerTabs && drawerTabs.length > 0) {
+  drawerTabs.forEach(btn => {
+    btn.addEventListener('click', () => {
+      playClick();
+      const tab = btn.dataset.tab;
 
-    if (tab === 'demolish') {
-      state.demolishMode = !state.demolishMode;
-      btn.classList.toggle('active', state.demolishMode);
-      showToast(state.demolishMode ? '🔨 Режим сноса ВКЛ' : 'Режим сноса ВЫКЛ');
-      return;
-    }
+      if (tab === 'demolish') {
+        state.demolishMode = !state.demolishMode;
+        btn.classList.toggle('active', state.demolishMode);
+        showToast(state.demolishMode ? '🔨 Режим сноса ВКЛ' : 'Режим сноса ВЫКЛ');
+        return;
+      }
 
-    state.demolishMode = false;
-    const demolishBtn = document.querySelector('.dtab[data-tab="demolish"]');
-    if (demolishBtn) demolishBtn.classList.remove('active');
+      state.demolishMode = false;
+      const demolishBtn = document.querySelector('.dtab[data-tab="demolish"]');
+      if (demolishBtn) demolishBtn.classList.remove('active');
 
-    drawerTabs.forEach(b => b.classList.toggle('active', b === btn));
-    if (tab === 'build') { state.panel = 'build'; openBuildPanel(); }
-    else if (tab === 'research') { openResearchPanel(); }
-    else if (tab === 'stats') { state.panel = 'stats'; openStatsPanel(); }
-    else if (tab === 'settings') { state.panel = 'settings'; openSettingsPanel(); }
+      drawerTabs.forEach(b => b.classList.toggle('active', b === btn));
+      if (tab === 'build') { state.panel = 'build'; openBuildPanel(); }
+      else if (tab === 'research') { openResearchPanel(); }
+      else if (tab === 'stats') { state.panel = 'stats'; openStatsPanel(); }
+      else if (tab === 'settings') { state.panel = 'settings'; openSettingsPanel(); }
+    });
   });
-});
+}
 
-// Строим HUD при загрузке и обновляем, когда подгрузятся PNG
-buildHudResourcesDOM();
-setTimeout(buildHudResourcesDOM, 500);
-setTimeout(buildHudResourcesDOM, 1500);
+if (typeof applyHudIcons === 'function') {
+  applyHudIcons(); setTimeout(applyHudIcons, 500); setTimeout(applyHudIcons, 1500);
+}
