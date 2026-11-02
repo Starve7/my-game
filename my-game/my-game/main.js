@@ -61,7 +61,6 @@ function drawAtmosphere() {
   }
 }
 
-// В main.js
 function handleTap(sx, sy) {
   initAudio();
   if (state.gameOver) return;
@@ -143,7 +142,7 @@ function update(dt) {
   safeCall(updatePopups, 'updatePopups', dt);
 }
 
-function draw() {
+export function draw() {
   ctx.fillStyle = '#2a2a2a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
   
   ctx.save();
@@ -223,6 +222,11 @@ function draw() {
   drawMinimap(CORE, buildings, conveyors, monsters, splitters, undergrounds);
 }
 
+// ЭКСПОРТИРУЕМ ДЛЯ ФИКСА СЕЙВОВ
+if (typeof window !== 'undefined') {
+  window.__forceRedraw = draw;
+}
+
 let lastTime = performance.now();
 let initialNestsSpawned = false;
 
@@ -230,7 +234,6 @@ function loop(now) {
   const dt = Math.min(0.1, (now - lastTime) / 1000);
   lastTime = now;
   if (!state.inMenu) {
-    // Инициализация природных ульев при первом кадре игры
     if (!initialNestsSpawned && nests.length === 0) {
       initNaturalNests();
       initialNestsSpawned = true;
@@ -241,7 +244,6 @@ function loop(now) {
     safeCall(updateMonsters, 'updateMonsters', dt);
     safeCall(draw, 'draw');
   } else {
-    // Если вышли в меню, сбрасываем флаг для следующей игры
     initialNestsSpawned = false;
   }
   requestAnimationFrame(loop);

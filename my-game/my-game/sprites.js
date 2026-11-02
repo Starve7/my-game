@@ -3,15 +3,15 @@
 import { RES, RES_COLOR, ctx } from './game.js';
 
 export const RES_SCALE = {
-  [RES.IRON]: 0.8, 
-  [RES.COPPER]: 0.8, 
+  [RES.IRON]: 0.7, 
+  [RES.COPPER]: 0.7, 
   [RES.COAL]: 1.0, 
-  // НОВЫЕ РЕСУРСЫ (подкрути, если будут выглядеть не так)
   [RES.STONE]: 0.8,
   [RES.WOOD]: 1.0,
-  [RES.URANIUM]: 0.8,
-  [RES.LEAD]: 0.8,
-}
+  [RES.URANIUM]: 1.0,
+  [RES.LEAD]: 1.0,
+};
+
 export const SPRITES = {
   [RES.IRON]:         ['assets/iron_1.png'],
   [RES.COPPER]:       ['assets/copper_1.png'],
@@ -25,7 +25,6 @@ export const SPRITES = {
   [RES.ENGINE]:       ['assets/engine.png'],
   [RES.POWDER]:       ['assets/powder.png'],
   [RES.AMMO]:         ['assets/ammo.png'],
-  // НОВЫЕ ПНГШКИ
   [RES.STONE]:        ['assets/stone.png'],
   [RES.WOOD]:         ['assets/wood.png'],
   [RES.URANIUM]:      ['assets/uranium.png'],
@@ -45,11 +44,13 @@ export const BUILDING_SPRITES = {
   inserter_base: 'assets/inserter_base.png',
   inserter_arm:  'assets/inserter_arm.png',
   splitter: 'assets/splitter.png',
-  underground: 'assets/underground.png'
+  underground: 'assets/underground.png',
+  lumberjack: 'assets/lumberjack.png', // <--- ДОБАВЛЕНА ЛЕСОРУБКА
+  sawmill: 'assets/sawmill.png'        // <--- ДОБАВЛЕН КОМБИНАТ
 };
 
 export const BUILDING_SCALE = {
-  mine:      1.0,
+  mine:      1.4,
   furnace:   1.0,
   lab:       1.0,
   cutter:    1.0,
@@ -61,7 +62,9 @@ export const BUILDING_SCALE = {
   inserter_base: 1.0,
   inserter_arm: 1.5,
   splitter: 1.0,
-  underground: 1.0
+  underground: 1.0,
+  lumberjack: 1.0,
+  sawmill: 1.0
 };
 
 const CONVEYOR_SPRITES = [
@@ -76,17 +79,42 @@ export const buildingImages = {};
 const conveyorImages = [];
 let coreImage = null;
 
+// ФУНКЦИЯ ДЛЯ ПРИНУДИТЕЛЬНОЙ ПЕРЕРИСОВКИ (ФИКС БАГА С СЕЙВАМИ)
+function triggerRedraw() {
+  if (typeof window !== 'undefined' && window.__forceRedraw) {
+    window.__forceRedraw();
+  }
+}
+
 for (const [resType, paths] of Object.entries(SPRITES)) {
-  images[resType] = paths.map(path => { const img = new Image(); img.src = path; return img; });
+  images[resType] = paths.map(path => { 
+    const img = new Image(); 
+    img.onload = triggerRedraw; // <--- ПЕРЕРИСОВКА ПРИ ЗАГРУЗКЕ
+    img.src = path; 
+    return img; 
+  });
 }
 
 for (const [type, path] of Object.entries(BUILDING_SPRITES)) {
-  const img = new Image(); img.src = path; buildingImages[type] = img;
+  const img = new Image(); 
+  img.onload = triggerRedraw; // <--- ПЕРЕРИСОВКА ПРИ ЗАГРУЗКЕ
+  img.src = path; 
+  buildingImages[type] = img;
 }
 
-CONVEYOR_SPRITES.forEach(path => { const img = new Image(); img.src = path; conveyorImages.push(img); });
+CONVEYOR_SPRITES.forEach(path => { 
+  const img = new Image(); 
+  img.onload = triggerRedraw;
+  img.src = path; 
+  conveyorImages.push(img); 
+});
 
-{ const img = new Image(); img.src = CORE_SPRITE; coreImage = img; }
+{ 
+  const img = new Image(); 
+  img.onload = triggerRedraw;
+  img.src = CORE_SPRITE; 
+  coreImage = img; 
+}
 
 export function isReady(img) { return img && img.complete && img.naturalWidth > 0; }
 export function imgReady(resType, variant = 0) { const arr = images[resType]; if (!arr || !arr[variant]) return false; return isReady(arr[variant]); }
@@ -102,7 +130,7 @@ export function drawResIcon(resType, x, y, size, variant = 0) {
   if (arr) {
     if (variant < arr.length && imgReady(resType, variant)) { 
       ctx.drawImage(arr[variant], offsetX, offsetY, finalSize, finalSize); 
-      return true; // ВОЗВРАЩАЕМ TRUE, ЧТОБЫ ИГРА ЗНАЛА, ЧТО ПНГ ЕСТЬ
+      return true;
     }
     if (imgReady(resType, 0)) { 
       ctx.drawImage(arr[0], offsetX, offsetY, finalSize, finalSize); 
@@ -111,7 +139,7 @@ export function drawResIcon(resType, x, y, size, variant = 0) {
   }
   ctx.fillStyle = RES_COLOR[resType] || '#888'; 
   ctx.fillRect(offsetX, offsetY, finalSize, finalSize);
-  return false; // ПНГ НЕТ, НАРИСОВАЛИ КВАДРАТ
+  return false;
 }
 
 export function drawBuildingSprite(type, sx, sy, size) {
