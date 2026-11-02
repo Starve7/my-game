@@ -15,7 +15,6 @@ if (typeof window !== 'undefined') {
   window.__nests = nests; 
 }
 
-// УВЕЛИЧЕННЫЕ ЛИМИТЫ
 const MONSTER_MAX_ALIVE = 400; 
 const MOBS_PER_NEST = 25;       
 
@@ -23,8 +22,7 @@ const CORE_ATTACK_INTERVAL = 0.6, CORE_ATTACK_DAMAGE = 1, CORE_ATTACK_RANGE = TI
 let coreAttackTimer = 0;
 export const coreBeams = [];
 
-// 10 УРОВНЕЙ ЖУКОВ (с бронёй)
-const MONSTER_TYPES = {
+export const MONSTER_TYPES = {
   1: { name: 'Рабочий', hp: 20, dmg: 5, speed: 1.0, color: '#c83030', size: 20, armor: 0 },
   2: { name: 'Бегун', hp: 15, dmg: 4, speed: 2.0, color: '#e89a4a', size: 16, armor: 0 },
   3: { name: 'Солдат', hp: 40, dmg: 8, speed: 1.0, color: '#a02020', size: 22, armor: 2 },
@@ -37,21 +35,20 @@ const MONSTER_TYPES = {
   10: { name: 'КОРОЛЬ', hp: 3000, dmg: 60, speed: 0.3, color: '#000', size: 48, armor: 50 }
 };
 
-// 6 УРОВНЕЙ УЛЬЕВ (с бронёй)
-const HIVE_TYPES = {
-  1: { hp: 500, aggroRadius: TILE * 8, spawnRate: 15, name: 'Слабый улей', mobs: [1, 2], armor: 0 },
-  2: { hp: 1000, aggroRadius: TILE * 10, spawnRate: 12, name: 'Средний улей', mobs: [1, 2, 3, 4], armor: 10 },
-  3: { hp: 2000, aggroRadius: TILE * 12, spawnRate: 10, name: 'Большой улей', mobs: [3, 4, 5, 6], armor: 30 },
-  4: { hp: 4000, aggroRadius: TILE * 15, spawnRate: 8, name: 'Мутированный улей', mobs: [4, 5, 6, 7], armor: 50 },
-  5: { hp: 8000, aggroRadius: TILE * 18, spawnRate: 5, name: 'Улей погибели', mobs: [6, 7, 8, 9], armor: 80 },
-  6: { hp: 15000, aggroRadius: TILE * 20, spawnRate: 2, name: 'Королева', mobs: [1, 2, 3, 4, 5, 6, 7, 8, 9], armor: 100, isKing: true }
+export const HIVE_TYPES = {
+  1: { hp: 500, aggroRadius: TILE * 8, spawnRate: 15, name: 'Слабый улей', mobs: [1, 2], armor: 0, color: '#3a1040', size: 0.5 },
+  2: { hp: 1000, aggroRadius: TILE * 10, spawnRate: 12, name: 'Средний улей', mobs: [1, 2, 3, 4], armor: 10, color: '#5a1050', size: 0.6 },
+  3: { hp: 2000, aggroRadius: TILE * 12, spawnRate: 10, name: 'Большой улей', mobs: [3, 4, 5, 6], armor: 30, color: '#7a1040', size: 0.7 },
+  4: { hp: 4000, aggroRadius: TILE * 15, spawnRate: 8, name: 'Мутированный улей', mobs: [4, 5, 6, 7], armor: 50, color: '#4a5a10', size: 0.8 },
+  5: { hp: 8000, aggroRadius: TILE * 18, spawnRate: 5, name: 'Улей погибели', mobs: [6, 7, 8, 9], armor: 80, color: '#5a1010', size: 0.9 },
+  6: { hp: 15000, aggroRadius: TILE * 20, spawnRate: 2, name: 'Королева', mobs: [1, 2, 3, 4, 5, 6, 7, 8, 9], armor: 100, isKing: true, color: '#000000', size: 1.2 }
 };
 
 const NEST_POLLUTION_THRESHOLD = 70; 
 let nestSpawnTimer = 0;
 
 export function trySpawnNest(level = 1, tx = null, ty = null) {
-  if (nests.length >= 60) return; // Увеличено до 60
+  if (nests.length >= 60) return;
 
   if (tx === null || ty === null) {
     const angle = Math.random() * Math.PI * 2;
@@ -81,10 +78,9 @@ export function trySpawnNest(level = 1, tx = null, ty = null) {
 }
 
 export function updateNests(dt) {
-  // Спавн от загрязнения
   if (state.pollution >= NEST_POLLUTION_THRESHOLD && nests.length < 60) {
     nestSpawnTimer += dt;
-    if (nestSpawnTimer >= 20) { // Раз в 20 секунд (было 30)
+    if (nestSpawnTimer >= 20) { 
       nestSpawnTimer = 0;
       let level = 1;
       if (state.pollution > 300) level = 2;
@@ -97,7 +93,6 @@ export function updateNests(dt) {
   for (const n of nests) {
     const type = HIVE_TYPES[n.level];
     
-    // Агр по постройке
     if (!n.isProvoked) {
       for (const b of buildings) {
         if (b.isBroken) continue;
@@ -110,22 +105,30 @@ export function updateNests(dt) {
       }
     }
 
-    // Движение Короля
+    // ТЕЛЕПОРТАЦИЯ КОРОЛЯ
     if (n.isKing && n.isProvoked) {
       n.moveTimer += dt;
-      if (n.moveTimer >= 2) { 
+      if (n.moveTimer >= 15) { // Раз в 15 секунд
         n.moveTimer = 0;
         const dx = CORE.x - n.tx;
         const dy = CORE.y - n.ty;
         const dist = Math.hypot(dx, dy);
-        if (dist > 5) {
-          n.tx += Math.sign(dx);
-          n.ty += Math.sign(dy);
+        if (dist > 15) {
+          // Телепорт на 10 клеток ближе
+          const step = 10;
+          const newTx = Math.floor(n.tx + (dx / dist) * step);
+          const newTy = Math.floor(n.ty + (dy / dist) * step);
+          
+          if (newTx >= 0 && newTx < WORLD_W && newTy >= 0 && newTy < WORLD_H && world[newTy][newTx] !== RES.WATER) {
+            n.tx = newTx;
+            n.ty = newTy;
+            explosions.push({ x: n.tx * TILE + TILE/2, y: n.ty * TILE + TILE/2, radius: TILE * 3, life: 0.8, maxLife: 0.8, color: '#800080' });
+            if (window.__showToast) window.__showToast(`⚠️ Королева телепортировалась!`);
+          }
         }
       }
     }
 
-    // Спавн жуков с лимитом НА УЛЕЙ (25)
     const myMobs = monsters.filter(m => m.targetNest === n).length;
     
     if (myMobs < MOBS_PER_NEST) {
@@ -144,7 +147,6 @@ function spawnMonsterFromNest(nest) {
   let mobLevel;
 
   if (nest.isKing) {
-    // Король спавнит по 25 каждого уровня
     const availableLevels = [];
     for (let i = 1; i <= 9; i++) {
       if ((nest.spawnedCounts[i] || 0) < 25) availableLevels.push(i);
@@ -204,30 +206,43 @@ export function drawNestsAndInfection() {
   for (const n of nests) {
     if (n.hp <= 0) continue;
     const sx = n.tx * TILE, sy = n.ty * TILE;
+    const type = HIVE_TYPES[n.level];
     
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.beginPath(); ctx.ellipse(sx + TILE/2, sy + TILE - 4, TILE*0.7, TILE*0.2, 0, 0, Math.PI*2); ctx.fill();
     
-    ctx.fillStyle = n.isProvoked ? '#8a1010' : '#3a1040';
+    // Отрисовка кокона (цвет и размер зависят от уровня)
+    ctx.fillStyle = n.isProvoked ? '#ff0000' : type.color;
     ctx.beginPath();
-    ctx.ellipse(sx + TILE/2, sy + TILE/2, TILE * 0.6, TILE * 0.7, 0, 0, Math.PI * 2);
+    const sizeMult = type.size;
+    ctx.ellipse(sx + TILE/2, sy + TILE/2, TILE * 0.6 * sizeMult, TILE * 0.7 * sizeMult, 0, 0, Math.PI * 2);
     ctx.fill();
+
+    // Обводка (для высоких уровней)
+    if (n.level >= 3) {
+      ctx.strokeStyle = n.isProvoked ? '#ff5050' : '#a060c0';
+      ctx.lineWidth = n.level >= 5 ? 3 : 1.5;
+      ctx.stroke();
+    }
+    
+    // Корона для Короля
+    if (n.isKing) {
+      ctx.fillStyle = '#ffd700'; 
+      ctx.font = 'bold 24px sans-serif'; 
+      ctx.textAlign = 'center';
+      ctx.fillText('👑', sx + TILE/2, sy - 10);
+    }
 
     const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 300 + n.tx);
     ctx.strokeStyle = n.isProvoked ? `rgba(255, 50, 50, ${0.5 + pulse * 0.5})` : `rgba(200, 50, 255, ${0.3 + pulse * 0.4})`;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.arc(sx + TILE/2, sy + TILE/2, TILE * 0.4, 0, Math.PI * 2);
+    ctx.arc(sx + TILE/2, sy + TILE/2, TILE * 0.4 * sizeMult, 0, Math.PI * 2);
     ctx.stroke();
     
     const pct = Math.max(0, n.hp / n.maxHp);
     ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(sx + 2, sy - 6, TILE - 4, 4);
     ctx.fillStyle = '#e040e0'; ctx.fillRect(sx + 2, sy - 6, (TILE - 4) * pct, 4);
-
-    if (n.isKing) {
-      ctx.fillStyle = '#ffd700'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText('👑', sx + TILE/2, sy - 10);
-    }
   }
 }
 
@@ -345,7 +360,18 @@ export function updateMonsters(dt) {
     } else {
       let targetX = coreX, targetY = coreY;
       
-      if (m.targetNest && !m.targetNest.isProvoked) {
+      // Если улей спровоцирован (это касается и короля)
+      if (m.targetNest && m.targetNest.isProvoked) {
+        if (m.targetNest.isKing) {
+          // ЖУКИ ИДУТ ЗА КОРОЛЁМ
+          targetX = m.targetNest.tx * TILE + TILE/2;
+          targetY = m.targetNest.ty * TILE + TILE/2;
+        } else {
+          // Обычные ульи шлют на ядро
+          targetX = coreX; targetY = coreY;
+        }
+      } else if (m.targetNest && !m.targetNest.isProvoked) {
+        // Бродим вокруг улья
         targetX = m.targetNest.tx * TILE + TILE/2;
         targetY = m.targetNest.ty * TILE + TILE/2;
         targetX += Math.sin(performance.now() / 1000 + m.hp) * TILE * 2;
@@ -431,7 +457,8 @@ export function drawMonsters() {
 
   for (const e of explosions) {
     const p = 1 - (e.life / e.maxLife);
-    ctx.fillStyle = `rgba(255, 100, 0, ${1 - p})`; ctx.beginPath(); ctx.arc(e.x, e.y, e.radius * p, 0, Math.PI * 2); ctx.fill();
+    const col = e.color || '255, 100, 0';
+    ctx.fillStyle = `rgba(${col}, ${1 - p})`; ctx.beginPath(); ctx.arc(e.x, e.y, e.radius * p, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = `rgba(255, 255, 0, ${1 - p})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, e.radius * p, 0, Math.PI * 2); ctx.stroke();
   }
 }

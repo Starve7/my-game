@@ -13,24 +13,28 @@ let currentInfoCardEntity = null;
 
 export function showInfoCard(e) {
   currentInfoCardEntity = e;
-  state.selectedInfoCard = e; // Сохраняем в стейт для отрисовки радиуса в main.js
+  state.selectedInfoCard = e; 
   
   let html = '', title = '', icon = '';
 
   if (e.isMonster) {
-    const names = { grunt: 'Обычный', runner: 'Бегун', tank: 'Танк', exploder: 'Взрывник' };
-    title = names[e.type] || 'Монстр'; icon = '👾';
+    title = e.name || 'Монстр'; icon = '👾';
     html = `<div class="card-header"><span>${icon} ${title}</span><button class="card-close">✕</button></div>
             <div class="card-row"><span>HP:</span><span id="card-monster-hp">${Math.ceil(e.hp)} / ${Math.ceil(e.maxHp)}</span></div>
             <div class="card-row"><span>Урон:</span><span>${Math.round(e.damage)}</span></div>
-            <div class="card-row"><span>Скорость:</span><span>${e.speed.toFixed(1)}</span></div>`;
+            <div class="card-row"><span>Броня:</span><span>${e.armor}</span></div>
+            <div class="card-row"><span>Скорость:</span><span>${e.speed.toFixed(1)}</span></div>
+            ${e.isFlyer ? '<div class="card-row"><span>Особенность:</span><span style="color:#80c0ff;">Летает</span></div>' : ''}`;
   } else if (e.isNest) {
-    title = 'Улей'; icon = '🕸️';
+    const hiveName = e.isKing ? 'Королева' : (e.level === 1 ? 'Слабый улей' : e.level === 2 ? 'Средний улей' : e.level === 3 ? 'Большой улей' : e.level === 4 ? 'Мутированный улей' : 'Улей погибели');
+    
+    title = hiveName; icon = '🕸️';
     html = `<div class="card-header"><span>${icon} ${title}</span><button class="card-close">✕</button></div>
             <div class="card-row"><span>HP:</span><span>${Math.ceil(e.hp)} / ${Math.ceil(e.maxHp)}</span></div>
+            <div class="card-row"><span>Броня:</span><span>${e.armor}</span></div>
             <div class="card-row"><span>Уровень:</span><span>${e.level}</span></div>
             <div class="card-row"><span>Статус:</span><span style="color:${e.isProvoked ? '#ff5050' : '#7fbf7f'}">${e.isProvoked ? 'РАЗЪЯРЕН' : 'Спокойно'}</span></div>
-            <div class="warn" style="margin-top:8px;">Атака только ракетами (не изучено).<br>Если постройка в радиусе 10 клеток — улей злится и шлет мобов на ядро!</div>`;
+            <div class="warn" style="margin-top:8px;">${e.isKing ? 'КОРОЛЕВА! Телепортируется к ядру. Убейте её ракетами!' : 'Атака только ракетами (не изучено).<br>Если постройка в радиусе 10 клеток — улей злится!'}</div>`;
   } else if (e.type === 'core') {
     title = 'Ядро'; icon = '💎';
     html = `<div class="card-header"><span>${icon} ${title}</span><button class="card-close">✕</button></div>
@@ -149,7 +153,7 @@ export function showInfoCard(e) {
 
 export function hideInfoCard() { 
   currentInfoCardEntity = null; 
-  state.selectedInfoCard = null; // Очищаем при закрытии
+  state.selectedInfoCard = null; 
   infoCardEl.classList.add('hidden'); 
 }
 
@@ -184,4 +188,4 @@ export function updateInfoCardLive() {
   else if (e.type === 'lab') { 
     const el = document.getElementById('card-lab-dna'); if (el) el.textContent = state.dna; 
   }
-}
+}oreX

@@ -61,6 +61,7 @@ function drawAtmosphere() {
   }
 }
 
+// В main.js
 function handleTap(sx, sy) {
   initAudio();
   if (state.gameOver) return;
@@ -69,8 +70,16 @@ function handleTap(sx, sy) {
   const cell = screenToCell(sx, sy);
   if (!cell) { hideInfoCard(); return; }
   const { tx, ty } = cell;
+
+  // ПРОВЕРКА УЛЬЯ ДО ТУМАНА (чтобы можно было кликать даже в неизведанной зоне)
+  const nest = nests.find(n => n.hp > 0 && n.tx === tx && n.ty === ty);
+  if (nest) {
+    state.selectedBuilding = null; state.ghostPos = null; updateModeBadge();
+    showInfoCard({ isNest: true, ...nest });
+    return;
+  }
   
-  if (fog[ty] && fog[ty][tx] === 1) return;
+  if (fog[ty] && fog[ty][tx] === 1) return; // Только после проверки улья скрываем остальное в тумане
 
   const existingB = buildings.find(b => b.tx === tx && b.ty === ty);
   if (existingB) {
@@ -98,12 +107,6 @@ function handleTap(sx, sy) {
   const worldX = tx * TILE + TILE / 2, worldY = ty * TILE + TILE / 2;
   const monster = monsters.find(m => Math.hypot(m.x - worldX, m.y - worldY) < 20);
   if (monster) { monster.isMonster = true; showInfoCard(monster); return; }
-  
-  const nest = nests.find(n => n.hp > 0 && n.tx === tx && n.ty === ty);
-  if (nest) {
-    showInfoCard({ isNest: true, ...nest });
-    return;
-  }
   
   hideInfoCard();
 }
