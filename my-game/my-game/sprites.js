@@ -3,7 +3,14 @@
 import { RES, RES_COLOR, ctx } from './game.js';
 
 export const RES_SCALE = {
-  [RES.IRON]: 0.7, [RES.COPPER]: 0.7, [RES.COAL]: 1.0, [RES.STONE]: 0.7,
+  [RES.IRON]: 0.7, 
+  [RES.COPPER]: 0.7, 
+  [RES.COAL]: 1.0, 
+  // НОВЫЕ РЕСУРСЫ (подкрути, если будут выглядеть не так)
+  [RES.STONE]: 0.8,
+  [RES.WOOD]: 1.0,
+  [RES.URANIUM]: 1.0,
+  [RES.LEAD]: 1.0,
 };
 
 export const SPRITES = {
@@ -19,6 +26,11 @@ export const SPRITES = {
   [RES.ENGINE]:       ['assets/engine.png'],
   [RES.POWDER]:       ['assets/powder.png'],
   [RES.AMMO]:         ['assets/ammo.png'],
+  // НОВЫЕ ПНГШКИ
+  [RES.STONE]:        ['assets/stone.png'],
+  [RES.WOOD]:         ['assets/wood.png'],
+  [RES.URANIUM]:      ['assets/uranium.png'],
+  [RES.LEAD]:         ['assets/lead.png'],
 };
 
 export const BUILDING_SPRITES = {
@@ -33,8 +45,8 @@ export const BUILDING_SPRITES = {
   radar:     'assets/radar.png',
   inserter_base: 'assets/inserter_base.png',
   inserter_arm:  'assets/inserter_arm.png',
-  splitter: 'assets/splitter.png',       // <--- НОВОЕ
-  underground: 'assets/underground.png'  // <--- НОВОЕ
+  splitter: 'assets/splitter.png',
+  underground: 'assets/underground.png'
 };
 
 export const BUILDING_SCALE = {
@@ -87,11 +99,20 @@ export function drawResIcon(resType, x, y, size, variant = 0) {
   const finalSize = size * scale;
   const offsetX = x + (size - finalSize) / 2;
   const offsetY = y + (size - finalSize) / 2;
+  
   if (arr) {
-    if (variant < arr.length && imgReady(resType, variant)) { ctx.drawImage(arr[variant], offsetX, offsetY, finalSize, finalSize); return; }
-    if (imgReady(resType, 0)) { ctx.drawImage(arr[0], offsetX, offsetY, finalSize, finalSize); return; }
+    if (variant < arr.length && imgReady(resType, variant)) { 
+      ctx.drawImage(arr[variant], offsetX, offsetY, finalSize, finalSize); 
+      return true; // ВОЗВРАЩАЕМ TRUE, ЧТОБЫ ИГРА ЗНАЛА, ЧТО ПНГ ЕСТЬ
+    }
+    if (imgReady(resType, 0)) { 
+      ctx.drawImage(arr[0], offsetX, offsetY, finalSize, finalSize); 
+      return true; 
+    }
   }
-  ctx.fillStyle = RES_COLOR[resType] || '#888'; ctx.fillRect(offsetX, offsetY, finalSize, finalSize);
+  ctx.fillStyle = RES_COLOR[resType] || '#888'; 
+  ctx.fillRect(offsetX, offsetY, finalSize, finalSize);
+  return false; // ПНГ НЕТ, НАРИСОВАЛИ КВАДРАТ
 }
 
 export function drawBuildingSprite(type, sx, sy, size) {
@@ -178,34 +199,17 @@ export function setHudIcon(elId, resType) {
 
 export function spriteUrl(resType) { if (imgReady(resType, 0)) return `url('${images[resType][0].src}')`; return null; }
 
-// ==================== НОВЫЕ ФУНКЦИИ ДЛЯ PNG ====================
-
 export function drawSplitterSprite(dir, sx, sy, size) {
   const img = buildingImages['splitter'];
   if (!isReady(img)) return false;
-
-  // ИСПРАВЛЕНО: Вправо/Влево - вертикальные (1x2). Вверх/Вниз - горизонтальные (2x1).
   const isVertical = dir === 1 || dir === 3; 
   const w = isVertical ? size : size * 2;
   const h = isVertical ? size * 2 : size;
-
-  const cx = sx + w / 2;
-  const cy = sy + h / 2;
-
+  const cx = sx + w / 2; const cy = sy + h / 2;
   let angle = 0;
-  if (dir === 1) angle = 0;                 // Вправо
-  else if (dir === 2) angle = Math.PI / 2;  // Вниз
-  else if (dir === 3) angle = Math.PI;      // Влево
-  else if (dir === 0) angle = -Math.PI / 2; // Вверх
-
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(angle);
-  
-  // Так как твоя картинка квадратная (1:1), мы её растянем в прямоугольник 1:2
-  const drawW = size;
-  const drawH = size * 2;
-  
+  if (dir === 1) angle = 0; else if (dir === 2) angle = Math.PI / 2; else if (dir === 3) angle = Math.PI; else if (dir === 0) angle = -Math.PI / 2;
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(angle);
+  const drawW = size; const drawH = size * 2;
   ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
   ctx.restore();
   return true;
@@ -214,19 +218,11 @@ export function drawSplitterSprite(dir, sx, sy, size) {
 export function drawUndergroundSprite(dir, isEntrance, sx, sy, size) {
   const img = buildingImages['underground'];
   if (!isReady(img)) return false;
-
   const cx = sx + size / 2, cy = sy + size / 2;
   let angle = 0;
-  if (dir === 1) angle = 0;
-  else if (dir === 2) angle = Math.PI / 2;
-  else if (dir === 3) angle = Math.PI;
-  else if (dir === 0) angle = -Math.PI / 2;
-
+  if (dir === 1) angle = 0; else if (dir === 2) angle = Math.PI / 2; else if (dir === 3) angle = Math.PI; else if (dir === 0) angle = -Math.PI / 2;
   if (isEntrance) angle += Math.PI;
-
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(angle);
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(angle);
   ctx.drawImage(img, -size / 2, -size / 2, size, size);
   ctx.restore();
   return true;

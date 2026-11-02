@@ -1,7 +1,7 @@
 'use strict';
 
-// ИМПОРТИРУЕМ РЕСУРСЫ ИЗ НОВОГО ФАЙЛА
 import { RES, RES_NAME, RES_COLOR, RES_TYPE } from './resources.js';
+import { imgReady } from './sprites.js'; // ИМПОРТИРУЕМ ПРОВЕРКУ
 export { RES, RES_NAME, RES_COLOR };
 
 export const TILE = 32;
@@ -22,7 +22,6 @@ export const canvas = document.getElementById('game');
 export const ctx = canvas.getContext('2d');
 export const camera = { x: 0, y: 0, zoom: 1 };
 
-// Инвентарь со всеми новыми ресурсами (до 25)
 export const inventory = { 
   1: 25, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0,
   13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 0, 19: 0, 20: 0, 21: 0, 22: 0, 23: 0, 24: 0, 25: 0
@@ -255,34 +254,6 @@ function drawProceduralTile(resType, sx, sy, size) {
     return true;
   }
 
-  if (resType === RES.WOOD) {
-    ctx.fillStyle = '#4a2a1a';
-    ctx.fillRect(cx - 3, cy, 6, size/2);
-    ctx.fillStyle = '#1a4a1a';
-    ctx.beginPath(); 
-    ctx.moveTo(cx, sy + 4); 
-    ctx.lineTo(cx + 10, cy + 6); 
-    ctx.lineTo(cx - 10, cy + 6); 
-    ctx.fill();
-    return true;
-  }
-
-  if (resType === RES.STONE) {
-    ctx.fillStyle = '#555';
-    ctx.beginPath(); ctx.moveTo(cx-8, cy+6); ctx.lineTo(cx-4, cy-8); ctx.lineTo(cx+8, cy-4); ctx.lineTo(cx+6, cy+8); ctx.fill();
-    ctx.fillStyle = '#777';
-    ctx.beginPath(); ctx.moveTo(cx-2, cy+4); ctx.lineTo(cx, cy-4); ctx.lineTo(cx+6, cy); ctx.fill();
-    return true;
-  }
-
-  if (resType === RES.CLAY) {
-    ctx.fillStyle = '#8a5a3a';
-    ctx.beginPath(); ctx.arc(cx, cy, size*0.35, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#aa7a5a';
-    ctx.beginPath(); ctx.arc(cx+2, cy+2, size*0.2, 0, Math.PI*2); ctx.fill();
-    return true;
-  }
-
   return false;
 }
 
@@ -327,7 +298,6 @@ export function drawBackground(world, oreAmount, oreInitial, getBuildingAt, draw
     for (let tx = tx0; tx <= tx1; tx++) {
       const sx = tx * TILE, sy = ty * TILE;
       
-      // Цвет в зависимости от зоны
       const dist = Math.hypot(tx - coreX, ty - coreY);
       const c = getZoneColor(dist);
       const offset = ((tx + ty) & 1) ? 4 : 0;
@@ -339,17 +309,20 @@ export function drawBackground(world, oreAmount, oreInitial, getBuildingAt, draw
         const hasBuilding = getBuildingAt && getBuildingAt(tx, ty);
         if (hasBuilding) continue;
         
-        const isProcedural = drawProceduralTile(r, sx, sy, TILE);
-        
-        if (!isProcedural) {
+        // СНАЧАЛА ПРОВЕРЯЕМ ПНГ
+        if (imgReady(r, 0)) {
           const amount = oreAmount[ty][tx], initial = oreInitial[ty][tx];
           let alpha = 1;
           if (amount <= 0) alpha = 0.15;
           else if (initial !== Infinity && initial > 0) alpha = 0.4 + 0.6 * (amount / initial);
+          
           ctx.globalAlpha = alpha;
           const v = variantForTile(tx, ty) % 3;
           drawResIcon(r, sx, sy, TILE, v);
           ctx.globalAlpha = 1;
+        } else {
+          // ЕСЛИ ПНГ НЕТ - РИСУЕМ КОДОМ (вода, нефть)
+          drawProceduralTile(r, sx, sy, TILE);
         }
       }
     }
@@ -364,6 +337,8 @@ export function drawBackground(world, oreAmount, oreInitial, getBuildingAt, draw
     ctx.stroke();
   }
 }
+
+// ... Остальной код game.js (drawGhost, drawCore и т.д.) оставляем как есть
 
 export function drawGhost(type, tx, ty, canPlace) {
   const sx = tx * TILE, sy = ty * TILE;
