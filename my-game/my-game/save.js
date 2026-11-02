@@ -186,7 +186,7 @@ export function resetGameData() {
   state.selectedBuilding = null; state.ghostPos = null; state.demolishMode = false; state.currentSaveSlot = null; state.totalKills = 0;
 
   for (const k in inventory) delete inventory[k];
-  Object.assign(inventory, { 1: 25, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0 });
+  Object.assign(inventory, { 1: 100, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0 });
   
   generateWorld();
   camera.x = CORE.x * TILE + TILE / 2; camera.y = CORE.y * TILE + TILE / 2;
