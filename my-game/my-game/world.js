@@ -15,7 +15,7 @@ export const world = [];
 export const oreAmount = [];
 export const oreInitial = [];
 export const fog = [];
-export const initialNests = []; // <--- МАССИВ ДЛЯ ПРИРОДНЫХ УЛЬЕВ
+export const initialNests = [];
 
 for (let y = 0; y < WORLD_H; y++) {
   world.push(new Array(WORLD_W).fill(0));
@@ -91,44 +91,56 @@ function generateLakes() {
   }
 }
 
-function generateNaturalNests() {
-  initialNests.length = 0; // Очищаем перед генерацией
+function spawnNestsInSector(level, count, minDist, maxDist, startAngle, endAngle) {
+  for (let i = 0; i < count; i++) {
+    const angle = startAngle + Math.random() * (endAngle - startAngle);
+    const dist = minDist + Math.random() * (maxDist - minDist);
+    const tx = Math.floor(CORE.x + Math.cos(angle) * dist);
+    const ty = Math.floor(CORE.y + Math.sin(angle) * dist);
+    initialNests.push({ tx, ty, level });
+  }
+}
 
-  // Зона 2 (Средняя): 3 слабых улья
+function generateNaturalNests() {
+  initialNests.length = 0;
+  const PI2 = Math.PI * 2;
+  
+  const sectors = [
+    { start: 0, end: Math.PI / 2 },
+    { start: Math.PI / 2, end: Math.PI },
+    { start: Math.PI, end: Math.PI * 1.5 },
+    { start: Math.PI * 1.5, end: PI2 }
+  ];
+
+  // Зона 2: 8 слабых (по 2 на сектор)
+  sectors.forEach(s => spawnNestsInSector(1, 2, 35, 70, s.start, s.end));
+
+  // Зона 3: 8 средних (по 2 на сектор)
+  sectors.forEach(s => spawnNestsInSector(2, 2, 75, 105, s.start, s.end));
+
+  // Зона 4: 8 больших (по 2 на сектор)
+  sectors.forEach(s => spawnNestsInSector(3, 2, 110, 140, s.start, s.end));
+
+  // Зона 4: 6 мутированных (случайно по секторам)
+  for (let i = 0; i < 6; i++) {
+    const s = sectors[Math.floor(Math.random() * 4)];
+    spawnNestsInSector(4, 1, 110, 145, s.start, s.end);
+  }
+
+  // 3 улья погибели
   for (let i = 0; i < 3; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 35 + Math.random() * 40;
-    initialNests.push({ tx: Math.floor(CORE.x + Math.cos(angle) * dist), ty: Math.floor(CORE.y + Math.sin(angle) * dist), level: 1 });
+    const s = sectors[Math.floor(Math.random() * 4)];
+    spawnNestsInSector(5, 1, 130, 148, s.start, s.end);
   }
-  // Зона 3 (Повышенная): 3 средних улья
-  for (let i = 0; i < 3; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 75 + Math.random() * 35;
-    initialNests.push({ tx: Math.floor(CORE.x + Math.cos(angle) * dist), ty: Math.floor(CORE.y + Math.sin(angle) * dist), level: 2 });
-  }
-  // Зона 4 (Высокая): 2 больших, 2 мутированных
-  for (let i = 0; i < 2; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 110 + Math.random() * 40;
-    initialNests.push({ tx: Math.floor(CORE.x + Math.cos(angle) * dist), ty: Math.floor(CORE.y + Math.sin(angle) * dist), level: 3 });
-  }
-  for (let i = 0; i < 2; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 110 + Math.random() * 40;
-    initialNests.push({ tx: Math.floor(CORE.x + Math.cos(angle) * dist), ty: Math.floor(CORE.y + Math.sin(angle) * dist), level: 4 });
-  }
-  // Погибель
-  { 
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 110 + Math.random() * 40;
-    initialNests.push({ tx: Math.floor(CORE.x + Math.cos(angle) * dist), ty: Math.floor(CORE.y + Math.sin(angle) * dist), level: 5 });
-  }
-  // Король
-  { 
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 130 + Math.random() * 20;
-    initialNests.push({ tx: Math.floor(CORE.x + Math.cos(angle) * dist), ty: Math.floor(CORE.y + Math.sin(angle) * dist), level: 6 });
-  }
+
+  // 1 Король
+  const s6 = sectors[Math.floor(Math.random() * 4)];
+  const angle6 = s6.start + Math.random() * (s6.end - s6.start);
+  initialNests.push({ 
+    tx: Math.floor(CORE.x + Math.cos(angle6) * 145), 
+    ty: Math.floor(CORE.y + Math.sin(angle6) * 145), 
+    level: 6 
+  });
 }
 
 export function generateWorld() {
@@ -141,7 +153,6 @@ export function generateWorld() {
     }
   }
 
-  // ЗОНА 1: 0 - 35 (Безопасная)
   scatterResource(RES.IRON,   1, 1.5, 2, 6, 10);
   scatterResource(RES.COPPER, 1, 1.5, 2, 6, 10);
   scatterResource(RES.COAL,   1, 1.5, 2, 6, 10);
@@ -153,7 +164,6 @@ export function generateWorld() {
   scatterResource(RES.STONE,  6, 1.5, 3, 10, 35);
   scatterResource(RES.WOOD,   12, 1.5, 3, 5, 35);
 
-  // ЗОНА 2: 35 - 75 (Средняя)
   scatterResource(RES.IRON,   10, 2, 3.5, 35, 75);
   scatterResource(RES.COPPER, 10, 2, 3.5, 35, 75);
   scatterResource(RES.COAL,   10, 2, 3.5, 35, 75);
@@ -165,7 +175,6 @@ export function generateWorld() {
   scatterResource(RES.ZINC,    4, 1.5, 2, 35, 75);
   scatterOilPatches();
 
-  // ЗОНА 3: 75 - 110 (Повышенная)
   scatterResource(RES.BAUXITE, 8, 2, 3, 75, 110);
   scatterResource(RES.LEAD,    8, 2, 3, 75, 110);
   scatterResource(RES.TIN,     8, 2, 3, 75, 110);
@@ -176,7 +185,6 @@ export function generateWorld() {
   scatterResource(RES.URANIUM,  4, 1.5, 2, 75, 110);
   scatterResource(RES.SILICON,  4, 1.5, 2, 75, 110);
 
-  // ЗОНА 4: 110+ (Высокая)
   scatterResource(RES.TITANIUM, 10, 2, 3.5, 110, 160);
   scatterResource(RES.TUNGSTEN, 10, 2, 3.5, 110, 160);
   scatterResource(RES.URANIUM,  10, 2, 3.5, 110, 160);
@@ -186,14 +194,12 @@ export function generateWorld() {
   scatterResource(RES.COPPER, 6, 2, 3, 110, 160);
 
   generateLakes();
-  generateNaturalNests(); // <--- ГЕНЕРАЦИЯ УЛЬЕВ
+  generateNaturalNests();
 
-  // Очистка зоны вокруг ядра
   for (let y = CORE.y - 5; y <= CORE.y + 5; y++)
     for (let x = CORE.x - 5; x <= CORE.x + 5; x++)
       if (x >= 0 && x < WORLD_W && y >= 0 && y < WORLD_H) world[y][x] = 0;
 
-  // Расстановка запасов
   for (let y = 0; y < WORLD_H; y++) {
     for (let x = 0; x < WORLD_W; x++) {
       if (world[y][x] === 0 || world[y][x] === RES.WATER || world[y][x] === RES.OIL) continue;

@@ -15,26 +15,29 @@ if (typeof window !== 'undefined') {
   window.__nests = nests; 
 }
 
-const MONSTER_MAX_ALIVE = 100; 
+// УВЕЛИЧЕННЫЕ ЛИМИТЫ
+const MONSTER_MAX_ALIVE = 400; 
+const MOBS_PER_NEST = 25;       
+
 const CORE_ATTACK_INTERVAL = 0.6, CORE_ATTACK_DAMAGE = 1, CORE_ATTACK_RANGE = TILE * 6;
 let coreAttackTimer = 0;
 export const coreBeams = [];
 
-// 10 УРОВНЕЙ ЖУКОВ
+// 10 УРОВНЕЙ ЖУКОВ (с бронёй)
 const MONSTER_TYPES = {
   1: { name: 'Рабочий', hp: 20, dmg: 5, speed: 1.0, color: '#c83030', size: 20, armor: 0 },
   2: { name: 'Бегун', hp: 15, dmg: 4, speed: 2.0, color: '#e89a4a', size: 16, armor: 0 },
   3: { name: 'Солдат', hp: 40, dmg: 8, speed: 1.0, color: '#a02020', size: 22, armor: 2 },
   4: { name: 'Танк', hp: 100, dmg: 15, speed: 0.5, color: '#8a2070', size: 30, armor: 5 },
   5: { name: 'Взрывник', hp: 50, dmg: 10, speed: 1.2, color: '#40a040', size: 24, armor: 2, explodeDmg: 50, explodeRadius: TILE * 2 },
-  6: { name: 'Бронежук', hp: 150, dmg: 20, speed: 0.7, color: '#606080', size: 26, armor: 15 }, // Турель 1ур не бьет
+  6: { name: 'Бронежук', hp: 150, dmg: 20, speed: 0.7, color: '#606080', size: 26, armor: 15 },
   7: { name: 'Летун', hp: 60, dmg: 12, speed: 1.8, color: '#80c0ff', size: 20, armor: 5, isFlyer: true },
   8: { name: 'Ульевой страж', hp: 300, dmg: 25, speed: 0.8, color: '#333', size: 32, armor: 25 },
   9: { name: 'Королевский солдат', hp: 500, dmg: 40, speed: 0.6, color: '#900', size: 34, armor: 35 },
   10: { name: 'КОРОЛЬ', hp: 3000, dmg: 60, speed: 0.3, color: '#000', size: 48, armor: 50 }
 };
 
-// 6 УРОВНЕЙ УЛЬЕВ (Броня!)
+// 6 УРОВНЕЙ УЛЬЕВ (с бронёй)
 const HIVE_TYPES = {
   1: { hp: 500, aggroRadius: TILE * 8, spawnRate: 15, name: 'Слабый улей', mobs: [1, 2], armor: 0 },
   2: { hp: 1000, aggroRadius: TILE * 10, spawnRate: 12, name: 'Средний улей', mobs: [1, 2, 3, 4], armor: 10 },
@@ -48,7 +51,7 @@ const NEST_POLLUTION_THRESHOLD = 70;
 let nestSpawnTimer = 0;
 
 export function trySpawnNest(level = 1, tx = null, ty = null) {
-  if (nests.length >= 20) return; 
+  if (nests.length >= 60) return; // Увеличено до 60
 
   if (tx === null || ty === null) {
     const angle = Math.random() * Math.PI * 2;
@@ -71,16 +74,17 @@ export function trySpawnNest(level = 1, tx = null, ty = null) {
       isKing: type.isKing || false,
       moveTimer: 0,
       armor: type.armor,
-      spawnedCounts: {} // Для лимита спавна короля
+      spawnedCounts: {}
     });
     if (window.__showToast) window.__showToast(`⚠️ Обнаружен ${type.name}!`);
   }
 }
 
 export function updateNests(dt) {
-  if (state.pollution >= NEST_POLLUTION_THRESHOLD && nests.length < 20) {
+  // Спавн от загрязнения
+  if (state.pollution >= NEST_POLLUTION_THRESHOLD && nests.length < 60) {
     nestSpawnTimer += dt;
-    if (nestSpawnTimer >= 30) { 
+    if (nestSpawnTimer >= 20) { // Раз в 20 секунд (было 30)
       nestSpawnTimer = 0;
       let level = 1;
       if (state.pollution > 300) level = 2;
@@ -93,6 +97,7 @@ export function updateNests(dt) {
   for (const n of nests) {
     const type = HIVE_TYPES[n.level];
     
+    // Агр по постройке
     if (!n.isProvoked) {
       for (const b of buildings) {
         if (b.isBroken) continue;
@@ -120,8 +125,10 @@ export function updateNests(dt) {
       }
     }
 
-    // Спавн мобов
-    if (monsters.length < MONSTER_MAX_ALIVE) {
+    // Спавн жуков с лимитом НА УЛЕЙ (25)
+    const myMobs = monsters.filter(m => m.targetNest === n).length;
+    
+    if (myMobs < MOBS_PER_NEST) {
       n.spawnTimer += dt;
       const rate = n.isProvoked ? (type.spawnRate / 2) : type.spawnRate;
       if (n.spawnTimer >= rate) {
@@ -137,12 +144,12 @@ function spawnMonsterFromNest(nest) {
   let mobLevel;
 
   if (nest.isKing) {
-    // Король спавнит по 5 жуков каждого уровня (1-9)
+    // Король спавнит по 25 каждого уровня
     const availableLevels = [];
     for (let i = 1; i <= 9; i++) {
-      if ((nest.spawnedCounts[i] || 0) < 5) availableLevels.push(i);
+      if ((nest.spawnedCounts[i] || 0) < 25) availableLevels.push(i);
     }
-    if (availableLevels.length === 0) return; // Все лимиты исчерпаны
+    if (availableLevels.length === 0) return;
     
     mobLevel = availableLevels[Math.floor(Math.random() * availableLevels.length)];
     nest.spawnedCounts[mobLevel] = (nest.spawnedCounts[mobLevel] || 0) + 1;
@@ -252,7 +259,7 @@ function findNearbyTarget(m, coreX, coreY) {
 
 export function handleMonsterDeath(m) {
   state.totalKills = (state.totalKills || 0) + 1;
-  if (m.level === 5) { // Взрывник
+  if (m.level === 5) {
     playExplosion();
     explosions.push({ x: m.x, y: m.y, radius: m.explodeRadius, life: 0.5, maxLife: 0.5 });
     for (const b of [...buildings]) {
@@ -267,7 +274,6 @@ export function handleMonsterDeath(m) {
     }
   }
   
-  // Уменьшаем счетчик спавна короля, чтобы он мог призвать нового
   if (m.targetNest && m.targetNest.isKing) {
     if (m.targetNest.spawnedCounts[m.level] > 0) {
       m.targetNest.spawnedCounts[m.level]--;
@@ -291,7 +297,6 @@ export function updateMonsters(dt) {
       if (d < CORE_ATTACK_RANGE && d < nearestDist) { target = m; nearestDist = d; }
     }
     if (target) {
-      // Ядро бьет на 20 (пробивает 1-2 лвл, но 6+ нет)
       const damage = Math.max(0, 20 + state.coreDamageBonus - target.armor);
       if (damage > 0) target.hp -= damage;
       
@@ -352,7 +357,6 @@ export function updateMonsters(dt) {
         let nextX = m.x + (dx / dist) * m.speed * TILE * dt;
         let nextY = m.y + (dy / dist) * m.speed * TILE * dt;
 
-        // Летуны (7) игнорируют воду
         if (!m.isFlyer) {
           const cellX = Math.floor(nextX / TILE);
           const cellY = Math.floor(nextY / TILE);
@@ -368,7 +372,6 @@ export function updateMonsters(dt) {
   }
 }
 
-// ПРОЦЕДУРНАЯ ОТРИСОВКА 10 УРОВНЕЙ ЖУКОВ
 export function drawMonsters() {
   for (const beam of coreBeams) {
     const alpha = Math.max(0, beam.life / 0.12);
@@ -380,17 +383,13 @@ export function drawMonsters() {
     const size = m.size;
     const x = m.x, y = m.y;
     
-    // Тень
     ctx.fillStyle = 'rgba(0,0,0,0.3)'; 
     ctx.beginPath(); ctx.ellipse(x, y + size / 2 - 2, size / 2.4, size / 6, 0, 0, Math.PI * 2); ctx.fill();
     
-    // Тело (зависит от уровня)
     ctx.fillStyle = m.color; 
     ctx.beginPath(); ctx.arc(x, y, size / 2, 0, Math.PI * 2); ctx.fill();
 
-    // Специфичные детали
     if (m.level === 6 || m.level === 8 || m.level === 9) {
-      // Бронежук / Страж / Королевский: Шипы
       ctx.strokeStyle = '#aaa'; ctx.lineWidth = 2;
       for (let i = 0; i < 8; i++) {
         const angle = (i / 8) * Math.PI * 2;
@@ -401,13 +400,11 @@ export function drawMonsters() {
       }
     }
     if (m.level === 7) {
-      // Летун: Крылья
       ctx.fillStyle = 'rgba(200, 240, 255, 0.6)';
       ctx.beginPath(); ctx.ellipse(x - size/2, y, size/2, size/4, -Math.PI/4, 0, Math.PI*2); ctx.fill();
       ctx.beginPath(); ctx.ellipse(x + size/2, y, size/2, size/4, Math.PI/4, 0, Math.PI*2); ctx.fill();
     }
     if (m.level === 10) {
-      // Король: Корона и глаза
       ctx.fillStyle = '#ffd700';
       ctx.beginPath();
       ctx.moveTo(x - 15, y - size/2);
@@ -420,7 +417,6 @@ export function drawMonsters() {
       ctx.fill();
     }
 
-    // Глаза
     ctx.fillStyle = '#100'; 
     const eyeOff = size / 6, eyeY = y - size / 8;
     ctx.beginPath(); 
@@ -428,7 +424,6 @@ export function drawMonsters() {
     ctx.arc(x + eyeOff, eyeY, size / 10, 0, Math.PI * 2); 
     ctx.fill();
 
-    // Полоска HP
     const barW = size, barH = 4, barX = x - barW / 2, barY = y - size / 2 - 10;
     ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(barX, barY, barW, barH);
     ctx.fillStyle = m.color; ctx.fillRect(barX, barY, barW * (m.hp / m.maxHp), barH);
