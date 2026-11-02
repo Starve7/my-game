@@ -44,7 +44,7 @@ export function tryPlaceBuilding(type, tx, ty, isUnlockedFn) {
   if (type === 'mine') {
     if (!checkLimit('mine')) { showToast(`Лимит шахт`); return false; }
     const res = world[ty][tx];
-    if (res === RES.WOOD) { showToast('Для дерева нужна Лесорубка'); return false; } // ФИКС
+    if (res === RES.WOOD) { showToast('Для дерева нужна Лесорубка'); return false; }
     if (res === 0) { if (oreInitial[ty][tx] > 0) showToast('Эта жила истощена'); else showToast('Шахта — только на месторождение'); return false; }
     if (oreAmount[ty][tx] <= 0) { showToast('Эта жила истощена'); return false; }
     if (inventory[RES.IRON] < MINE_COST) { showToast('Не хватает железа'); return false; }
@@ -185,7 +185,7 @@ export function canPlaceGhost(type, tx, ty) {
   }
   
   if (type === 'mine') { 
-    if (world[ty][tx] === RES.WOOD) return false; // ФИКС
+    if (world[ty][tx] === RES.WOOD) return false;
     if (world[ty][tx] === 0 || oreAmount[ty][tx] <= 0) return false; 
   }
   else if (type === 'lumberjack') { if (world[ty][tx] !== RES.WOOD) return false; }
@@ -283,7 +283,9 @@ export function repairBuilding(b) {
     if (inventory[RES.IRON] < half(b.paidCost)) return false;
     inventory[RES.IRON] -= half(b.paidCost);
   }
-  b.isBroken = false; b.hp = b.maxHp; return true;
+  b.isBroken = false; b.hp = b.maxHp; 
+  updateFog(); // Обновляем туман при починке (если это радар)
+  return true;
 }
 
 export function repairConveyor(c) {
@@ -301,7 +303,7 @@ export function repairConveyor(c) {
 export function updateBuildings(dt) {
   for (const b of buildings) { if (b.isBroken) continue; b.update(dt); }
   for (let i = turretBeams.length - 1; i >= 0; i--) { turretBeams[i].life -= dt; if (turretBeams[i].life <= 0) turretBeams.splice(i, 1); }
-  updateFog();
+  // Убрали updateFog отсюда! Теперь туман обновляется только при постройке/сносе/поломке
 }
 
 export function drawBuildings() {

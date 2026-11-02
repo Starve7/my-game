@@ -2,11 +2,9 @@
 
 import { inventory, state, showToast, TILE, RES, RES_COLOR, ctx } from '../game.js';
 import { CORE } from '../world.js';
-import { buildings, conveyors, splitters, undergrounds, CONVEYOR_CAPACITY, DIR_DELTA } from './data.js';
+import { buildings, conveyors, splitters, undergrounds, CONVEYOR_CAPACITY, DIR_DELTA, updateFog } from './data.js';
+import { updateFog as defenseUpdateFog } from './defense.js'; // Импорт для вызова при поломке
 
-// ======================
-// Логика поиска и работы
-// ======================
 export function getConveyorAt(tx, ty) { return conveyors.find(c => c.tx === tx && c.ty === ty); }
 export function getBuildingAt(tx, ty) { return buildings.find(b => b.tx === tx && b.ty === ty); }
 export function getSplitterAt(tx, ty) {
@@ -18,9 +16,7 @@ export function getSplitterAt(tx, ty) {
 export function getUndergroundAt(tx, ty) { return undergrounds.find(u => u.tx === tx && u.ty === ty); }
 export function isCoreTile(tx, ty) { return Math.abs(tx - CORE.x) <= 1 && Math.abs(ty - CORE.y) <= 1; }
 export function countBuildings(type) { return buildings.filter(b => b.type === type).length; }
-export function checkLimit(type) { 
-  return true; // ЛИМИТЫ ОТКЛЮЧЕНЫ
-}
+export function checkLimit(type) { return true; }
 export function getStorageTotal(b) { let total = 0; for (const k in b.items) total += b.items[k]; return total; }
 
 export function getOutputConveyor(b) {
@@ -47,7 +43,11 @@ export function damageBuildingAt(tx, ty, dmg) {
   const b = getBuildingAt(tx, ty);
   if (!b || b.hp === undefined || b.isBroken) return false;
   b.hp -= dmg;
-  if (b.hp <= 0) { b.hp = 0; b.isBroken = true; return true; }
+  if (b.hp <= 0) { 
+    b.hp = 0; b.isBroken = true; 
+    defenseUpdateFog(); // ОБНОВЛЯЕМ ТУМАН ПРИ ПОЛОМКЕ РАДАРА
+    return true; 
+  }
   return false;
 }
 
@@ -82,7 +82,6 @@ export function tryOutputItem(b, itemType) {
   if (outC) {
     if (outC.items.length < CONVEYOR_CAPACITY) { outC.items.push({ type: itemType, progress: 0 }); return true; }
   } else if (b.outputDir !== null && b.outputDir !== undefined) {
-    // ПРЯМАЯ ПЕРЕДАЧА В ЗДАНИЕ
     const [dx, dy] = DIR_DELTA[b.outputDir];
     const nextB = getBuildingAt(b.tx + dx, b.ty + dy);
     if (nextB && tryAcceptItem(nextB, itemType)) {
@@ -102,7 +101,6 @@ export function flushOutputBuffer(b) {
       outC.items.push({ type: b.outputBufferType, progress: 0 });
       b.outputBuffer--;
     } else if (!outC && b.outputDir !== null && b.outputDir !== undefined) {
-      // ПРЯМАЯ ПЕРЕДАЧА В ЗДАНИЕ
       const [dx, dy] = DIR_DELTA[b.outputDir];
       const nextB = getBuildingAt(b.tx + dx, b.ty + dy);
       if (nextB && tryAcceptItem(nextB, b.outputBufferType)) {
@@ -120,9 +118,6 @@ export function outputSpace(b) {
   return convSpace + (b.outputBufferMax - b.outputBuffer);
 }
 
-// ======================
-// Графические хелперы (ВСЕ С EXPORT)
-// ======================
 export function drawProgressBar(sx, sy, pct, color) {
   pct = Math.min(1, Math.max(0, pct));
   ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(sx + 4, sy + TILE - 6, TILE - 8, 3);

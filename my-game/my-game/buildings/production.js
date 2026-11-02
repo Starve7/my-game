@@ -1,379 +1,127 @@
 'use strict';
 
-import { inventory, state, addPopup, TILE, RES, RES_COLOR, ctx } from '../game.js';
-import { playMineSound } from '../audio.js';
-import { world, oreAmount } from '../world.js';
-import { drawResIcon, drawBuildingSprite, isReady, buildingImages } from '../sprites.js';
+import { state, inventory, RES, RES_NAME, TILE } from '../../game.js';
+import { oreAmount, oreInitial, world } from '../../world.js';
 import { 
-  Building, ASSEMBLER_RECIPES, CHEM_RECIPES, getRecipeById, 
-  BUILDING_HP, MINE_COST, FURNACE_COST, FURNACE_INTERVAL, MINE_INTERVAL, POLLUTION_PER_PLATE,
-  FURNACE_OUTPUT_BUFFER_MAX, INPUT_BUFFER_MAX, STORAGE_CAPACITY, 
-  STORAGE_IRON_COST, STORAGE_COPPER_COST, 
-  LAB_INTERVAL, LAB_IRON_COST, LAB_COPPER_COST, 
-  CUTTER_INTERVAL, CUTTER_IRON_COST, CUTTER_COPPER_COST,
-  ASSEMBLER_IRON_COST, ASSEMBLER_COPPER_COST, 
-  CHEMPLANT_IRON_COST, CHEMPLANT_COPPER_COST, CHEMPLANT_WIRE_COST,
-  FURNACE_BUFFER_MAX
-} from './data.js';
+  MINE_INTERVAL, FURNACE_INTERVAL, LAB_INTERVAL, CUTTER_INTERVAL, 
+  flushOutputBuffer, getRecipeById, getRecipesForBuilding, demolishBuilding 
+} from '../../buildings.js';
+import { isTechOwned } from '../../research.js';
+import { panelContent, closePanel, openModal } from '../core.js';
+import { iconStyle } from '../utils.js';
+import { playClick } from '../../audio.js';
 
-import { 
-  getOutputConveyor, tryOutputItem, flushOutputBuffer, outputSpace, 
-  getStorageTotal, drawProgressBar, drawBufferBadge 
-} from './utils.js';
-
-export class Mine extends Building {
-  constructor(tx, ty, resourceType) {
-    super(tx, ty, 'mine', BUILDING_HP.mine);
-    this.resourceType = resourceType; this.timer = 0; this.paidCost = MINE_COST; this.outputDir = state.savedOutputDir;
-    this.outputBuffer = 0; this.outputBufferMax = FURNACE_OUTPUT_BUFFER_MAX; this.outputBufferType = resourceType;
+export function getDirPickerHtml(currentDir) {
+  const dirs = ['↑', '→', '↓', '←'];
+  let html = `<div style="display:flex; gap:4px; margin-top:10px;"><span style="display:flex;align-items:center;font-size:12px;color:#888;margin-right:4px;">Выход:</span>`;
+  html += `<button class="option-btn ${currentDir === null ? 'selected' : ''}" style="flex:1;padding:6px;justify-content:center;font-size:11px;" data-dir-picker="null">—</button>`;
+  for (let i = 0; i < 4; i++) {
+    html += `<button class="option-btn ${currentDir === i ? 'selected' : ''}" style="flex:1;padding:6px;justify-content:center;font-size:16px;" data-dir-picker="${i}">${dirs[i]}</button>`;
   }
-  update(dt) {
-    if (oreAmount[this.ty][this.tx] <= 0) { flushOutputBuffer(this); return; }
-    const outC = getOutputConveyor(this);
-    if (!(outC && outC.items.length < 2) && !(this.outputBuffer < this.outputBufferMax)) return;
-    const interval = MINE_INTERVAL / state.miningSpeedMult;
-    this.timer += dt;
-    while (this.timer >= interval && oreAmount[this.ty][this.tx] > 0) {
-      if (!tryOutputItem(this, this.resourceType)) break;
-      addPopup(this.tx * TILE + TILE / 2, this.ty * TILE + 4, '+1', RES_COLOR[this.resourceType]);
-      playMineSound(); this.timer -= interval;
-      oreAmount[this.ty][this.tx]--;
-      if (oreAmount[this.ty][this.tx] <= 0) { oreAmount[this.ty][this.tx] = 0; world[this.ty][this.tx] = 0; }
-    }
-    flushOutputBuffer(this);
-  }
-  drawSpecific() {
-    const sx = this.tx * TILE, sy = this.ty * TILE;
-    const empty = oreAmount[this.ty][this.tx] <= 0;
-    if (empty) {
-      ctx.globalAlpha = 0.4;
-      if (!drawBuildingSprite('mine', sx, sy, TILE)) { ctx.fillStyle = '#3a3a3a'; ctx.fillRect(sx + 2, sy + 2, TILE - 4, TILE - 4); }
-      ctx.globalAlpha = 1;
-      ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(sx + 9, sy + 9); ctx.lineTo(sx + TILE - 9, sy + TILE - 9); ctx.moveTo(sx + TILE - 9, sy + 9); ctx.lineTo(sx + 9, sy + TILE - 9); ctx.stroke();
-    } else {
-      if (!drawBuildingSprite('mine', sx, sy, TILE)) {
-        ctx.fillStyle = '#5a5a5a'; ctx.fillRect(sx + 2, sy + 2, TILE - 4, TILE - 4);
-        ctx.fillStyle = '#7a7a7a'; ctx.fillRect(sx + 4, sy + 4, TILE - 8, TILE - 8);
-        drawResIcon(this.resourceType, sx + TILE / 2 - 8, sy + TILE / 2 - 8, 16, 0);
-      } else drawResIcon(this.resourceType, sx + TILE - 12, sy + 2, 10, 0);
-      drawProgressBar(sx, sy, this.timer / (MINE_INTERVAL / state.miningSpeedMult), '#7fbf7f');
-    }
-    drawBufferBadge(sx, sy, this.outputBuffer, this.outputBufferType || this.resourceType);
-  }
+  html += `</div>`;
+  return html;
 }
 
-export class Furnace extends Building {
-  constructor(tx, ty) {
-    super(tx, ty, 'furnace', BUILDING_HP.furnace);
-    this.timer = 0; this.paidCost = FURNACE_COST; this.pollutionMade = 0; this.inputOreType = null;
-    this.inputOre = 0; this.inputCoal = 0; this.outputDir = state.savedOutputDir;
-    this.outputBuffer = 0; this.outputBufferMax = FURNACE_OUTPUT_BUFFER_MAX; this.outputBufferType = null;
-  }
-  tryAccept(itemType) {
-    if (itemType === RES.COAL) return this.inputCoal < FURNACE_BUFFER_MAX;
-    if (itemType === RES.IRON || itemType === RES.COPPER) {
-      if (this.inputOre >= FURNACE_BUFFER_MAX) return false;
-      if (this.inputOreType !== null && this.inputOreType !== itemType) return false;
-      return true;
-    }
-    return false;
-  }
-  accept(itemType) { if (itemType === RES.COAL) { this.inputCoal++; return; } this.inputOreType = itemType; this.inputOre++; }
-  update(dt) {
-    if (this.inputOreType && this.inputOre >= 1 && this.inputCoal >= 1) {
-      const dst = this.inputOreType === RES.IRON ? RES.PLATE_IRON : RES.PLATE_COPPER;
-      if (outputSpace(this) >= 1) {
-        this.timer += dt;
-        while (this.timer >= FURNACE_INTERVAL && this.inputOre >= 1 && this.inputCoal >= 1) {
-          if (!tryOutputItem(this, dst)) break;
-          addPopup(this.tx * TILE + TILE / 2, this.ty * TILE + 4, '+1', RES_COLOR[dst]);
-          this.timer -= FURNACE_INTERVAL; this.inputOre--; this.inputCoal--;
-          state.pollution += POLLUTION_PER_PLATE; this.pollutionMade = (this.pollutionMade || 0) + POLLUTION_PER_PLATE;
-        }
-      }
-    }
-    flushOutputBuffer(this);
-    if (this.inputOre === 0 && this.outputBuffer === 0) { this.inputOreType = null; if (!getOutputConveyor(this)) this.timer = 0; }
-  }
-  drawAmbient() {
-    const canWork = this.inputOreType && this.inputOre > 0 && this.inputCoal > 0;
-    if (!canWork) return;
-    const cx = this.tx * TILE + TILE / 2, cy = this.ty * TILE + TILE / 2;
-    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, TILE * 2);
-    grad.addColorStop(0, 'rgba(50,50,40,0.35)'); grad.addColorStop(1, 'rgba(50,50,40,0)');
-    ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(cx, cy, TILE * 2, 0, Math.PI * 2); ctx.fill();
-  }
-  drawSpecific() {
-    const sx = this.tx * TILE, sy = this.ty * TILE;
-    if (!drawBuildingSprite('furnace', sx, sy, TILE)) { ctx.fillStyle = '#5a3a2a'; ctx.fillRect(sx + 2, sy + 2, TILE - 4, TILE - 4); ctx.fillStyle = '#8a5a3a'; ctx.fillRect(sx + 4, sy + 4, TILE - 8, TILE - 8); }
-    const canWork = this.inputOreType && this.inputOre > 0 && this.inputCoal > 0;
-    if (!isReady(buildingImages.furnace)) {
-      const t = performance.now() / 300; const flicker = canWork ? (0.7 + 0.3 * Math.sin(t + this.tx + this.ty)) : 0.15;
-      ctx.fillStyle = `rgba(255,140,40,${flicker})`; ctx.fillRect(sx + 10, sy + 10, TILE - 20, TILE - 20);
-    }
-    if (canWork) drawProgressBar(sx, sy, this.timer / FURNACE_INTERVAL, '#ffa040');
-    else if (this.inputOre > 0 && this.inputCoal === 0) {
-      if (Math.sin(performance.now() / 200) > 0) { ctx.fillStyle = '#ff5050'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', sx + TILE / 2, sy + TILE / 2); }
-    }
-    drawBufferBadge(sx, sy, this.outputBuffer, this.outputBufferType);
-  }
-}
-
-export class Lab extends Building {
-  constructor(tx, ty) { super(tx, ty, 'lab', BUILDING_HP.lab); this.timer = 0; this.paidCost = { ironPlate: LAB_IRON_COST, copperPlate: LAB_COPPER_COST }; }
-  update(dt) {
-    const interval = LAB_INTERVAL / state.labSpeedMult;
-    if (inventory[RES.PLATE_IRON] < 1 || inventory[RES.PLATE_COPPER] < 1) return;
-    this.timer += dt;
-    while (this.timer >= interval && inventory[RES.PLATE_IRON] >= 1 && inventory[RES.PLATE_COPPER] >= 1) {
-      this.timer -= interval; inventory[RES.PLATE_IRON]--; inventory[RES.PLATE_COPPER]--; state.dna++;
-      addPopup(this.tx * TILE + TILE / 2, this.ty * TILE + 4, '+1 🧬', '#7fbfff');
-    }
-  }
-  drawSpecific() {
-    const sx = this.tx * TILE, sy = this.ty * TILE;
-    ctx.fillStyle = '#2a3a5a'; ctx.fillRect(sx + 2, sy + 2, TILE - 4, TILE - 4);
-    ctx.fillStyle = '#3a5a8a'; ctx.fillRect(sx + 4, sy + 4, TILE - 8, TILE - 8);
-    const canWork = inventory[RES.PLATE_IRON] >= 1 && inventory[RES.PLATE_COPPER] >= 1;
-    const pulse = canWork ? (0.5 + 0.5 * Math.sin(performance.now() / 400 + this.tx)) : 0.2;
-    ctx.fillStyle = `rgba(100, 180, 255, ${0.4 + pulse * 0.5})`; ctx.beginPath(); ctx.arc(sx + TILE / 2, sy + TILE / 2, 8, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#a0d0ff'; ctx.beginPath(); ctx.arc(sx + TILE / 2, sy + TILE / 2, 4, 0, Math.PI * 2); ctx.fill();
-    if (canWork) drawProgressBar(sx, sy, this.timer / (LAB_INTERVAL / state.labSpeedMult), '#7fbfff');
-  }
-}
-
-export class Cutter extends Building {
-  constructor(tx, ty) {
-    super(tx, ty, 'cutter', BUILDING_HP.cutter);
-    this.timer = 0; this.paidCost = { ironPlate: CUTTER_IRON_COST, copperPlate: CUTTER_COPPER_COST };
-    this.inputBuffer = 0; this.outputDir = state.savedOutputDir;
-    this.outputBuffer = 0; this.outputBufferMax = FURNACE_OUTPUT_BUFFER_MAX; this.outputBufferType = null;
-  }
-  tryAccept(itemType) { return itemType === RES.PLATE_COPPER && this.inputBuffer < INPUT_BUFFER_MAX; }
-  accept(itemType) { if (itemType === RES.PLATE_COPPER) this.inputBuffer++; }
-  update(dt) {
-    if (this.inputBuffer < 1) { flushOutputBuffer(this); return; }
-    this.timer += dt;
-    while (this.timer >= CUTTER_INTERVAL && this.inputBuffer >= 1) {
-      if (outputSpace(this) < 2) break;
-      tryOutputItem(this, RES.WIRE); tryOutputItem(this, RES.WIRE);
-      addPopup(this.tx * TILE + TILE / 2, this.ty * TILE + 4, '+2', RES_COLOR[RES.WIRE]);
-      this.timer -= CUTTER_INTERVAL; this.inputBuffer--;
-    }
-    flushOutputBuffer(this);
-  }
-  drawSpecific() {
-    const sx = this.tx * TILE, sy = this.ty * TILE;
-    if (!drawBuildingSprite('cutter', sx, sy, TILE)) { ctx.fillStyle = '#4a3a5a'; ctx.fillRect(sx + 2, sy + 2, TILE - 4, TILE - 4); ctx.fillStyle = '#6a5a7a'; ctx.fillRect(sx + 4, sy + 4, TILE - 8, TILE - 8); drawResIcon(RES.WIRE, sx + TILE / 2 - 6, sy + TILE / 2 - 6, 12, 0); }
-    if (this.inputBuffer > 0) drawProgressBar(sx, sy, this.timer / CUTTER_INTERVAL, '#c08040');
-    drawBufferBadge(sx, sy, this.outputBuffer, this.outputBufferType);
-  }
-}
-
-export class Crafter extends Building {
-  constructor(tx, ty, type, hp, paidCost) {
-    super(tx, ty, type, hp); this.timer = 0; this.paidCost = paidCost; this.selectedRecipe = null;
-    this.inputBuffer = {}; this.outputDir = state.savedOutputDir; this.outputBuffer = 0;
-    this.outputBufferMax = FURNACE_OUTPUT_BUFFER_MAX; this.outputBufferType = null;
-  }
-  tryAccept(itemType) {
-    if (!this.selectedRecipe) return false;
-    const recipe = getRecipeById(this.selectedRecipe);
-    if (!recipe) return false;
-    const need = recipe.inputs.find(p => p[0] === itemType);
-    if (!need) return false;
-    return (this.inputBuffer[itemType] || 0) < INPUT_BUFFER_MAX;
-  }
-  accept(itemType) { this.inputBuffer[itemType] = (this.inputBuffer[itemType] || 0) + 1; }
-  update(dt) {
-    if (!this.selectedRecipe) return;
-    const recipe = getRecipeById(this.selectedRecipe);
-    if (!recipe) return;
-    let canCraft = true;
-    for (const [resType, count] of recipe.inputs) { if ((this.inputBuffer[resType] || 0) < count) { canCraft = false; break; } }
-    if (!canCraft) { this.timer = 0; return; }
-    this.timer += dt;
-    if (this.timer >= recipe.time) {
-      if (outputSpace(this) < recipe.count) return;
-      for (const [resType, count] of recipe.inputs) this.inputBuffer[resType] -= count;
-      for (let i = 0; i < recipe.count; i++) tryOutputItem(this, recipe.output);
-      addPopup(this.tx * TILE + TILE / 2, this.ty * TILE + 4, '+' + recipe.count, RES_COLOR[recipe.output]);
-      this.timer = 0;
-    }
-    flushOutputBuffer(this);
-  }
-  drawAmbient() {
-    const canWork = this.selectedRecipe && getRecipeById(this.selectedRecipe);
-    if (!canWork) return;
-    const cx = this.tx * TILE + TILE / 2, cy = this.ty * TILE + TILE / 2;
-    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, TILE * 2);
-    grad.addColorStop(0, 'rgba(50,50,40,0.35)'); grad.addColorStop(1, 'rgba(50,50,40,0)');
-    ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(cx, cy, TILE * 2, 0, Math.PI * 2); ctx.fill();
-  }
-  drawSpecific() {
-    const sx = this.tx * TILE, sy = this.ty * TILE;
-    const spriteOk = drawBuildingSprite(this.type, sx, sy, TILE);
-    if (!spriteOk) {
-      const baseColor = this.type === 'assembler' ? '#3a4a3a' : '#5a3a4a';
-      const borderColor = this.type === 'assembler' ? '#5a7a5a' : '#8a5a6a';
-      ctx.fillStyle = baseColor; ctx.fillRect(sx + 2, sy + 2, TILE - 4, TILE - 4);
-      ctx.fillStyle = borderColor; ctx.fillRect(sx + 4, sy + 4, TILE - 8, TILE - 8);
-    }
-    const recipe = this.selectedRecipe ? getRecipeById(this.selectedRecipe) : null;
-    if (recipe) {
-      let canCraft = true;
-      for (const [resType, count] of recipe.inputs) { if ((this.inputBuffer[resType] || 0) < count) { canCraft = false; break; } }
-      if (canCraft) drawProgressBar(sx, sy, this.timer / recipe.time, this.type === 'assembler' ? '#7fbf7f' : '#c080c0');
-      else if (Math.sin(performance.now() / 250) > 0) { ctx.fillStyle = '#ff5050'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', sx + TILE / 2, sy + TILE / 2); }
-    } else {
-      ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(sx + 8, sy + 8, TILE - 16, TILE - 16);
-      ctx.fillStyle = '#ffcc66'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', sx + TILE / 2, sy + TILE / 2);
-    }
-    drawBufferBadge(sx, sy, this.outputBuffer, this.outputBufferType);
-  }
-}
-
-export class Assembler extends Crafter { 
-  constructor(tx, ty) { super(tx, ty, 'assembler', BUILDING_HP.assembler, { ironPlate: ASSEMBLER_IRON_COST, copperPlate: ASSEMBLER_COPPER_COST }); } 
-  getRecipes() { return ASSEMBLER_RECIPES; } 
-}
-export class Chemplant extends Crafter { 
-  constructor(tx, ty) { super(tx, ty, 'chemplant', BUILDING_HP.chemplant, { ironPlate: CHEMPLANT_IRON_COST, copperPlate: CHEMPLANT_COPPER_COST, wire: CHEMPLANT_WIRE_COST }); } 
-  getRecipes() { return CHEM_RECIPES; } 
-}
-
-export class Storage extends Building {
-  constructor(tx, ty) { super(tx, ty, 'storage', BUILDING_HP.storage); this.paidCost = { ironPlate: STORAGE_IRON_COST, copperPlate: STORAGE_COPPER_COST }; this.items = {}; }
-  tryAccept(itemType) { return getStorageTotal(this) < STORAGE_CAPACITY; }
-  accept(itemType) { this.items[itemType] = (this.items[itemType] || 0) + 1; }
-  update(dt) {}
-  drawSpecific() {
-    const sx = this.tx * TILE, sy = this.ty * TILE;
-    if (!drawBuildingSprite('storage', sx, sy, TILE)) {
-      ctx.fillStyle = '#3a3a3a'; ctx.fillRect(sx + 2, sy + 2, TILE - 4, TILE - 4);
-      ctx.fillStyle = '#5a5a5a'; ctx.fillRect(sx + 4, sy + 4, TILE - 8, TILE - 8);
-      ctx.strokeStyle = '#888'; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(sx + 6, sy + 8); ctx.lineTo(sx + TILE - 6, sy + 8); ctx.moveTo(sx + 6, sy + TILE / 2); ctx.lineTo(sx + TILE - 6, sy + TILE / 2); ctx.moveTo(sx + 6, sy + TILE - 8); ctx.lineTo(sx + TILE - 6, sy + TILE - 8); ctx.stroke();
-    }
-    const pct = getStorageTotal(this) / STORAGE_CAPACITY;
-    drawProgressBar(sx, sy, pct, '#a0a0c0');
-  }
-}
-
-export class MiniCore extends Building {
-  constructor(tx, ty) {
-    super(tx, ty, 'minicore', BUILDING_HP.minicore);
-    this.items = {};
-    this.paidCost = 100; // 100 железа
-    this.maxItems = 1000;
-  }
-  tryAccept(itemType) { return (this.items[itemType] || 0) < this.maxItems; }
-  accept(itemType) {
-    this.items[itemType] = (this.items[itemType] || 0) + 1;
-    inventory[itemType]++;
-  }
-  update(dt) {}
-  drawSpecific() {
-    const sx = this.tx * TILE, sy = this.ty * TILE;
-    ctx.fillStyle = '#1a2a3a'; ctx.fillRect(sx + 2, sy + 2, TILE - 4, TILE - 4);
-    ctx.fillStyle = '#3a6a9a'; ctx.fillRect(sx + 4, sy + 4, TILE - 8, TILE - 8);
-    const glow = 0.5 + 0.5 * Math.sin(performance.now() / 500);
-    ctx.fillStyle = `rgba(120, 180, 255, ${0.6 + glow * 0.4})`; 
-    ctx.beginPath(); ctx.arc(sx + TILE/2, sy + TILE/2, 6, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#e0f0ff'; ctx.beginPath(); ctx.arc(sx + TILE/2, sy + TILE/2, 3, 0, Math.PI*2); ctx.fill();
-  }
-}
-
-export class Lumberjack extends Building {
-  constructor(tx, ty) {
-    super(tx, ty, 'lumberjack', BUILDING_HP.lumberjack);
-    this.timer = 0; this.paidCost = LUMBERJACK_COST; this.outputDir = state.savedOutputDir;
-    this.outputBuffer = 0; this.outputBufferMax = FURNACE_OUTPUT_BUFFER_MAX; this.outputBufferType = RES.WOOD;
-  }
-  update(dt) {
-    // ТЕПЕРЬ ПРОВЕРЯЕМ ЗАПАС КАК У БУРА
-    if (oreAmount[this.ty][this.tx] <= 0) { flushOutputBuffer(this); return; }
-    
-    const outC = getOutputConveyor(this);
-    if (!(outC && outC.items.length < 2) && !(this.outputBuffer < this.outputBufferMax)) return;
-    
-    const interval = MINE_INTERVAL / state.miningSpeedMult;
-    this.timer += dt;
-    while (this.timer >= interval && oreAmount[this.ty][this.tx] > 0) {
-      if (!tryOutputItem(this, RES.WOOD)) break;
-      addPopup(this.tx * TILE + TILE / 2, this.ty * TILE + 4, '+1', RES_COLOR[RES.WOOD]);
-      playMineSound(); this.timer -= interval;
-      
-      // УМЕНЬШАЕМ КОЛИЧЕСТВО
-      oreAmount[this.ty][this.tx]--;
-      if (oreAmount[this.ty][this.tx] <= 0) { 
-        oreAmount[this.ty][this.tx] = 0; 
-        world[this.ty][this.tx] = 0; // Дерево исчезает
-      }
-    }
-    flushOutputBuffer(this);
-  }
-  drawSpecific() {
-    const sx = this.tx * TILE, sy = this.ty * TILE;
-    const empty = oreAmount[this.ty][this.tx] <= 0;
-    
-    if (empty) {
-      ctx.globalAlpha = 0.4;
-      if (!drawBuildingSprite('lumberjack', sx, sy, TILE)) {
-        ctx.fillStyle = '#3a3a3a'; ctx.fillRect(sx + 2, sy + 2, TILE - 4, TILE - 4);
-      }
-      ctx.globalAlpha = 1;
-      ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(sx + 9, sy + 9); ctx.lineTo(sx + TILE - 9, sy + TILE - 9); ctx.moveTo(sx + TILE - 9, sy + 9); ctx.lineTo(sx + 9, sy + TILE - 9); ctx.stroke();
-    } else {
-      if (!drawBuildingSprite('lumberjack', sx, sy, TILE)) {
-        // Процедурная отрисовка
-        ctx.fillStyle = '#5a3a1a'; ctx.fillRect(sx + 8, sy + 16, 16, 12);
-        ctx.fillStyle = '#3a2010'; ctx.fillRect(sx + 8, sy + 16, 16, 2); 
-        ctx.strokeStyle = '#a0a0a0'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(sx + 20, sy + 18); ctx.lineTo(sx + 26, sy + 10); ctx.stroke();
-        ctx.fillStyle = '#808080'; ctx.beginPath(); ctx.moveTo(sx + 24, sy + 8); ctx.lineTo(sx + 28, sy + 12); ctx.lineTo(sx + 26, sy + 14); ctx.lineTo(sx + 22, sy + 10); ctx.fill();
-      }
-      drawProgressBar(sx, sy, this.timer / (MINE_INTERVAL / state.miningSpeedMult), '#7fbf7f');
-    }
-    drawBufferBadge(sx, sy, this.outputBuffer, this.outputBufferType);
-  }
-}
-
-export class Sawmill extends Crafter {
-  constructor(tx, ty) {
-    super(tx, ty, 'sawmill', BUILDING_HP.sawmill, { 
-      ironPlate: SAWMILL_IRON_COST, 
-      wood: SAWMILL_WOOD_COST, 
-      wire: SAWMILL_WIRE_COST 
+export function bindDirPicker(b) {
+  panelContent.querySelectorAll('[data-dir-picker]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      playClick();
+      const val = btn.dataset.dirPicker;
+      b.outputDir = (val === 'null') ? null : parseInt(val);
+      if (b.outputDir !== null) flushOutputBuffer(b);
+      panelContent.querySelectorAll('[data-dir-picker]').forEach(x => x.classList.toggle('selected', x.dataset.dirPicker === val));
     });
-    this.selectedRecipe = 'board'; // По умолчанию крафтит доски
-  }
-  getRecipes() { return SAWMILL_RECIPES; }
-  
-  // Переопределяем отрисовку (процедурная: стол с пилой)
-  drawSpecific() {
-    const sx = this.tx * TILE, sy = this.ty * TILE;
-    ctx.fillStyle = '#4a2a1a'; ctx.fillRect(sx + 2, sy + 10, TILE - 4, TILE - 12); // Деревянный стол
-    ctx.fillStyle = '#606060'; ctx.beginPath(); ctx.arc(sx + TILE/2, sy + TILE/2, 8, 0, Math.PI*2); ctx.fill(); // Пила
-    // Зубья пилы
-    ctx.strokeStyle = '#999'; ctx.lineWidth = 1.5;
-    for(let i=0; i<8; i++){
-      const a = (i/8)*Math.PI*2;
-      ctx.beginPath();
-      ctx.moveTo(sx + TILE/2 + Math.cos(a)*8, sy + TILE/2 + Math.sin(a)*8);
-      ctx.lineTo(sx + TILE/2 + Math.cos(a)*11, sy + TILE/2 + Math.sin(a)*11);
-      ctx.stroke();
-    }
-    
-    // Отрисовка прогресса (используем базу)
-    const recipe = getRecipeById(this.selectedRecipe);
-    if (recipe) {
-      let canCraft = true;
-      for (const [resType, count] of recipe.inputs) { if ((this.inputBuffer[resType] || 0) < count) { canCraft = false; break; } }
-      if (canCraft) drawProgressBar(sx, sy, this.timer / recipe.time, '#7fbf7f');
-    }
-    drawBufferBadge(sx, sy, this.outputBuffer, this.outputBufferType);
-  }
+  });
 }
+
+export function renderMinePanel(b) {
+  const amount = oreAmount[b.ty][b.tx], initial = oreInitial[b.ty][b.tx];
+  const amountStr = Math.round(amount), minedStr = Math.round(initial - amount);
+  const emptyNote = amount <= 0 ? '<div class="warn">Жила истощена</div>' : '', interval = MINE_INTERVAL / state.miningSpeedMult;
+  panelContent.innerHTML = `<div class="info-line">Добывает: <strong>${RES_NAME[b.resourceType]}</strong></div><div class="info-line">Скорость: 1 ед. / ${interval.toFixed(2)} сек</div><div class="stats-box"><div class="row"><span>Осталось в жиле</span><span id="mine-remaining">${amountStr}</span></div><div class="row"><span>Добыто из жилы</span><span id="mine-mined">${minedStr}</span></div><div class="row"><span>В буфере</span><span id="mine-buf">${b.outputBuffer} / ${b.outputBufferMax}</span></div></div>${emptyNote}${getDirPickerHtml(b.outputDir)}<button class="remove-btn" id="remove-btn">Удалить (вернуть 50%)</button>`;
+  bindDirPicker(b);
+  document.getElementById('remove-btn').addEventListener('click', () => { playClick(); demolishBuilding(b); closePanel(); });
+}
+
+export function renderLumberjackPanel(b) {
+  const interval = MINE_INTERVAL / state.miningSpeedMult;
+  const amount = oreAmount[b.ty][b.tx];
+  const emptyNote = amount <= 0 ? '<div class="warn">Лес вырублен</div>' : '';
+  panelContent.innerHTML = `<div class="info-line">Рубит лес и производит <strong>Брёвна</strong>.</div>
+    <div class="info-line">Скорость: 1 бревно / ${interval.toFixed(2)} сек</div>
+    <div class="stats-box">
+      <div class="row"><span>Осталось в жиле</span><span id="mine-remaining">${Math.round(amount)}</span></div>
+      <div class="row"><span>В буфере</span><span id="lumberjack-buf">${b.outputBuffer} / ${b.outputBufferMax}</span></div>
+    </div>
+    ${emptyNote}
+    ${getDirPickerHtml(b.outputDir)}
+    <button class="remove-btn" id="remove-btn">Удалить (вернуть 50%)</button>`;
+  bindDirPicker(b);
+  document.getElementById('remove-btn').addEventListener('click', () => { playClick(); demolishBuilding(b); closePanel(); });
+}
+
+export function renderFurnacePanel(b) {
+  const oreName = b.inputOreType === RES.IRON ? 'Железо' : b.inputOreType === RES.COPPER ? 'Медь' : '—';
+  let recipeHtml = b.inputOreType ? `<div class="recipe"><div class="item"><div class="dot" style="${iconStyle(b.inputOreType)}"></div>1</div><span class="arrow">+</span><div class="item"><div class="dot" style="${iconStyle(RES.COAL)}"></div>1 уголь</div><span class="arrow">→</span><div class="item"><div class="dot" style="${iconStyle(b.inputOreType === RES.IRON ? RES.PLATE_IRON : RES.PLATE_COPPER)}"></div>1 плита</div></div>` : '<div class="recipe" style="color:#888">Ожидание руды с конвейера…</div>';
+  panelContent.innerHTML = `<div class="info-line">Рецепт: <strong>${oreName}</strong> → плиты</div><div class="info-line">Скорость: 1 плита / ${FURNACE_INTERVAL.toFixed(1)} сек</div>${recipeHtml}<div class="stats-box"><div class="row"><span>Руда в буфере</span><span id="furnace-buffer-ore">${b.inputOre}</span></div><div class="row"><span>Уголь в буфере</span><span id="furnace-buffer-coal">${b.inputCoal}</span></div><div class="row"><span>Готовое (буфер)</span><span id="furnace-buf-out">${b.outputBuffer} / ${b.outputBufferMax}</span></div><div class="row"><span>Загрязнение печью</span><span id="furnace-live-pollution">${(b.pollutionMade || 0).toFixed(1)}%</span></div></div>${getDirPickerHtml(b.outputDir)}<button class="remove-btn" id="remove-btn">Удалить (вернуть 50%)</button>`;
+  bindDirPicker(b);
+  document.getElementById('remove-btn').addEventListener('click', () => { playClick(); demolishBuilding(b); closePanel(); });
+}
+
+export function renderLabPanel(b) {
+  const interval = LAB_INTERVAL / state.labSpeedMult;
+  panelContent.innerHTML = `<div class="info-line">Производит: <strong>1 🧬 / ${interval.toFixed(1)} сек</strong></div><div class="info-line">Расход: 1 🟤 плита + 1 🟠 плита</div><div class="info-line" style="color:#7fbf7f;font-size:12px;">ДНК капает в склад ядра</div><div class="stats-box"><div class="row"><span>Железных плит в ядре</span><span id="lab-plate-iron">${inventory[RES.PLATE_IRON]}</span></div><div class="row"><span>Медных плит в ядре</span><span id="lab-plate-copper">${inventory[RES.PLATE_COPPER]}</span></div><div class="row"><span>ДНК всего</span><span id="lab-dna">🧬 ${state.dna}</span></div></div><button class="remove-btn" id="remove-btn">Удалить (вернуть 50%)</button>`;
+  document.getElementById('remove-btn').addEventListener('click', () => { playClick(); demolishBuilding(b); closePanel(); });
+}
+
+export function renderCutterPanel(b) {
+  panelContent.innerHTML = `<div class="info-line">Рецепт: <strong>1 медная плита → 2 провода</strong></div><div class="info-line">Скорость: ${CUTTER_INTERVAL.toFixed(2)} сек</div><div class="recipe"><div class="item"><div class="dot" style="${iconStyle(RES.PLATE_COPPER)}"></div>1</div><span class="arrow">→</span><div class="item"><div class="dot" style="${iconStyle(RES.WIRE)}"></div>2</div></div><div class="stats-box"><div class="row"><span>Медных плит в буфере</span><span id="cutter-in">${b.inputBuffer}</span></div><div class="row"><span>Проводов в буфере</span><span id="cutter-out">${b.outputBuffer} / ${b.outputBufferMax}</span></div></div>${getDirPickerHtml(b.outputDir)}<button class="remove-btn" id="remove-btn">Удалить (вернуть 50%)</button>`;
+  bindDirPicker(b);
+  document.getElementById('remove-btn').addEventListener('click', () => { playClick(); demolishBuilding(b); closePanel(); });
+}
+
+export function recipeInputsHtml(recipe, b) {
+  let html = '';
+  for (const [resType, count] of recipe.inputs) {
+    const have = b && b.inputBuffer ? (b.inputBuffer[resType] || 0) : null;
+    const enough = have === null ? true : have >= count;
+    const color = enough ? '#ccc' : '#e06060', haveStr = have !== null ? ` (${have}/${count})` : '';
+    html += `<div class="item"><div class="dot" style="${iconStyle(resType)}"></div><span style="color:${color}">${count}${haveStr}</span></div>`;
+  }
+  return html;
+}
+
+export function openRecipePicker(b) {
+  state.panel = 'recipe-pick'; state.activeBuilding = b;
+  openModal(b.type === 'assembler' ? '⚙️ Сборщик — рецепт' : b.type === 'sawmill' ? '🪚 Комбинат — рецепт' : '🧪 Химзавод — рецепт');
+  renderRecipePicker(b);
+}
+
+export function renderRecipePicker(b) {
+  let recipes = getRecipesForBuilding(b);
+  if (b.type === 'assembler' && !isTechOwned('unlock_basic_ammo')) {
+    recipes = recipes.filter(r => r.id !== 'ammo');
+  }
+
+  let html = `<div style="font-size:12px;color:#888;margin-bottom:10px;">Выбери, что производить:</div>`;
+  for (const r of recipes) {
+    const isSelected = b.selectedRecipe === r.id;
+    html += `<div class="tech-card ${isSelected ? 'owned' : ''}" style="cursor:pointer;" data-recipe="${r.id}"><div class="tech-head"><div class="tech-name">${r.name}${isSelected ? ' ✓' : ''}</div><div class="tech-status" style="color:#aaa;font-size:11px;">${r.time.toFixed(1)} сек</div></div><div style="display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap;">${recipeInputsHtml(r, null)}<span style="color:#888;font-size:14px;">→</span><div class="item"><div class="dot" style="${iconStyle(r.output)}"></div>${r.count} ${RES_NAME[r.output]}</div></div></div>`;
+  }
+  panelContent.innerHTML = html;
+  panelContent.querySelectorAll('[data-recipe]').forEach(el => el.addEventListener('click', () => { playClick(); b.selectedRecipe = el.dataset.recipe; b.timer = 0; import('./index.js').then(m => m.openInfoPanel(b)); }));
+}
+
+export function renderCrafterPanel(b) {
+  const currentRecipe = b.selectedRecipe ? getRecipesForBuilding(b).find(r => r.id === b.selectedRecipe) : null;
+  let recipeHtml = currentRecipe ? `<div class="info-line">Производит: <strong>${currentRecipe.name}</strong></div><div class="info-line">Скорость: ${currentRecipe.count} шт / ${currentRecipe.time.toFixed(1)} сек</div><div class="recipe">${recipeInputsHtml(currentRecipe, b)}<span class="arrow">→</span><div class="item"><div class="dot" style="${iconStyle(currentRecipe.output)}"></div>${currentRecipe.count}</div></div>` : `<div class="recipe" style="color:#888">Рецепт не выбран</div>`;
+  let bufferRows = '';
+  for (const resType in b.inputBuffer) { const count = b.inputBuffer[resType]; if (count <= 0) continue; bufferRows += `<div class="row"><span><div class="dot" style="display:inline-block;width:12px;height:12px;vertical-align:middle;margin-right:6px;background-size:contain;background-repeat:no-repeat;background-position:center;image-rendering:pixelated;${iconStyle(parseInt(resType))}"></div>${RES_NAME[resType]}</span><span>${count}</span></div>`; }
+  if (!bufferRows) bufferRows = '<div class="row"><span style="color:#888;">Вход пуст</span><span></span></div>';
+  panelContent.innerHTML = `${recipeHtml}<button class="option-btn" id="change-recipe-btn" style="margin-top:10px;justify-content:center;"><span class="opt-label">${currentRecipe ? 'Сменить рецепт' : 'Выбрать рецепт'}</span></button><div class="stats-box"><div style="font-size:11px;color:#888;margin-bottom:6px;">Буферы входа:</div>${bufferRows}<div class="row"><span>Готовое (буфер)</span><span id="crafter-buf-out">${b.outputBuffer} / ${b.outputBufferMax}</span></div></div>${getDirPickerHtml(b.outputDir)}<button class="remove-btn" id="remove-btn">Удалить (вернуть 50%)</button>`;
+  bindDirPicker(b);
+  document.getElementById('change-recipe-btn').addEventListener('click', () => { playClick(); openRecipePicker(b); });
+  document.getElementById('remove-btn').addEventListener('click', () => { playClick(); demolishBuilding(b); closePanel(); });
+}
+
+export const renderSawmillPanel = renderCrafterPanel;
