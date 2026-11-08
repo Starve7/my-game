@@ -17,11 +17,38 @@ export const oreInitial = [];
 export const fog = [];
 export const initialNests = [];
 
+// НОВЫЙ ХОЛСТ ДЛЯ ТУМАНА
+export const fogCanvas = document.createElement('canvas');
+fogCanvas.width = WORLD_W;
+fogCanvas.height = WORLD_H;
+export const fogCtx = fogCanvas.getContext('2d');
+
 for (let y = 0; y < WORLD_H; y++) {
   world.push(new Array(WORLD_W).fill(0));
   oreAmount.push(new Array(WORLD_W).fill(0));
   oreInitial.push(new Array(WORLD_W).fill(0));
   fog.push(new Array(WORLD_W).fill(1));
+}
+
+// НОВАЯ ФУНКЦИЯ ПЕРЕРИСОВКИ ХОЛСТА ТУМАНА
+export function updateFogCanvas() {
+  const imgData = fogCtx.createImageData(WORLD_W, WORLD_H);
+  const data = imgData.data;
+  for (let y = 0; y < WORLD_H; y++) {
+    for (let x = 0; x < WORLD_W; x++) {
+      const idx = (y * WORLD_W + x) * 4;
+      if (fog[y][x] === 1) {
+        const noise = ((x * 73856093) ^ (y * 19349663)) % 12;
+        data[idx] = 8;
+        data[idx + 1] = 10;
+        data[idx + 2] = 14;
+        data[idx + 3] = 220 + noise; 
+      } else {
+        data[idx + 3] = 0;
+      }
+    }
+  }
+  fogCtx.putImageData(imgData, 0, 0);
 }
 
 function scatterResource(type, patchCount, minR, maxR, minDistFromCore = 0, maxDistFromCore = 999) {
@@ -203,13 +230,13 @@ export function generateWorld() {
       else if (dist >= 35) amount = ORE_MID_MIN + Math.random() * (ORE_MID_MAX - ORE_MID_MIN);
       else amount = ORE_NEAR_MIN + Math.random() * (ORE_NEAR_MAX - ORE_NEAR_MIN);
       
-      // ФИКС: Убираем Infinity, дерево теперь тоже истощается
-      
       amount = Math.round(amount);
       oreAmount[y][x] = amount;
       oreInitial[y][x] = amount;
     }
   }
+
+  updateFogCanvas(); // ВЫЗОВ ПРИ ГЕНЕРАЦИИ
 }
 
 generateWorld();

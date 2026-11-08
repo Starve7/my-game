@@ -38,7 +38,7 @@ export const state = {
   day: 1, timeOfDay: 0.25,
   hudResources: [1, 2, 3],
   selectedInfoCard: null,
-  needsFogUpdate: false // ДОБАВИЛИ ФЛАГ
+  needsFogUpdate: false
 };
 
 export const STAT_WINDOW_SEC = 30;
@@ -236,15 +236,12 @@ canvas.addEventListener('wheel', e => {
 
 function drawProceduralTile(resType, sx, sy, size) {
   const cx = sx + size / 2, cy = sy + size / 2;
-  
   if (resType === RES.WATER) {
-    ctx.fillStyle = '#1e4a7a';
-    ctx.fillRect(sx, sy, size, size);
+    ctx.fillStyle = '#1e4a7a'; ctx.fillRect(sx, sy, size, size);
     ctx.fillStyle = 'rgba(80, 160, 255, 0.3)';
     ctx.beginPath(); ctx.ellipse(cx, cy, size*0.3, size*0.1, 0, 0, Math.PI*2); ctx.fill();
     return true;
   }
-  
   if (resType === RES.OIL) {
     ctx.fillStyle = '#111';
     ctx.beginPath(); ctx.arc(cx, cy, size*0.4, 0, Math.PI*2); ctx.fill();
@@ -252,7 +249,6 @@ function drawProceduralTile(resType, sx, sy, size) {
     ctx.beginPath(); ctx.arc(cx - 2, cy - 2, size*0.2, 0, Math.PI*2); ctx.fill();
     return true;
   }
-
   return false;
 }
 
@@ -265,11 +261,8 @@ function lerpColor(c1, c2, t) {
 }
 
 function getZoneColor(dist) {
-  const Z1 = { r: 74, g: 90, b: 58 };    // Сочная трава
-  const Z2 = { r: 60, g: 70, b: 42 };    // Болото
-  const Z3 = { r: 58, g: 38, b: 28 };    // Выжженная земля
-  const Z4 = { r: 30, g: 15, b: 30 };    // Заражение
-
+  const Z1 = { r: 74, g: 90, b: 58 }; const Z2 = { r: 60, g: 70, b: 42 };
+  const Z3 = { r: 58, g: 38, b: 28 }; const Z4 = { r: 30, g: 15, b: 30 };
   if (dist < 35) return Z1;
   if (dist < 42) return lerpColor(Z1, Z2, (dist - 35) / 7);
   if (dist < 68) return Z2;
@@ -289,13 +282,11 @@ export function drawBackground(world, oreAmount, oreInitial, getBuildingAt, draw
   const ty0 = Math.max(0, Math.floor(top / TILE));
   const ty1 = Math.min(WORLD_H - 1, Math.floor(bottom / TILE));
 
-  const coreX = WORLD_W / 2;
-  const coreY = WORLD_H / 2;
+  const coreX = WORLD_W / 2, coreY = WORLD_H / 2;
 
   for (let ty = ty0; ty <= ty1; ty++) {
     for (let tx = tx0; tx <= tx1; tx++) {
       const sx = tx * TILE, sy = ty * TILE;
-      
       const dist = Math.hypot(tx - coreX, ty - coreY);
       const c = getZoneColor(dist);
       const offset = ((tx + ty) & 1) ? 4 : 0;
@@ -306,22 +297,14 @@ export function drawBackground(world, oreAmount, oreInitial, getBuildingAt, draw
       if (r > 0) {
         const hasBuilding = getBuildingAt && getBuildingAt(tx, ty);
         if (hasBuilding) continue;
-        
         const amount = oreAmount[ty][tx], initial = oreInitial[ty][tx];
         let alpha = 1;
         if (amount <= 0) alpha = 0.15;
         else if (initial !== null && initial !== undefined && initial > 0) alpha = 0.4 + 0.6 * (amount / initial);
-        
         ctx.globalAlpha = alpha;
         const v = variantForTile(tx, ty) % 3;
-        
-        // ФИКС: drawResIcon сам возвращает true, если нарисовал ПНГ, и false, если нарисовал квадрат
         const drawn = drawResIcon(r, sx, sy, TILE, v);
-        
-        if (!drawn) {
-          drawProceduralTile(r, sx, sy, TILE);
-        }
-        
+        if (!drawn) drawProceduralTile(r, sx, sy, TILE);
         ctx.globalAlpha = 1;
       }
     }
@@ -339,25 +322,21 @@ export function drawBackground(world, oreAmount, oreInitial, getBuildingAt, draw
 
 export function drawGhost(type, tx, ty, canPlace) {
   const sx = tx * TILE, sy = ty * TILE;
-  
   if (type === 'splitter') {
     const dir = state.newConveyorDir;
     const isH = dir === 0 || dir === 2; 
     const w = isH ? TILE * 2 : TILE;
     const h = isH ? TILE : TILE * 2;
-    
     ctx.fillStyle = canPlace ? 'rgba(120, 200, 120, 0.45)' : 'rgba(220, 80, 80, 0.45)';
     ctx.fillRect(sx, sy, w, h);
     ctx.strokeStyle = canPlace ? '#9fe09f' : '#e07070';
     ctx.lineWidth = 2 / camera.zoom;
     ctx.strokeRect(sx + 1.5, sy + 1.5, w - 3, h - 3);
-    
     ctx.strokeStyle = canPlace ? '#fff' : '#ffb0b0';
     ctx.lineWidth = 3 / camera.zoom;
     const cx = sx + (isH ? TILE : TILE/2);
     const cy = sy + (isH ? TILE/2 : TILE);
     const [dx, dy] = DIR_DELTA[dir];
-    
     ctx.beginPath(); ctx.moveTo(cx - dx * TILE/2, cy - dy * TILE/2); ctx.lineTo(cx, cy); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(cx, cy);
     if (isH) ctx.lineTo(cx + dx * TILE/2, cy - TILE/2); else ctx.lineTo(cx - TILE/2, cy + dy * TILE/2); ctx.stroke();
@@ -409,7 +388,6 @@ export function drawRangeCircle(cx, cy, radius, isGhost = false) {
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  
   if (isGhost) {
     ctx.fillStyle = 'rgba(120, 200, 120, 0.15)';
     ctx.strokeStyle = 'rgba(120, 200, 120, 0.6)';
@@ -417,7 +395,6 @@ export function drawRangeCircle(cx, cy, radius, isGhost = false) {
     ctx.fillStyle = 'rgba(255, 200, 100, 0.1)';
     ctx.strokeStyle = 'rgba(255, 200, 100, 0.6)';
   }
-  
   ctx.fill();
   ctx.lineWidth = 2 / camera.zoom;
   ctx.setLineDash([8 / camera.zoom, 8 / camera.zoom]);
@@ -426,60 +403,83 @@ export function drawRangeCircle(cx, cy, radius, isGhost = false) {
   ctx.restore();
 }
 
+// ==================== НОВАЯ МИНИКАРТА С КЕШИРОВАНИЕМ ====================
 const MINIMAP_SIZE = 100, MINIMAP_MARGIN = 12;
+
+export const minimapCanvas = document.createElement('canvas');
+minimapCanvas.width = 200;
+minimapCanvas.height = 200;
+export const minimapCtx = minimapCanvas.getContext('2d');
+
 export function getMinimapRect() { return { x: canvas.width - MINIMAP_SIZE - MINIMAP_MARGIN, y: 46 + MINIMAP_MARGIN, w: MINIMAP_SIZE, h: MINIMAP_SIZE }; }
 
-export function drawMinimap(CORE, buildings, conveyors, monsters, splitters, undergrounds) {
-  const rect = getMinimapRect(); const scale = MINIMAP_SIZE / (WORLD_W * TILE);
-  ctx.fillStyle = 'rgba(15,25,15,0.85)'; ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-  ctx.strokeStyle = 'rgba(120,160,120,0.7)'; ctx.lineWidth = 2; ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+// ЭТА ФУНКЦИЯ ОБНОВЛЯЕТ КАРТИНКУ МИНИКАРТЫ (вызывать раз в сек)
+export function updateMinimapCanvas(CORE, buildings, conveyors, monsters, splitters, undergrounds) {
+  const scale = minimapCanvas.width / (WORLD_W * TILE);
+  minimapCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+  
+  minimapCtx.fillStyle = 'rgba(15,25,15,0.9)'; 
+  minimapCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
   
   const fog = window.__fog || [];
 
-  ctx.fillStyle = 'rgba(180,160,90,0.7)';
+  minimapCtx.fillStyle = 'rgba(180,160,90,0.7)';
   for (const c of conveyors) {
-    if (fog[c.ty] && fog[c.ty][c.tx] === 0) ctx.fillRect(rect.x + c.tx * TILE * scale, rect.y + c.ty * TILE * scale, 1, 1);
+    if (fog[c.ty] && fog[c.ty][c.tx] === 0) minimapCtx.fillRect(c.tx * TILE * scale, c.ty * TILE * scale, 2, 2);
   }
   if (splitters) {
     for (const s of splitters) {
-      if (fog[s.ty] && fog[s.ty][s.tx] === 0) ctx.fillRect(rect.x + s.tx * TILE * scale, rect.y + s.ty * TILE * scale, 2, 1);
+      if (fog[s.ty] && fog[s.ty][s.tx] === 0) minimapCtx.fillRect(s.tx * TILE * scale, s.ty * TILE * scale, 4, 2);
     }
   }
   if (undergrounds) {
-    ctx.fillStyle = '#a060c0';
+    minimapCtx.fillStyle = '#a060c0';
     for (const u of undergrounds) {
-      if (fog[u.ty] && fog[u.ty][u.tx] === 0) ctx.fillRect(rect.x + u.tx * TILE * scale, rect.y + u.ty * TILE * scale, 1, 1);
+      if (fog[u.ty] && fog[u.ty][u.tx] === 0) minimapCtx.fillRect(u.tx * TILE * scale, u.ty * TILE * scale, 2, 2);
     }
   }
   
-  ctx.fillStyle = '#e0e0e0';
+  minimapCtx.fillStyle = '#e0e0e0';
   for (const b of buildings) {
-    if (fog[b.ty] && fog[b.ty][b.tx] === 0) ctx.fillRect(rect.x + b.tx * TILE * scale - 1, rect.y + b.ty * TILE * scale - 1, 3, 3);
+    if (fog[b.ty] && fog[b.ty][b.tx] === 0) minimapCtx.fillRect(b.tx * TILE * scale - 2, b.ty * TILE * scale - 2, 6, 6);
   }
   
-  ctx.fillStyle = '#4a8aff';
-  const coreMinX = rect.x + (CORE.x - 1) * TILE * scale, coreMinY = rect.y + (CORE.y - 1) * TILE * scale;
-  ctx.fillRect(coreMinX, coreMinY, 3 * TILE * scale, 3 * TILE * scale);
+  minimapCtx.fillStyle = '#4a8aff';
+  minimapCtx.fillRect((CORE.x - 1) * TILE * scale, (CORE.y - 1) * TILE * scale, 3 * TILE * scale, 3 * TILE * scale);
   
   if (monsters && monsters.length > 0) {
-    ctx.fillStyle = '#ff3030';
+    minimapCtx.fillStyle = '#ff3030';
     for (const m of monsters) {
-      ctx.fillRect(rect.x + m.x * scale - 1, rect.y + m.y * scale - 1, 2, 2);
+      minimapCtx.fillRect(m.x * scale - 1, m.y * scale - 1, 3, 3);
     }
   }
   
   if (window.__nests) {
-    ctx.fillStyle = '#ff00ff';
+    minimapCtx.fillStyle = '#ff00ff';
     for (const n of window.__nests) {
-      ctx.fillRect(rect.x + n.tx * TILE * scale, rect.y + n.ty * TILE * scale, 3, 3);
+      minimapCtx.fillRect(n.tx * TILE * scale, n.ty * TILE * scale, 6, 6);
     }
   }
+}
 
+// Эта функция просто рисует готовый холст + рамку камеры (быстро)
+export function drawMinimap() {
+  const rect = getMinimapRect();
+  ctx.fillStyle = 'rgba(15,25,15,0.85)'; ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+  ctx.strokeStyle = 'rgba(120,160,120,0.7)'; ctx.lineWidth = 2; ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+  
+  // Рисуем готовую картинку с кеша
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(minimapCanvas, rect.x, rect.y, rect.w, rect.h);
+
+  // Рамка камеры (двигается каждый кадр - это нормально)
+  const scale = MINIMAP_SIZE / (WORLD_W * TILE);
   const camWorldX = camera.x - canvas.width / (2 * camera.zoom), camWorldY = camera.y - canvas.height / (2 * camera.zoom);
   const camWorldW = canvas.width / camera.zoom, camWorldH = canvas.height / camera.zoom;
   ctx.strokeStyle = 'rgba(255,220,60,0.9)'; ctx.lineWidth = 1;
   ctx.strokeRect(rect.x + camWorldX * scale, rect.y + camWorldY * scale, camWorldW * scale, camWorldH * scale);
 }
+// ====================================================================
 
 export function handleMinimapClick(sx, sy) {
   const rect = getMinimapRect();

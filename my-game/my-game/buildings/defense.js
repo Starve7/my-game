@@ -3,7 +3,7 @@
 import { inventory, state, addPopup, TILE, WORLD_W, WORLD_H, RES, RES_COLOR, ctx } from '../game.js';
 import { playTurretShot } from '../audio.js';
 import { drawBuildingSprite, isReady, buildingImages } from '../sprites.js';
-import { CORE, fog } from '../world.js';
+import { CORE, fog, updateFogCanvas } from '../world.js';
 import { 
   Building, turretBeams, buildings,
   BUILDING_HP, TURRET_RANGE_BASE, TURRET_FIRE_INTERVAL, TURRET_AMMO_PER_SHOT, 
@@ -103,4 +103,6 @@ export function updateFog() {
       }
     }
   }
+  
+  updateFogCanvas();
 }

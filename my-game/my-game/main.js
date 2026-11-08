@@ -3,10 +3,10 @@
 import {
   TILE, RES, RES_COLOR, RES_NAME, DAY_LENGTH, MINE_INTERVAL, FURNACE_INTERVAL, MINE_COST, FURNACE_COST, POLLUTION_PER_PLATE,
   canvas, ctx, camera, inventory, state, popups, hooks, drawBackground, drawGhost, drawCore, drawPopups,
-  drawMinimap, handleMinimapClick, updatePopups, safeCall, screenToCell, showToast, STAT_WINDOW_SEC,
+  drawMinimap, updateMinimapCanvas, handleMinimapClick, updatePopups, safeCall, screenToCell, showToast, STAT_WINDOW_SEC,
   WORLD_W, WORLD_H, drawRangeCircle
 } from './game.js';
-import { CORE, CORE_HP_MAX, world, oreAmount, oreInitial, fog, initialNests } from './world.js';
+import { CORE, CORE_HP_MAX, world, oreAmount, oreInitial, fog, initialNests, fogCanvas } from './world.js';
 import { drawResIcon, drawCoreSprite } from './sprites.js';
 import {
   buildings, conveyors, splitters, undergrounds, turretBeams, tryPlaceBuilding, tryConveyorDragStep,
@@ -70,7 +70,6 @@ function handleTap(sx, sy) {
   if (!cell) { hideInfoCard(); return; }
   const { tx, ty } = cell;
 
-  // ПРОВЕРКА УЛЬЯ ДО ТУМАНА (чтобы можно было кликать даже в неизведанной зоне)
   const nest = nests.find(n => n.hp > 0 && n.tx === tx && n.ty === ty);
   if (nest) {
     state.selectedBuilding = null; state.ghostPos = null; updateModeBadge();
@@ -78,28 +77,16 @@ function handleTap(sx, sy) {
     return;
   }
   
-  if (fog[ty] && fog[ty][tx] === 1) return; // Только после проверки улья скрываем остальное в тумане
+  if (fog[ty] && fog[ty][tx] === 1) return; 
 
   const existingB = buildings.find(b => b.tx === tx && b.ty === ty);
-  if (existingB) {
-    state.selectedBuilding = null; state.ghostPos = null; updateModeBadge();
-    showInfoCard(existingB); return;
-  }
+  if (existingB) { state.selectedBuilding = null; state.ghostPos = null; updateModeBadge(); showInfoCard(existingB); return; }
   const existingC = conveyors.find(c => c.tx === tx && c.ty === ty);
-  if (existingC) {
-    state.selectedBuilding = null; state.ghostPos = null; updateModeBadge();
-    showInfoCard(existingC); return;
-  }
+  if (existingC) { state.selectedBuilding = null; state.ghostPos = null; updateModeBadge(); showInfoCard(existingC); return; }
   const existingS = getSplitterAt(tx, ty);
-  if (existingS) {
-    state.selectedBuilding = null; state.ghostPos = null; updateModeBadge();
-    showInfoCard(existingS); return;
-  }
+  if (existingS) { state.selectedBuilding = null; state.ghostPos = null; updateModeBadge(); showInfoCard(existingS); return; }
   const existingU = getUndergroundAt(tx, ty);
-  if (existingU) {
-    state.selectedBuilding = null; state.ghostPos = null; updateModeBadge();
-    showInfoCard(existingU); return;
-  }
+  if (existingU) { state.selectedBuilding = null; state.ghostPos = null; updateModeBadge(); showInfoCard(existingU); return; }
   
   if (Math.abs(tx - CORE.x) <= 1 && Math.abs(ty - CORE.y) <= 1) { showInfoCard({ type: 'core' }); return; }
   
@@ -142,7 +129,7 @@ function update(dt) {
   safeCall(updatePopups, 'updatePopups', dt);
 }
 
-export function draw() {
+function draw() {
   ctx.fillStyle = '#2a2a2a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
   
   ctx.save();
@@ -165,7 +152,6 @@ export function draw() {
   drawCore(CORE, CORE_HP_MAX, drawCoreSprite);
   safeCall(drawMonsters, 'drawMonsters');
   
-  // === РИСУЕМ РАДИУСЫ ===
   if (state.selectedBuilding === 'turret' && state.ghostPos) {
     const { tx, ty } = state.ghostPos;
     const range = TURRET_RANGE_BASE + state.turretRangeBonus * TILE;
@@ -192,43 +178,27 @@ export function draw() {
       ctx.restore();
     }
   }
-  // ================================
 
   drawPopups();
 
-  // === РИСУЕМ ТУМАН ===
-  const left = camera.x - canvas.width / (2 * camera.zoom);
-  const right = camera.x + canvas.width / (2 * camera.zoom);
-  const top = camera.y - canvas.height / (2 * camera.zoom);
-  const bottom = camera.y + canvas.height / (2 * camera.zoom);
-  const tx0 = Math.max(0, Math.floor(left / TILE));
-  const tx1 = Math.min(WORLD_W - 1, Math.floor(right / TILE));
-  const ty0 = Math.max(0, Math.floor(top / TILE));
-  const ty1 = Math.min(WORLD_H - 1, Math.floor(bottom / TILE));
-
-  for (let ty = ty0; ty <= ty1; ty++) {
-    for (let tx = tx0; tx <= tx1; tx++) {
-      if (fog[ty][tx] === 1) {
-        const noise = ((tx * 73856093) ^ (ty * 19349663)) % 12 / 100; 
-        ctx.fillStyle = `rgba(8, 10, 14, ${0.88 + noise})`; 
-        ctx.fillRect(tx * TILE, ty * TILE, TILE, TILE);
-      }
-    }
-  }
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(fogCanvas, 0, 0, WORLD_W * TILE, WORLD_H * TILE);
 
   ctx.restore();
 
   drawAtmosphere();
-  drawMinimap(CORE, buildings, conveyors, monsters, splitters, undergrounds);
+  
+  // МИНИКАРТА РИСУЕТСЯ БЕЗ ПАРАМЕТРОВ (ИЗ КЕША)
+  drawMinimap();
 }
 
-// ЭКСПОРТИРУЕМ ДЛЯ ФИКСА СЕЙВОВ
 if (typeof window !== 'undefined') {
   window.__forceRedraw = draw;
 }
 
 let lastTime = performance.now();
 let initialNestsSpawned = false;
+let minimapTimer = 0; // ТАЙМЕР МИНИКАРТЫ
 
 function loop(now) {
   const dt = Math.min(0.1, (now - lastTime) / 1000);
@@ -242,6 +212,14 @@ function loop(now) {
     safeCall(update, 'update', dt);
     safeCall(updateHUD, 'updateHUD');
     safeCall(updateMonsters, 'updateMonsters', dt);
+    
+    // ОБНОВЛЯЕМ МИНИКАРТУ РАЗ В СЕКУНДУ
+    minimapTimer += dt;
+    if (minimapTimer >= 1.0) {
+      minimapTimer = 0;
+      updateMinimapCanvas(CORE, buildings, conveyors, monsters, splitters, undergrounds);
+    }
+    
     safeCall(draw, 'draw');
   } else {
     initialNestsSpawned = false;

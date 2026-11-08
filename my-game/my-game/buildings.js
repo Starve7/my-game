@@ -2,7 +2,7 @@
 
 export * from './buildings/index.js';
 
-import { inventory, state, showToast, TILE, WORLD_W, WORLD_H, RES, ctx } from './game.js';
+import { inventory, state, showToast, TILE, WORLD_W, WORLD_H, RES, ctx, canvas, camera } from './game.js';
 import { world, oreAmount, oreInitial, CORE, fog } from './world.js';
 import { playBuildSound } from './audio.js';
 import { drawShadow, drawBuildingSprite } from './sprites.js';
@@ -146,7 +146,6 @@ export function tryPlaceBuilding(type, tx, ty, isUnlockedFn) {
   } else if (type === 'splitter') {
     const dir = state.newConveyorDir;
     const isH = dir === 0 || dir === 2; 
-    
     const tx2 = isH ? tx + 1 : tx;
     const ty2 = isH ? ty : ty + 1;
     
@@ -283,9 +282,7 @@ export function repairBuilding(b) {
     if (inventory[RES.IRON] < half(b.paidCost)) return false;
     inventory[RES.IRON] -= half(b.paidCost);
   }
-  b.isBroken = false; b.hp = b.maxHp; 
-  updateFog(); // Обновляем туман при починке (если это радар)
-  return true;
+  b.isBroken = false; b.hp = b.maxHp; return true;
 }
 
 export function repairConveyor(c) {
@@ -303,24 +300,39 @@ export function repairConveyor(c) {
 export function updateBuildings(dt) {
   for (const b of buildings) { if (b.isBroken) continue; b.update(dt); }
   for (let i = turretBeams.length - 1; i >= 0; i--) { turretBeams[i].life -= dt; if (turretBeams[i].life <= 0) turretBeams.splice(i, 1); }
-  // Убрали updateFog отсюда! Теперь туман обновляется только при постройке/сносе/поломке
   if (state.needsFogUpdate) {
     updateFog();
     state.needsFogUpdate = false;
   }
 }
 
+// ==================== CULLING ДЛЯ ЗДАНИЙ ====================
 export function drawBuildings() {
-  const sorted = [...buildings].sort((a, b) => a.ty - b.ty);
-  for (const b of sorted) { if (!b.isBroken && typeof b.drawAmbient === 'function') b.drawAmbient(); }
-  for (const b of sorted) {
+  // Вычисляем границы видимой области (в пикселях мира)
+  const viewLeft = camera.x - canvas.width / (2 * camera.zoom) - TILE * 2;
+  const viewRight = camera.x + canvas.width / (2 * camera.zoom) + TILE * 2;
+  const viewTop = camera.y - canvas.height / (2 * camera.zoom) - TILE * 3;
+  const viewBottom = camera.y + canvas.height / (2 * camera.zoom) + TILE * 2;
+
+  // Фильтруем только видимые здания
+  const visible = [];
+  for (const b of buildings) {
+    const bx = b.tx * TILE, by = b.ty * TILE;
+    if (bx + TILE >= viewLeft && bx <= viewRight && by + TILE >= viewTop && by <= viewBottom) {
+      visible.push(b);
+    }
+  }
+
+  visible.sort((a, b) => a.ty - b.ty);
+  for (const b of visible) { if (!b.isBroken && typeof b.drawAmbient === 'function') b.drawAmbient(); }
+  for (const b of visible) {
     const emptyMine = b.type === 'mine' && oreAmount[b.ty][b.tx] <= 0;
     ctx.save();
     if (b.isBroken) ctx.globalAlpha = 0.35; else if (emptyMine) ctx.globalAlpha = 0.5;
     drawShadow(b.tx * TILE, b.ty * TILE, TILE, b.type);
     ctx.restore();
   }
-  for (const b of sorted) {
+  for (const b of visible) {
     if (b.isBroken) {
       ctx.save(); ctx.globalAlpha = 0.35;
       if (!drawBuildingSprite(b.type, b.tx * TILE, b.ty * TILE, TILE)) { ctx.fillStyle = '#444'; ctx.fillRect(b.tx * TILE + 2, b.ty * TILE + 2, TILE - 4, TILE - 4); }
@@ -331,7 +343,7 @@ export function drawBuildings() {
       if (b.hp !== undefined) drawHpCircle(b.tx * TILE, b.ty * TILE, b.hp, b.maxHp);
     }
   }
-  for (const b of sorted) {
+  for (const b of visible) {
     if (b.isBroken || b.outputDir === null || b.outputDir === undefined) continue;
     drawArrow(b.tx * TILE, b.ty * TILE, b.outputDir, b.type === 'mine' ? '#c8b060' : '#ffa040');
   }
@@ -341,6 +353,7 @@ export function drawBuildings() {
     ctx.strokeStyle = `rgba(255, 255, 200, ${alpha})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(beam.fromX, beam.fromY); ctx.lineTo(beam.toX, beam.toY); ctx.stroke();
   }
 }
+// ===========================================================
 
 export { Mine, Furnace, Lab, Cutter, Assembler, Chemplant, Storage, Turret, Radar, Inserter, MiniCore, Lumberjack, Sawmill };
 

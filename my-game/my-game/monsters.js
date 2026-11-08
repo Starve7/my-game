@@ -1,6 +1,6 @@
 'use strict';
 
-import { TILE, WORLD_W, WORLD_H, state, canvas, ctx, RES_COLOR, RES } from './game.js';
+import { TILE, WORLD_W, WORLD_H, state, canvas, ctx, RES_COLOR, RES, camera } from './game.js';
 import { CORE, fog, world } from './world.js';
 import { buildings, conveyors, damageBuildingAt, damageConveyorAt } from './buildings.js';
 import { drawResIcon } from './sprites.js';
@@ -65,6 +65,7 @@ export function trySpawnNest(level = 1, tx = null, ty = null) {
       hp: type.hp,
       maxHp: type.hp,
       spawnTimer: 0,
+      aggroTimer: 0,
       radius: 3,
       aggroRadius: type.aggroRadius,
       isProvoked: false,
@@ -94,31 +95,37 @@ export function updateNests(dt) {
     const type = HIVE_TYPES[n.level];
     
     if (!n.isProvoked) {
-      for (const b of buildings) {
-        if (b.isBroken) continue;
-        const d = Math.hypot(b.tx * TILE + TILE/2 - (n.tx * TILE + TILE/2), b.ty * TILE + TILE/2 - (n.ty * TILE + TILE/2));
-        if (d < n.aggroRadius) { 
-          n.isProvoked = true; 
-          if (window.__showToast) window.__showToast(`🕷️ ${type.name} разъярен!`);
-          break; 
+      n.aggroTimer -= dt;
+      if (n.aggroTimer <= 0) {
+        n.aggroTimer = 0.5; 
+        const rSq = n.aggroRadius * n.aggroRadius;
+        const nx = n.tx * TILE + TILE/2;
+        const ny = n.ty * TILE + TILE/2;
+
+        for (const b of buildings) {
+          if (b.isBroken) continue;
+          const dx = b.tx * TILE + TILE/2 - nx;
+          const dy = b.ty * TILE + TILE/2 - ny;
+          if (dx * dx + dy * dy < rSq) { 
+            n.isProvoked = true; 
+            if (window.__showToast) window.__showToast(`🕷️ ${type.name} разъярен!`);
+            break; 
+          }
         }
       }
     }
 
-    // ТЕЛЕПОРТАЦИЯ КОРОЛЯ
     if (n.isKing && n.isProvoked) {
       n.moveTimer += dt;
-      if (n.moveTimer >= 15) { // Раз в 15 секунд
+      if (n.moveTimer >= 15) { 
         n.moveTimer = 0;
         const dx = CORE.x - n.tx;
         const dy = CORE.y - n.ty;
         const dist = Math.hypot(dx, dy);
         if (dist > 15) {
-          // Телепорт на 10 клеток ближе
           const step = 10;
           const newTx = Math.floor(n.tx + (dx / dist) * step);
           const newTy = Math.floor(n.ty + (dy / dist) * step);
-          
           if (newTx >= 0 && newTx < WORLD_W && newTy >= 0 && newTy < WORLD_H && world[newTy][newTx] !== RES.WATER) {
             n.tx = newTx;
             n.ty = newTy;
@@ -130,7 +137,6 @@ export function updateNests(dt) {
     }
 
     const myMobs = monsters.filter(m => m.targetNest === n).length;
-    
     if (myMobs < MOBS_PER_NEST) {
       n.spawnTimer += dt;
       const rate = n.isProvoked ? (type.spawnRate / 2) : type.spawnRate;
@@ -152,7 +158,6 @@ function spawnMonsterFromNest(nest) {
       if ((nest.spawnedCounts[i] || 0) < 25) availableLevels.push(i);
     }
     if (availableLevels.length === 0) return;
-    
     mobLevel = availableLevels[Math.floor(Math.random() * availableLevels.length)];
     nest.spawnedCounts[mobLevel] = (nest.spawnedCounts[mobLevel] || 0) + 1;
   } else {
@@ -166,44 +171,43 @@ function spawnMonsterFromNest(nest) {
   monsters.push({
     x: nest.tx * TILE + TILE / 2 + (Math.random() - 0.5) * TILE,
     y: nest.ty * TILE + TILE / 2 + (Math.random() - 0.5) * TILE,
-    level: mobLevel,
-    name: base.name,
-    hp: base.hp * hpScale,
-    maxHp: base.hp * hpScale,
-    damage: base.dmg * dmgScale,
-    speed: base.speed,
-    color: base.color,
-    size: base.size,
-    armor: base.armor,
+    level: mobLevel, name: base.name,
+    hp: base.hp * hpScale, maxHp: base.hp * hpScale,
+    damage: base.dmg * dmgScale, speed: base.speed,
+    color: base.color, size: base.size, armor: base.armor,
     explodeDmg: base.explodeDmg ? base.explodeDmg * dmgScale : 0,
-    explodeRadius: base.explodeRadius || 0,
-    isFlyer: base.isFlyer || false,
-    attackRange: TILE * 1.5,
-    attackTimer: 0,
-    targetNest: nest,
-    isMonster: true
+    explodeRadius: base.explodeRadius || 0, isFlyer: base.isFlyer || false,
+    attackRange: TILE * 1.5, attackTimer: 0,
+    targetNest: nest, isMonster: true,
+    cachedTarget: null, targetTimer: 0
   });
 }
 
+// CULLING ДЛЯ УЛЬЕВ
 export function drawNestsAndInfection() {
-  for (const n of nests) {
+  const viewLeft = camera.x - canvas.width / (2 * camera.zoom) - TILE * 6;
+  const viewRight = camera.x + canvas.width / (2 * camera.zoom) + TILE * 6;
+  const viewTop = camera.y - canvas.height / (2 * camera.zoom) - TILE * 6;
+  const viewBottom = camera.y + canvas.height / (2 * camera.zoom) + TILE * 6;
+
+  const visibleNests = nests.filter(n => {
+    const nx = n.tx * TILE, ny = n.ty * TILE;
+    return nx + TILE * 6 >= viewLeft && nx - TILE * 6 <= viewRight && ny + TILE * 6 >= viewTop && ny - TILE * 6 <= viewBottom;
+  });
+
+  for (const n of visibleNests) {
     if (n.hp <= 0) continue;
     const nx = n.tx * TILE + TILE / 2;
     const ny = n.ty * TILE + TILE / 2;
     const r = n.radius * TILE;
 
-    const grad = ctx.createRadialGradient(nx, ny, 0, nx, ny, r);
-    grad.addColorStop(0, 'rgba(130, 20, 160, 0.6)');
-    grad.addColorStop(0.4, 'rgba(80, 0, 100, 0.4)');
-    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-    ctx.fillStyle = grad;
+    ctx.fillStyle = n.isProvoked ? 'rgba(150, 20, 20, 0.25)' : 'rgba(130, 20, 160, 0.2)';
     ctx.beginPath();
     ctx.arc(nx, ny, r, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  for (const n of nests) {
+  for (const n of visibleNests) {
     if (n.hp <= 0) continue;
     const sx = n.tx * TILE, sy = n.ty * TILE;
     const type = HIVE_TYPES[n.level];
@@ -211,25 +215,20 @@ export function drawNestsAndInfection() {
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.beginPath(); ctx.ellipse(sx + TILE/2, sy + TILE - 4, TILE*0.7, TILE*0.2, 0, 0, Math.PI*2); ctx.fill();
     
-    // Отрисовка кокона (цвет и размер зависят от уровня)
     ctx.fillStyle = n.isProvoked ? '#ff0000' : type.color;
     ctx.beginPath();
     const sizeMult = type.size;
     ctx.ellipse(sx + TILE/2, sy + TILE/2, TILE * 0.6 * sizeMult, TILE * 0.7 * sizeMult, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Обводка (для высоких уровней)
     if (n.level >= 3) {
       ctx.strokeStyle = n.isProvoked ? '#ff5050' : '#a060c0';
       ctx.lineWidth = n.level >= 5 ? 3 : 1.5;
       ctx.stroke();
     }
     
-    // Корона для Короля
     if (n.isKing) {
-      ctx.fillStyle = '#ffd700'; 
-      ctx.font = 'bold 24px sans-serif'; 
-      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffd700'; ctx.font = 'bold 24px sans-serif'; ctx.textAlign = 'center';
       ctx.fillText('👑', sx + TILE/2, sy - 10);
     }
 
@@ -254,20 +253,25 @@ function isWalkable(tx, ty) {
 
 function findNearbyTarget(m, coreX, coreY) {
   let best = null;
-  let bestDist = Infinity;
+  let bestDistSq = Infinity;
+  const rangeSq = (m.attackRange + TILE) * (m.attackRange + TILE);
 
-  const dCore = Math.hypot(coreX - m.x, coreY - m.y);
-  if (dCore < m.attackRange + TILE) return { kind: 'core', dist: dCore };
+  const dxCore = coreX - m.x, dyCore = coreY - m.y;
+  if (dxCore * dxCore + dyCore * dyCore < rangeSq) return { kind: 'core', dist: dxCore*dxCore + dyCore*dyCore };
 
   for (const b of buildings) {
     if (b.isBroken) continue;
-    const d = Math.hypot(b.tx * TILE + TILE / 2 - m.x, b.ty * TILE + TILE / 2 - m.y);
-    if (d < m.attackRange && d < bestDist) { bestDist = d; best = { kind: 'building', ref: b, dist: d }; }
+    const dx = b.tx * TILE + TILE / 2 - m.x;
+    const dy = b.ty * TILE + TILE / 2 - m.y;
+    const dSq = dx * dx + dy * dy;
+    if (dSq < rangeSq && dSq < bestDistSq) { bestDistSq = dSq; best = { kind: 'building', ref: b, dist: dSq }; }
   }
   for (const c of conveyors) {
     if (c.isBroken) continue;
-    const d = Math.hypot(c.tx * TILE + TILE / 2 - m.x, c.ty * TILE + TILE / 2 - m.y);
-    if (d < m.attackRange && d < bestDist) { bestDist = d; best = { kind: 'conveyor', ref: c, dist: d }; }
+    const dx = c.tx * TILE + TILE / 2 - m.x;
+    const dy = c.ty * TILE + TILE / 2 - m.y;
+    const dSq = dx * dx + dy * dy;
+    if (dSq < rangeSq && dSq < bestDistSq) { bestDistSq = dSq; best = { kind: 'conveyor', ref: c, dist: dSq }; }
   }
   return best;
 }
@@ -290,9 +294,7 @@ export function handleMonsterDeath(m) {
   }
   
   if (m.targetNest && m.targetNest.isKing) {
-    if (m.targetNest.spawnedCounts[m.level] > 0) {
-      m.targetNest.spawnedCounts[m.level]--;
-    }
+    if (m.targetNest.spawnedCounts[m.level] > 0) m.targetNest.spawnedCounts[m.level]--;
   }
 }
 
@@ -314,7 +316,6 @@ export function updateMonsters(dt) {
     if (target) {
       const damage = Math.max(0, 20 + state.coreDamageBonus - target.armor);
       if (damage > 0) target.hp -= damage;
-      
       coreBeams.push({ fromX: coreX, fromY: coreY, toX: target.x, toY: target.y, life: 0.12 });
       if (target.hp <= 0) {
         handleMonsterDeath(target);
@@ -328,9 +329,9 @@ export function updateMonsters(dt) {
   for (let i = explosions.length - 1; i >= 0; i--) { explosions[i].life -= dt; if (explosions[i].life <= 0) explosions.splice(i, 1); }
 
   for (const m of monsters) {
-    const dToCore = Math.hypot(coreX - m.x, coreY - m.y);
+    const dToCoreSq = (coreX - m.x) * (coreX - m.x) + (coreY - m.y) * (coreY - m.y);
     
-    if (dToCore < m.attackRange + TILE * 1.5) {
+    if (dToCoreSq < (m.attackRange + TILE * 1.5) * (m.attackRange + TILE * 1.5)) {
       m.attackTimer += dt;
       while (m.attackTimer >= 1) {
         m.attackTimer -= 1;
@@ -344,34 +345,38 @@ export function updateMonsters(dt) {
       continue;
     }
 
-    const t = findNearbyTarget(m, coreX, coreY);
+    m.targetTimer -= dt;
+    if (m.targetTimer <= 0) {
+      m.targetTimer = 0.5;
+      m.cachedTarget = findNearbyTarget(m, coreX, coreY);
+    }
+
+    const t = m.cachedTarget;
+    
     if (t && t.kind !== 'core') {
       m.attackTimer += dt;
       while (m.attackTimer >= 1) {
         m.attackTimer -= 1;
         if (t.kind === 'building') {
           const b = t.ref;
-          if (buildings.includes(b) && !b.isBroken) { if (damageBuildingAt(b.tx, b.ty, m.damage)) break; } else break;
+          // УБРАЛИ includes(b), ПРОВЕРЯЕМ ПРОСТО HP
+          if (!b.isBroken && b.hp > 0) { if (damageBuildingAt(b.tx, b.ty, m.damage)) m.cachedTarget = null; } else m.cachedTarget = null;
         } else if (t.kind === 'conveyor') {
           const c = t.ref;
-          if (conveyors.includes(c) && !c.isBroken) { if (damageConveyorAt(c.tx, c.ty, m.damage)) break; } else break;
+          // УБРАЛИ includes(c), ПРОВЕРЯЕМ ПРОСТО isBroken
+          if (!c.isBroken) { if (damageConveyorAt(c.tx, c.ty, m.damage)) m.cachedTarget = null; } else m.cachedTarget = null;
         }
+        if (!m.cachedTarget) break;
       }
     } else {
       let targetX = coreX, targetY = coreY;
       
-      // Если улей спровоцирован (это касается и короля)
       if (m.targetNest && m.targetNest.isProvoked) {
         if (m.targetNest.isKing) {
-          // ЖУКИ ИДУТ ЗА КОРОЛЁМ
           targetX = m.targetNest.tx * TILE + TILE/2;
           targetY = m.targetNest.ty * TILE + TILE/2;
-        } else {
-          // Обычные ульи шлют на ядро
-          targetX = coreX; targetY = coreY;
         }
       } else if (m.targetNest && !m.targetNest.isProvoked) {
-        // Бродим вокруг улья
         targetX = m.targetNest.tx * TILE + TILE/2;
         targetY = m.targetNest.ty * TILE + TILE/2;
         targetX += Math.sin(performance.now() / 1000 + m.hp) * TILE * 2;
@@ -398,22 +403,27 @@ export function updateMonsters(dt) {
   }
 }
 
+// CULLING ДЛЯ МОБОВ
 export function drawMonsters() {
+  const viewLeft = camera.x - canvas.width / (2 * camera.zoom) - TILE * 2;
+  const viewRight = camera.x + canvas.width / (2 * camera.zoom) + TILE * 2;
+  const viewTop = camera.y - canvas.height / (2 * camera.zoom) - TILE * 2;
+  const viewBottom = camera.y + canvas.height / (2 * camera.zoom) + TILE * 2;
+
+  const visibleMonsters = monsters.filter(m => {
+    return m.x >= viewLeft && m.x <= viewRight && m.y >= viewTop && m.y <= viewBottom;
+  });
+
   for (const beam of coreBeams) {
     const alpha = Math.max(0, beam.life / 0.12);
     ctx.strokeStyle = `rgba(140, 220, 255, ${alpha})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(beam.fromX, beam.fromY); ctx.lineTo(beam.toX, beam.toY); ctx.stroke();
     ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(beam.fromX, beam.fromY); ctx.lineTo(beam.toX, beam.toY); ctx.stroke();
   }
 
-  for (const m of monsters) {
-    const size = m.size;
-    const x = m.x, y = m.y;
-    
-    ctx.fillStyle = 'rgba(0,0,0,0.3)'; 
-    ctx.beginPath(); ctx.ellipse(x, y + size / 2 - 2, size / 2.4, size / 6, 0, 0, Math.PI * 2); ctx.fill();
-    
-    ctx.fillStyle = m.color; 
-    ctx.beginPath(); ctx.arc(x, y, size / 2, 0, Math.PI * 2); ctx.fill();
+  for (const m of visibleMonsters) {
+    const size = m.size, x = m.x, y = m.y;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x, y + size / 2 - 2, size / 2.4, size / 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = m.color; ctx.beginPath(); ctx.arc(x, y, size / 2, 0, Math.PI * 2); ctx.fill();
 
     if (m.level === 6 || m.level === 8 || m.level === 9) {
       ctx.strokeStyle = '#aaa'; ctx.lineWidth = 2;
@@ -433,22 +443,15 @@ export function drawMonsters() {
     if (m.level === 10) {
       ctx.fillStyle = '#ffd700';
       ctx.beginPath();
-      ctx.moveTo(x - 15, y - size/2);
-      ctx.lineTo(x - 10, y - size/2 - 15);
-      ctx.lineTo(x - 5, y - size/2 - 5);
-      ctx.lineTo(x, y - size/2 - 20);
-      ctx.lineTo(x + 5, y - size/2 - 5);
-      ctx.lineTo(x + 10, y - size/2 - 15);
+      ctx.moveTo(x - 15, y - size/2); ctx.lineTo(x - 10, y - size/2 - 15); ctx.lineTo(x - 5, y - size/2 - 5);
+      ctx.lineTo(x, y - size/2 - 20); ctx.lineTo(x + 5, y - size/2 - 5); ctx.lineTo(x + 10, y - size/2 - 15);
       ctx.lineTo(x + 15, y - size/2);
       ctx.fill();
     }
 
     ctx.fillStyle = '#100'; 
     const eyeOff = size / 6, eyeY = y - size / 8;
-    ctx.beginPath(); 
-    ctx.arc(x - eyeOff, eyeY, size / 10, 0, Math.PI * 2); 
-    ctx.arc(x + eyeOff, eyeY, size / 10, 0, Math.PI * 2); 
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(x - eyeOff, eyeY, size / 10, 0, Math.PI * 2); ctx.arc(x + eyeOff, eyeY, size / 10, 0, Math.PI * 2); ctx.fill();
 
     const barW = size, barH = 4, barX = x - barW / 2, barY = y - size / 2 - 10;
     ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(barX, barY, barW, barH);
