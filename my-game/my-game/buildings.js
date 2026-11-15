@@ -13,36 +13,54 @@ import {
   LAB_IRON_COST, LAB_COPPER_COST, CUTTER_IRON_COST, CUTTER_COPPER_COST, ASSEMBLER_IRON_COST, ASSEMBLER_COPPER_COST,
   CHEMPLANT_IRON_COST, CHEMPLANT_COPPER_COST, CHEMPLANT_WIRE_COST, STORAGE_IRON_COST, STORAGE_COPPER_COST,
   TURRET_CORPS_COST, TURRET_ENGINE_COST, TURRET_CIRCUIT_COST, BUILDING_HP, DIR_DELTA,
-  LUMBERJACK_COST, SAWMILL_IRON_COST, SAWMILL_WOOD_COST, SAWMILL_WIRE_COST
+  LUMBERJACK_COST, SAWMILL_IRON_COST, SAWMILL_WOOD_COST, SAWMILL_WIRE_COST,
+  ROLLING_MILL_IRON, ROLLING_MILL_COPPER, FASTENER_FACTORY_IRON, FASTENER_FACTORY_COPPER, FASTENER_FACTORY_ROD,
+  MECH_FACTORY_IRON, MECH_FACTORY_BOLT, MECH_FACTORY_ENGINE, MECH_FACTORY_CORPS,
+  ASSEMBLY_PLANT_IRON, ASSEMBLY_PLANT_FRAME, ASSEMBLY_PLANT_ENGINE
 } from './buildings/index.js';
 
 import { 
   getBuildingAt, getConveyorAt, getSplitterAt, getUndergroundAt, 
-  checkLimit, updateFog, drawArrow, drawBrokenOverlay, drawHpCircle 
+  updateFog, drawArrow, drawBrokenOverlay, drawHpCircle 
 } from './buildings/index.js';
 
-import { Mine, Furnace, Lab, Cutter, Assembler, Chemplant, Storage, MiniCore, Lumberjack, Sawmill } from './buildings/index.js';
+import { Mine, Furnace, Lab, Cutter, Assembler, Chemplant, Storage, MiniCore, Lumberjack, Sawmill, RollingMill, FastenerFactory, MechanicalFactory, AssemblyPlant } from './buildings/index.js';
 import { Inserter, updateConveyors, drawConveyors } from './buildings/index.js';
 import { Turret, Radar } from './buildings/index.js';
+
+function isBlockedLiquid(tx, ty) {
+  const r = world[ty] && world[ty][tx];
+  return r === RES.WATER || r === RES.OIL;
+}
 
 export function tryPlaceBuilding(type, tx, ty, isUnlockedFn) {
   if (fog[ty] && fog[ty][tx] === 1) { showToast('Нельзя строить в тумане'); return false; }
   if (isUnlockedFn && !isUnlockedFn(type)) { showToast('Здание не изучено'); return false; }
   
-  if (getBuildingAt(tx, ty) || getConveyorAt(tx, ty) || getSplitterAt(tx, ty) || getUndergroundAt(tx, ty)) { 
-    showToast('Место занято'); 
-    return false; 
-  }
+  let w = 1, h = 1;
+  if (type === 'assembly_plant' || type === 'steel_furnace') { w = 2; h = 2; }
 
-  const nearCore = Math.abs(tx - CORE.x) <= 2 && Math.abs(ty - CORE.y) <= 2;
-  const onCore = Math.abs(tx - CORE.x) <= 1 && Math.abs(ty - CORE.y) <= 1;
-  if (type === 'conveyor' || type === 'underground' || type === 'splitter') { if (onCore) { showToast('На ядро нельзя'); return false; } } 
-  else if (nearCore) { showToast('Слишком близко к ядру'); return false; }
+  // Проверка площади для многоклеточных
+  for (let cy = ty; cy < ty + h; cy++) {
+    for (let cx = tx; cx < tx + w; cx++) {
+      if (cx < 0 || cx >= WORLD_W || cy < 0 || cy >= WORLD_H) { showToast('Не влезает'); return false; }
+      if (fog[cy] && fog[cy][cx] === 1) { showToast('Территория в тумане'); return false; }
+      if (getBuildingAt(cx, cy) || getConveyorAt(cx, cy) || getSplitterAt(cx, cy) || getUndergroundAt(cx, cy)) { showToast('Место занято'); return false; }
+      
+      const nearCore = Math.abs(cx - CORE.x) <= 2 && Math.abs(cy - CORE.y) <= 2;
+      const onCore = Math.abs(cx - CORE.x) <= 1 && Math.abs(cy - CORE.y) <= 1;
+      if (type === 'conveyor' || type === 'underground' || type === 'splitter') { if (onCore) { showToast('На ядро нельзя'); return false; } } 
+      else if (nearCore) { showToast('Слишком близко к ядру'); return false; }
+
+      if ((type === 'conveyor' || type === 'underground' || type === 'splitter' || type === 'inserter') && isBlockedLiquid(cx, cy)) {
+        showToast('Нельзя на воду/нефть'); return false;
+      }
+    }
+  }
 
   let newBuilding = null;
 
   if (type === 'mine') {
-    if (!checkLimit('mine')) { showToast(`Лимит шахт`); return false; }
     const res = world[ty][tx];
     if (res === RES.WOOD) { showToast('Для дерева нужна Лесорубка'); return false; }
     if (res === 0) { if (oreInitial[ty][tx] > 0) showToast('Эта жила истощена'); else showToast('Шахта — только на месторождение'); return false; }
@@ -56,56 +74,43 @@ export function tryPlaceBuilding(type, tx, ty, isUnlockedFn) {
     inventory[RES.IRON] -= LUMBERJACK_COST; newBuilding = new Lumberjack(tx, ty);
   } else if (type === 'sawmill') {
     if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
-    if (inventory[RES.PLATE_IRON] < SAWMILL_IRON_COST || inventory[RES.WOOD] < SAWMILL_WOOD_COST || inventory[RES.WIRE] < SAWMILL_WIRE_COST) { 
-      showToast('Не хватает ресурсов'); return false; 
-    }
-    inventory[RES.PLATE_IRON] -= SAWMILL_IRON_COST; 
-    inventory[RES.WOOD] -= SAWMILL_WOOD_COST; 
-    inventory[RES.WIRE] -= SAWMILL_WIRE_COST; 
+    if (inventory[RES.PLATE_IRON] < SAWMILL_IRON_COST || inventory[RES.WOOD] < SAWMILL_WOOD_COST || inventory[RES.WIRE] < SAWMILL_WIRE_COST) { showToast('Не хватает ресурсов'); return false; }
+    inventory[RES.PLATE_IRON] -= SAWMILL_IRON_COST; inventory[RES.WOOD] -= SAWMILL_WOOD_COST; inventory[RES.WIRE] -= SAWMILL_WIRE_COST; 
     newBuilding = new Sawmill(tx, ty);
   } else if (type === 'furnace') {
-    if (!checkLimit('furnace')) { showToast(`Лимит печей`); return false; }
     if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
     if (inventory[RES.IRON] < FURNACE_COST) { showToast('Не хватает железа'); return false; }
     inventory[RES.IRON] -= FURNACE_COST; newBuilding = new Furnace(tx, ty);
   } else if (type === 'lab') {
-    if (!checkLimit('lab')) { showToast(`Лимит лабораторий`); return false; }
     if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
     if (inventory[RES.PLATE_IRON] < LAB_IRON_COST || inventory[RES.PLATE_COPPER] < LAB_COPPER_COST) { showToast('Не хватает плит'); return false; }
     inventory[RES.PLATE_IRON] -= LAB_IRON_COST; inventory[RES.PLATE_COPPER] -= LAB_COPPER_COST; newBuilding = new Lab(tx, ty);
   } else if (type === 'cutter') {
-    if (!checkLimit('cutter')) { showToast(`Лимит резаков`); return false; }
     if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
     if (inventory[RES.PLATE_IRON] < CUTTER_IRON_COST || inventory[RES.PLATE_COPPER] < CUTTER_COPPER_COST) { showToast('Не хватает плит'); return false; }
     inventory[RES.PLATE_IRON] -= CUTTER_IRON_COST; inventory[RES.PLATE_COPPER] -= CUTTER_COPPER_COST; newBuilding = new Cutter(tx, ty);
   } else if (type === 'assembler') {
-    if (!checkLimit('assembler')) { showToast(`Лимит сборщиков`); return false; }
     if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
     if (inventory[RES.PLATE_IRON] < ASSEMBLER_IRON_COST || inventory[RES.PLATE_COPPER] < ASSEMBLER_COPPER_COST) { showToast('Не хватает плит'); return false; }
     inventory[RES.PLATE_IRON] -= ASSEMBLER_IRON_COST; inventory[RES.PLATE_COPPER] -= ASSEMBLER_COPPER_COST; newBuilding = new Assembler(tx, ty);
   } else if (type === 'chemplant') {
-    if (!checkLimit('chemplant')) { showToast(`Лимит химзаводов`); return false; }
     if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
     if (inventory[RES.PLATE_IRON] < CHEMPLANT_IRON_COST || inventory[RES.PLATE_COPPER] < CHEMPLANT_COPPER_COST || inventory[RES.WIRE] < CHEMPLANT_WIRE_COST) { showToast('Не хватает ресурсов'); return false; }
     inventory[RES.PLATE_IRON] -= CHEMPLANT_IRON_COST; inventory[RES.PLATE_COPPER] -= CHEMPLANT_COPPER_COST; inventory[RES.WIRE] -= CHEMPLANT_WIRE_COST; newBuilding = new Chemplant(tx, ty);
   } else if (type === 'storage') {
-    if (!checkLimit('storage')) { showToast(`Лимит складов`); return false; }
     if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
     if (inventory[RES.PLATE_IRON] < STORAGE_IRON_COST || inventory[RES.PLATE_COPPER] < STORAGE_COPPER_COST) { showToast('Не хватает плит'); return false; }
     inventory[RES.PLATE_IRON] -= STORAGE_IRON_COST; inventory[RES.PLATE_COPPER] -= STORAGE_COPPER_COST; newBuilding = new Storage(tx, ty);
   } else if (type === 'turret') {
-    if (!checkLimit('turret')) { showToast(`Лимит турелей`); return false; }
     if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
     if (inventory[RES.CORPS] < TURRET_CORPS_COST || inventory[RES.ENGINE] < TURRET_ENGINE_COST || inventory[RES.CIRCUIT] < TURRET_CIRCUIT_COST) { showToast('Не хватает деталей'); return false; }
     inventory[RES.CORPS] -= TURRET_CORPS_COST; inventory[RES.ENGINE] -= TURRET_ENGINE_COST; inventory[RES.CIRCUIT] -= TURRET_CIRCUIT_COST; newBuilding = new Turret(tx, ty);
   } else if (type === 'radar') {
-    if (!checkLimit('radar')) { showToast(`Лимит радаров`); return false; }
     if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
     if (inventory[RES.CIRCUIT] < RADAR_COST.circuit || inventory[RES.CORPS] < RADAR_COST.corps || inventory[RES.PLATE_IRON] < RADAR_COST.plate_iron) { showToast('Не хватает деталей'); return false; }
     inventory[RES.CIRCUIT] -= RADAR_COST.circuit; inventory[RES.CORPS] -= RADAR_COST.corps; inventory[RES.PLATE_IRON] -= RADAR_COST.plate_iron;
     newBuilding = new Radar(tx, ty);
   } else if (type === 'inserter') {
-    if (!checkLimit('inserter')) { showToast(`Лимит манипуляторов`); return false; }
     if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
     if (inventory[RES.IRON] < INSERTER_COST.iron || inventory[RES.GEAR] < INSERTER_COST.gear || inventory[RES.PLATE_IRON] < INSERTER_COST.plate_iron) { showToast('Не хватает деталей'); return false; }
     inventory[RES.IRON] -= INSERTER_COST.iron; inventory[RES.GEAR] -= INSERTER_COST.gear; inventory[RES.PLATE_IRON] -= INSERTER_COST.plate_iron;
@@ -114,7 +119,26 @@ export function tryPlaceBuilding(type, tx, ty, isUnlockedFn) {
     if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
     if (inventory[RES.IRON] < 100) { showToast('Не хватает железа'); return false; }
     inventory[RES.IRON] -= 100; newBuilding = new MiniCore(tx, ty);
-  } else if (type === 'conveyor') {
+  } 
+  // НОВЫЕ ЗДАНИЯ
+  else if (type === 'rolling_mill') {
+    if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
+    if (inventory[RES.PLATE_IRON] < ROLLING_MILL_IRON || inventory[RES.PLATE_COPPER] < ROLLING_MILL_COPPER) { showToast('Не хватает плит'); return false; }
+    inventory[RES.PLATE_IRON] -= ROLLING_MILL_IRON; inventory[RES.PLATE_COPPER] -= ROLLING_MILL_COPPER; newBuilding = new RollingMill(tx, ty);
+  } else if (type === 'fastener_factory') {
+    if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
+    if (inventory[RES.PLATE_IRON] < FASTENER_FACTORY_IRON || inventory[RES.PLATE_COPPER] < FASTENER_FACTORY_COPPER || inventory[RES.COPPER_ROD] < FASTENER_FACTORY_ROD) { showToast('Не хватает ресурсов'); return false; }
+    inventory[RES.PLATE_IRON] -= FASTENER_FACTORY_IRON; inventory[RES.PLATE_COPPER] -= FASTENER_FACTORY_COPPER; inventory[RES.COPPER_ROD] -= FASTENER_FACTORY_ROD; newBuilding = new FastenerFactory(tx, ty);
+  } else if (type === 'mechanical_factory') {
+    if (world[ty][tx] !== 0) { showToast('Только на пустую землю'); return false; }
+    if (inventory[RES.PLATE_IRON] < MECH_FACTORY_IRON || inventory[RES.IRON_BOLT] < MECH_FACTORY_BOLT || inventory[RES.COPPER_BOLT] < MECH_FACTORY_BOLT || inventory[RES.ENGINE] < MECH_FACTORY_ENGINE || inventory[RES.CORPS] < MECH_FACTORY_CORPS) { showToast('Не хватает ресурсов'); return false; }
+    inventory[RES.PLATE_IRON] -= MECH_FACTORY_IRON; inventory[RES.IRON_BOLT] -= MECH_FACTORY_BOLT; inventory[RES.COPPER_BOLT] -= MECH_FACTORY_BOLT; inventory[RES.ENGINE] -= MECH_FACTORY_ENGINE; inventory[RES.CORPS] -= MECH_FACTORY_CORPS; newBuilding = new MechanicalFactory(tx, ty);
+  } else if (type === 'assembly_plant') {
+    if (inventory[RES.PLATE_IRON] < ASSEMBLY_PLANT_IRON || inventory[RES.HEAVY_FRAME] < ASSEMBLY_PLANT_FRAME || inventory[RES.ENGINE] < ASSEMBLY_PLANT_ENGINE) { showToast('Не хватает ресурсов'); return false; }
+    inventory[RES.PLATE_IRON] -= ASSEMBLY_PLANT_IRON; inventory[RES.HEAVY_FRAME] -= ASSEMBLY_PLANT_FRAME; inventory[RES.ENGINE] -= ASSEMBLY_PLANT_ENGINE; newBuilding = new AssemblyPlant(tx, ty);
+  }
+  // Логистика
+  else if (type === 'conveyor') {
     if (inventory[RES.IRON] < CONVEYOR_COST) { showToast('Не хватает железа'); return false; }
     inventory[RES.IRON] -= CONVEYOR_COST;
     conveyors.push({ type: 'conveyor', tx, ty, dir: state.newConveyorDir, items: [], paidCost: CONVEYOR_COST, hp: BUILDING_HP.conveyor, maxHp: BUILDING_HP.conveyor, isBroken: false });
@@ -151,6 +175,7 @@ export function tryPlaceBuilding(type, tx, ty, isUnlockedFn) {
     
     if (tx2 < 0 || tx2 >= WORLD_W || ty2 < 0 || ty2 >= WORLD_H) { showToast('Не влезает'); return false; }
     if (fog[ty2] && fog[ty2][tx2] === 1) { showToast('Вторая клетка в тумане'); return false; }
+    if (isBlockedLiquid(tx2, ty2)) { showToast('Вторая клетка — вода/нефть'); return false; }
 
     if (getBuildingAt(tx2, ty2) || getConveyorAt(tx2, ty2) || getSplitterAt(tx2, ty2) || getUndergroundAt(tx2, ty2)) { showToast('Второй тайл занят'); return false; }
     
@@ -166,13 +191,21 @@ export function tryPlaceBuilding(type, tx, ty, isUnlockedFn) {
 }
 
 export function canPlaceGhost(type, tx, ty) {
-  if (fog[ty] && fog[ty][tx] === 1) return false;
-  if (tx < 0 || tx >= WORLD_W || ty < 0 || ty >= WORLD_H) return false;
-  if (type === 'conveyor' || type === 'underground' || type === 'splitter') { if (Math.abs(tx - CORE.x) <= 1 && Math.abs(ty - CORE.y) <= 1) return false; }
-  else if (Math.abs(tx - CORE.x) <= 2 && Math.abs(ty - CORE.y) <= 2) return false;
-  
-  if (getBuildingAt(tx, ty) || getConveyorAt(tx, ty) || getSplitterAt(tx, ty) || getUndergroundAt(tx, ty)) return false;
-  
+  let w = 1, h = 1;
+  if (type === 'assembly_plant' || type === 'steel_furnace') { w = 2; h = 2; }
+
+  for (let cy = ty; cy < ty + h; cy++) {
+    for (let cx = tx; cx < tx + w; cx++) {
+      if (cx < 0 || cx >= WORLD_W || cy < 0 || cy >= WORLD_H) return false;
+      if (fog[cy] && fog[cy][cx] === 1) return false;
+      if (getBuildingAt(cx, cy) || getConveyorAt(cx, cy) || getSplitterAt(cx, cy) || getUndergroundAt(cx, cy)) return false;
+      if ((type === 'conveyor' || type === 'underground' || type === 'splitter' || type === 'inserter') && isBlockedLiquid(cx, cy)) return false;
+      
+      if (type === 'conveyor' || type === 'underground' || type === 'splitter') { if (Math.abs(cx - CORE.x) <= 1 && Math.abs(cy - CORE.y) <= 1) return false; }
+      else if (Math.abs(cx - CORE.x) <= 2 && Math.abs(cy - CORE.y) <= 2) return false;
+    }
+  }
+
   if (type === 'splitter') {
     const dir = state.newConveyorDir;
     const isH = dir === 0 || dir === 2;
@@ -180,6 +213,7 @@ export function canPlaceGhost(type, tx, ty) {
     const ty2 = isH ? ty : ty + 1;
     if (tx2 < 0 || tx2 >= WORLD_W || ty2 < 0 || ty2 >= WORLD_H) return false;
     if (fog[ty2] && fog[ty2][tx2] === 1) return false;
+    if (isBlockedLiquid(tx2, ty2)) return false;
     if (getBuildingAt(tx2, ty2) || getConveyorAt(tx2, ty2) || getSplitterAt(tx2, ty2) || getUndergroundAt(tx2, ty2)) return false;
   }
   
@@ -188,9 +222,8 @@ export function canPlaceGhost(type, tx, ty) {
     if (world[ty][tx] === 0 || oreAmount[ty][tx] <= 0) return false; 
   }
   else if (type === 'lumberjack') { if (world[ty][tx] !== RES.WOOD) return false; }
-  else if (type !== 'conveyor' && type !== 'underground' && type !== 'splitter') { if (world[ty][tx] !== 0) return false; }
+  else if (type !== 'conveyor' && type !== 'underground' && type !== 'splitter' && type !== 'inserter') { if (world[ty][tx] !== 0) return false; }
   
-  if (type !== 'conveyor' && type !== 'underground' && type !== 'splitter' && !checkLimit(type)) return false;
   return true;
 }
 
@@ -211,11 +244,8 @@ export function demolishBuilding(b) {
   else if (b.type === 'mine') { inventory[RES.IRON] += half(b.paidCost); inventory[b.resourceType] += b.outputBuffer; }
   else if (b.type === 'lumberjack') { inventory[RES.IRON] += half(b.paidCost); inventory[RES.WOOD] += b.outputBuffer; }
   else if (b.type === 'sawmill') { 
-    inventory[RES.PLATE_IRON] += half(b.paidCost.ironPlate); 
-    inventory[RES.WOOD] += half(b.paidCost.wood); 
-    inventory[RES.WIRE] += half(b.paidCost.wire); 
-    for (const r in b.inputBuffer) inventory[r] += b.inputBuffer[r]; 
-    if (b.outputBufferType) inventory[b.outputBufferType] += b.outputBuffer; 
+    inventory[RES.PLATE_IRON] += half(b.paidCost.ironPlate); inventory[RES.WOOD] += half(b.paidCost.wood); inventory[RES.WIRE] += half(b.paidCost.wire); 
+    for (const r in b.inputBuffer) inventory[r] += b.inputBuffer[r]; if (b.outputBufferType) inventory[b.outputBufferType] += b.outputBuffer; 
   }
   else if (b.type === 'furnace') { inventory[RES.IRON] += half(b.paidCost); if (b.inputOreType) inventory[b.inputOreType] += b.inputOre; inventory[RES.COAL] += b.inputCoal; if (b.outputBufferType) inventory[b.outputBufferType] += b.outputBuffer; }
   else if (b.type === 'lab') { inventory[RES.PLATE_IRON] += half(b.paidCost.ironPlate); inventory[RES.PLATE_COPPER] += half(b.paidCost.copperPlate); }
@@ -226,6 +256,11 @@ export function demolishBuilding(b) {
   else if (b.type === 'turret') { inventory[RES.CORPS] += half(b.paidCost.corps); inventory[RES.ENGINE] += half(b.paidCost.engine); inventory[RES.CIRCUIT] += half(b.paidCost.circuit); }
   else if (b.type === 'radar') { inventory[RES.CIRCUIT] += half(b.paidCost.circuit); inventory[RES.CORPS] += half(b.paidCost.corps); inventory[RES.PLATE_IRON] += half(b.paidCost.plate_iron); }
   else if (b.type === 'inserter') { inventory[RES.IRON] += half(b.paidCost.iron); inventory[RES.GEAR] += half(b.paidCost.gear); inventory[RES.PLATE_IRON] += half(b.paidCost.plate_iron); }
+  // Новые
+  else if (b.type === 'rolling_mill') { inventory[RES.PLATE_IRON] += half(b.paidCost.ironPlate); inventory[RES.PLATE_COPPER] += half(b.paidCost.copperPlate); for (const r in b.inputBuffer) inventory[r] += b.inputBuffer[r]; if (b.outputBufferType) inventory[b.outputBufferType] += b.outputBuffer; }
+  else if (b.type === 'fastener_factory') { inventory[RES.PLATE_IRON] += half(b.paidCost.ironPlate); inventory[RES.PLATE_COPPER] += half(b.paidCost.copperPlate); inventory[RES.COPPER_ROD] += half(b.paidCost.copperRod); for (const r in b.inputBuffer) inventory[r] += b.inputBuffer[r]; if (b.outputBufferType) inventory[b.outputBufferType] += b.outputBuffer; }
+  else if (b.type === 'mechanical_factory') { inventory[RES.PLATE_IRON] += half(b.paidCost.ironPlate); inventory[RES.IRON_BOLT] += half(b.paidCost.ironBolt); inventory[RES.COPPER_BOLT] += half(b.paidCost.copperBolt); inventory[RES.ENGINE] += half(b.paidCost.engine); inventory[RES.CORPS] += half(b.paidCost.corps); for (const r in b.inputBuffer) inventory[r] += b.inputBuffer[r]; if (b.outputBufferType) inventory[b.outputBufferType] += b.outputBuffer; }
+  else if (b.type === 'assembly_plant') { inventory[RES.PLATE_IRON] += half(b.paidCost.ironPlate); inventory[RES.HEAVY_FRAME] += half(b.paidCost.heavyFrame); inventory[RES.ENGINE] += half(b.paidCost.engine); for (const r in b.inputBuffer) inventory[r] += b.inputBuffer[r]; if (b.outputBufferType) inventory[b.outputBufferType] += b.outputBuffer; }
   
   const idx = buildings.indexOf(b); if (idx !== -1) buildings.splice(idx, 1);
   updateFog();
@@ -233,31 +268,31 @@ export function demolishBuilding(b) {
 
 export function demolishConveyor(c) {
   inventory[RES.IRON] += Math.floor(c.paidCost * 0.5);
-  for (const it of c.items) inventory[it.type]++;
+  for (const it of c.items) inventory[it.type] += it.count;
   const idx = conveyors.indexOf(c); if (idx !== -1) conveyors.splice(idx, 1);
 }
 
 export function demolishSplitter(s) {
   inventory[RES.IRON] += Math.floor(SPLITTER_COST.iron * 0.5);
   inventory[RES.PLATE_IRON] += Math.floor(SPLITTER_COST.plate_iron * 0.5);
-  for (const it of s.items) inventory[it.type]++;
+  for (const it of s.items) inventory[it.type] += it.count;
   const idx = splitters.indexOf(s); if (idx !== -1) splitters.splice(idx, 1);
 }
 
 export function demolishUnderground(u) {
   inventory[RES.IRON] += Math.floor(UNDERGROUND_COST.iron * 0.5);
   if (u.partner) { u.partner.partner = null; u.partner = null; }
-  for (const it of u.items) inventory[it.type]++;
+  for (const it of u.items) inventory[it.type] += it.count;
   const idx = undergrounds.indexOf(u); if (idx !== -1) undergrounds.splice(idx, 1);
 }
 
 export function repairBuilding(b) {
   if (!b.isBroken) return false;
   const half = (v) => Math.floor(v * 0.5);
-  if (b.type === 'mine' || b.type === 'furnace' || b.type === 'lumberjack') {
-    const cost = half(b.paidCost);
-    if (inventory[RES.IRON] < cost) return false;
-    inventory[RES.IRON] -= cost;
+  if (b.type === 'mine' || b.type === 'furnace' || b.type === 'lumberjack' || b.type === 'rolling_mill' || b.type === 'fastener_factory' || b.type === 'mechanical_factory' || b.type === 'assembly_plant') {
+    const cost = half(b.paidCost.ironPlate || b.paidCost);
+    if (inventory[RES.IRON] < cost && inventory[RES.PLATE_IRON] < cost) return false;
+    if (inventory[RES.IRON] >= cost) inventory[RES.IRON] -= cost; else inventory[RES.PLATE_IRON] -= cost;
   } else if (b.type === 'lab' || b.type === 'cutter' || b.type === 'assembler' || b.type === 'storage') {
     const ci = half(b.paidCost.ironPlate), cc = half(b.paidCost.copperPlate);
     if (inventory[RES.PLATE_IRON] < ci || inventory[RES.PLATE_COPPER] < cc) return false;
@@ -306,19 +341,17 @@ export function updateBuildings(dt) {
   }
 }
 
-// ==================== CULLING ДЛЯ ЗДАНИЙ ====================
 export function drawBuildings() {
-  // Вычисляем границы видимой области (в пикселях мира)
   const viewLeft = camera.x - canvas.width / (2 * camera.zoom) - TILE * 2;
   const viewRight = camera.x + canvas.width / (2 * camera.zoom) + TILE * 2;
   const viewTop = camera.y - canvas.height / (2 * camera.zoom) - TILE * 3;
   const viewBottom = camera.y + canvas.height / (2 * camera.zoom) + TILE * 2;
 
-  // Фильтруем только видимые здания
   const visible = [];
   for (const b of buildings) {
     const bx = b.tx * TILE, by = b.ty * TILE;
-    if (bx + TILE >= viewLeft && bx <= viewRight && by + TILE >= viewTop && by <= viewBottom) {
+    const bw = (b.w || 1) * TILE, bh = (b.h || 1) * TILE;
+    if (bx + bw >= viewLeft && bx <= viewRight && by + bh >= viewTop && by <= viewBottom) {
       visible.push(b);
     }
   }
@@ -329,18 +362,20 @@ export function drawBuildings() {
     const emptyMine = b.type === 'mine' && oreAmount[b.ty][b.tx] <= 0;
     ctx.save();
     if (b.isBroken) ctx.globalAlpha = 0.35; else if (emptyMine) ctx.globalAlpha = 0.5;
-    drawShadow(b.tx * TILE, b.ty * TILE, TILE, b.type);
+    const drawSize = TILE * Math.max(b.w || 1, b.h || 1);
+    drawShadow(b.tx * TILE, b.ty * TILE, drawSize, b.type);
     ctx.restore();
   }
   for (const b of visible) {
     if (b.isBroken) {
       ctx.save(); ctx.globalAlpha = 0.35;
-      if (!drawBuildingSprite(b.type, b.tx * TILE, b.ty * TILE, TILE)) { ctx.fillStyle = '#444'; ctx.fillRect(b.tx * TILE + 2, b.ty * TILE + 2, TILE - 4, TILE - 4); }
+      const drawSize = TILE * Math.max(b.w || 1, b.h || 1);
+      if (!drawBuildingSprite(b.type, b.tx * TILE, b.ty * TILE, drawSize)) { ctx.fillStyle = '#444'; ctx.fillRect(b.tx * TILE + 2, b.ty * TILE + 2, drawSize - 4, drawSize - 4); }
       ctx.restore();
-      drawBrokenOverlay(b.tx * TILE, b.ty * TILE, TILE);
+      drawBrokenOverlay(b.tx * TILE, b.ty * TILE, TILE * Math.max(b.w || 1, b.h || 1));
     } else {
       if (typeof b.drawSpecific === 'function') b.drawSpecific();
-      if (b.hp !== undefined) drawHpCircle(b.tx * TILE, b.ty * TILE, b.hp, b.maxHp);
+      if (b.hp !== undefined) drawHpCircle(b.tx * TILE, b.ty * TILE, b.hp, b.maxHp, b.w || 1, b.h || 1);
     }
   }
   for (const b of visible) {
@@ -353,9 +388,8 @@ export function drawBuildings() {
     ctx.strokeStyle = `rgba(255, 255, 200, ${alpha})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(beam.fromX, beam.fromY); ctx.lineTo(beam.toX, beam.toY); ctx.stroke();
   }
 }
-// ===========================================================
 
-export { Mine, Furnace, Lab, Cutter, Assembler, Chemplant, Storage, Turret, Radar, Inserter, MiniCore, Lumberjack, Sawmill };
+export { Mine, Furnace, Lab, Cutter, Assembler, Chemplant, Storage, Turret, Radar, Inserter, MiniCore, Lumberjack, Sawmill, RollingMill, FastenerFactory, MechanicalFactory, AssemblyPlant };
 
 if (typeof window !== 'undefined') window.__monsters = window.__monsters || [];
 console.debug('[buildings] loaded');

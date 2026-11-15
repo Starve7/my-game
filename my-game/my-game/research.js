@@ -14,131 +14,69 @@ export const TECHNOLOGIES = [
   { id: 'unlock_cutter', era: 1, cat: 'production', name: 'Резак', desc: '1 медная плита → 2 провода', studyPercent: 10, requires: [], effect: () => {} },
   { id: 'unlock_logistics', era: 1, cat: 'production', name: 'Логистика', desc: 'Базовые манипуляторы и распределители', studyPercent: 15, requires: [], effect: () => {} },
   
-  // РАЗБЛОКИРОВАНО
   { id: 'unlock_sawmill', era: 1, cat: 'production', name: 'Лесопильный комбинат', desc: 'Доски, брусья из брёвен', studyPercent: 20, requires: [], effect: () => {} },
 
   // --- Ветка Логистики ---
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_fast_inserter', isStub: true, era: 1, cat: 'production', name: 'Быстрый манипулятор', desc: 'Скорость переноса х2', studyPercent: 25, requires: ['unlock_logistics'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_filtering_inserter', isStub: true, era: 1, cat: 'production', name: 'Фильтрующий манипулятор', desc: 'Берет только выбранный предмет', studyPercent: 40, requires: ['unlock_logistics'], effect: () => {} },
 
   // --- Ветка Резака и Сборки ---
-  { id: 'unlock_assembler', era: 1, cat: 'production', name: 'Сборщик', desc: 'Шестерни, корпуса, схемы', studyPercent: 30, requires: ['unlock_cutter'], effect: () => { state.LIMITS.assembler = 3; } },
+  { id: 'unlock_assembler', era: 1, cat: 'production', name: 'Сборщик', desc: 'Шестерни, корпуса, схемы', studyPercent: 30, requires: ['unlock_cutter'], effect: () => {} },
   { id: 'unlock_storage', era: 1, cat: 'production', name: 'Склад', desc: 'Хранилище на 500 предметов', studyPercent: 40, requires: ['unlock_cutter'], effect: () => {} },
 
-  // От Сборщика идут 3 ветки:
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_rolling_mill', isStub: true, era: 1, cat: 'production', name: 'Прокатный стан', desc: 'Прутки, балки', studyPercent: 40, requires: ['unlock_assembler'], effect: () => {} },
+  // От Сборщика идут ветки:
+  { id: 'unlock_rolling_mill', era: 1, cat: 'production', name: 'Прокатный стан', desc: 'Медные прутки, балки', studyPercent: 40, requires: ['unlock_assembler'], effect: () => {} },
   { id: 'unlock_chemplant', era: 1, cat: 'production', name: 'Химзавод', desc: 'Производство пороха', studyPercent: 55, requires: ['unlock_assembler'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_wire_factory', isStub: true, era: 1, cat: 'production', name: 'Проволочный завод', desc: 'Проволока, тросы, сетка', studyPercent: 45, requires: ['unlock_assembler'], effect: () => {} },
 
-  // Дальнейшая цепочка от Прокатного стана
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_fastener_factory', isStub: true, era: 1, cat: 'production', name: 'Метизный завод', desc: 'Болты, гайки, заклёпки', studyPercent: 45, requires: ['unlock_rolling_mill'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_mechanical_factory', isStub: true, era: 1, cat: 'production', name: 'Механический завод', desc: 'Валы, подшипники, редукторы', studyPercent: 60, requires: ['unlock_fastener_factory'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_assembly_plant', isStub: true, era: 1, cat: 'production', name: 'Сборочный завод', desc: 'Рамы, корпуса, двигатели', studyPercent: 75, requires: ['unlock_mechanical_factory'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
+  // --- Ветка Прокатного стана ---
+  { id: 'unlock_fastener_factory', era: 1, cat: 'production', name: 'Метизный завод', desc: 'Болты, гайки, заклёпки', studyPercent: 45, requires: ['unlock_rolling_mill'], effect: () => {} },
+  
+  { id: 'unlock_iron_rods', era: 1, cat: 'production', name: 'Железные прутки', desc: 'Железные прутки и балки', studyPercent: 50, requires: ['unlock_rolling_mill'], effect: () => {} },
+  { id: 'unlock_steel_rods', era: 1, cat: 'production', name: 'Стальные прутки', desc: 'Стальные прутки и балки', studyPercent: 70, requires: ['unlock_iron_rods'], effect: () => {} },
+
+  // --- Ветка Метизного завода ---
+  { id: 'unlock_mechanical_factory', era: 1, cat: 'production', name: 'Механический завод', desc: 'Валы, подшипники, редукторы', studyPercent: 60, requires: ['unlock_fastener_factory'], effect: () => {} },
+  { id: 'unlock_iron_fasteners', era: 1, cat: 'production', name: 'Железные болты', desc: 'Железный крепёж', studyPercent: 55, requires: ['unlock_fastener_factory', 'unlock_iron_rods'], effect: () => {} },
+  { id: 'unlock_steel_fasteners', era: 1, cat: 'production', name: 'Стальные болты', desc: 'Стальной крепёж', studyPercent: 75, requires: ['unlock_iron_fasteners', 'unlock_steel_rods'], effect: () => {} },
+
+  // --- Ветка Механического завода ---
+  { id: 'unlock_assembly_plant', era: 1, cat: 'production', name: 'Сборочный завод', desc: 'Рамы, корпуса, двигатели', studyPercent: 75, requires: ['unlock_mechanical_factory'], effect: () => {} },
   { id: 'unlock_advanced_coal_mine', isStub: true, era: 1, cat: 'production', name: 'Продвинутый угольный бур', desc: 'Добывает в 2 раза быстрее', studyPercent: 70, requires: ['unlock_mechanical_factory'], effect: () => {} },
-
-  // --- Ветка Стройки (от Лесопилки) ---
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_textile_factory', isStub: true, era: 1, cat: 'production', name: 'Текстильная фабрика', desc: 'Ткань, канаты, ремни', studyPercent: 30, requires: ['unlock_sawmill'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_crusher', isStub: true, era: 1, cat: 'production', name: 'Дробильный завод', desc: 'Щебень, песок, гравий', studyPercent: 25, requires: ['unlock_sawmill', 'unlock_fastener_factory'], effect: () => {} },
-
-  // От Дробильного завода:
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_glass_factory', isStub: true, era: 1, cat: 'production', name: 'Стеклозавод', desc: 'Стекло', studyPercent: 35, requires: ['unlock_crusher'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_brick_factory', isStub: true, era: 1, cat: 'production', name: 'Кирпичный завод', desc: 'Кирпич, плитка', studyPercent: 35, requires: ['unlock_crusher'], effect: () => {} },
-
-  // От Кирпичного завода:
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_brick_furnace', isStub: true, era: 1, cat: 'production', name: 'Кирпичная печь', desc: 'Плавит быстрее обычной', studyPercent: 50, requires: ['unlock_brick_factory'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_concrete_factory', isStub: true, era: 1, cat: 'production', name: 'Бетонный завод', desc: 'Блоки, плиты, панели', studyPercent: 50, requires: ['unlock_brick_factory'], effect: () => {} },
-
-  // От Кирпичной печи:
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_steel_furnace', isStub: true, era: 1, cat: 'production', name: 'Сталелитейная печь', desc: 'Плавит сталь', studyPercent: 80, requires: ['unlock_brick_furnace'], effect: () => {} },
-
-  // От Бетонного завода:
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_pipe_factory', isStub: true, era: 1, cat: 'production', name: 'Трубный завод', desc: 'Трубы, профили. Открывает Жидкости.', studyPercent: 85, requires: ['unlock_concrete_factory', 'unlock_wire_factory'], effect: () => {} },
+  
+  { id: 'unlock_iron_mechanics', era: 1, cat: 'production', name: 'Железные механизмы', desc: 'Жел. валы, подшипники, редукторы', studyPercent: 65, requires: ['unlock_mechanical_factory', 'unlock_iron_fasteners'], effect: () => {} },
+  { id: 'unlock_steel_mechanics', era: 1, cat: 'production', name: 'Стальные механизмы', desc: 'Ст. валы, подшипники, редукторы', studyPercent: 85, requires: ['unlock_iron_mechanics', 'unlock_steel_fasteners'], effect: () => {} },
 
   // ================= ВОЕННАЯ ПРОМЫШЛЕННОСТЬ =================
-  // --- Ветка Стен ---
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_wooden_walls', isStub: true, era: 1, cat: 'military', name: 'Деревянные стены', desc: 'Простая защита', studyPercent: 15, requires: ['unlock_sawmill'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_stone_walls', isStub: true, era: 1, cat: 'military', name: 'Каменные стены', desc: 'Надежная защита', studyPercent: 25, requires: ['unlock_wooden_walls', 'unlock_brick_factory'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_concrete_walls', isStub: true, era: 1, cat: 'military', name: 'Бетонные стены', desc: 'Максимальная прочность', studyPercent: 40, requires: ['unlock_stone_walls', 'unlock_concrete_factory'], effect: () => {} },
 
-  // --- Ветка Вооружения ---
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_powder_tech', isStub: true, era: 1, cat: 'military', name: 'Порох', desc: 'Основа для боеприпасов', studyPercent: 35, requires: ['unlock_chemplant'], effect: () => {} },
-  
-  // От Пороха идут Патроны и Снаряды
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_basic_ammo', isStub: true, era: 1, cat: 'military', name: 'Патроны (базовые)', desc: 'Боеприпасы для турелей', studyPercent: 30, requires: ['unlock_powder_tech', 'unlock_assembler'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_artillery_shells', isStub: true, era: 1, cat: 'military', name: 'Артиллерийские снаряды', desc: 'Для тяжелых орудий', studyPercent: 60, requires: ['unlock_powder_tech', 'unlock_assembly_plant'], effect: () => {} },
+  { id: 'unlock_powder_tech', era: 1, cat: 'military', name: 'Порох', desc: 'Основа для боеприпасов', studyPercent: 35, requires: ['unlock_chemplant'], effect: () => {} },
+  { id: 'unlock_basic_ammo', era: 1, cat: 'military', name: 'Патроны (базовые)', desc: 'Боеприпасы для турелей', studyPercent: 30, requires: ['unlock_powder_tech', 'unlock_assembler'], effect: () => {} },
+  { id: 'unlock_mg_turret', era: 1, cat: 'military', name: 'Пулемётная турель', desc: 'Стреляет простыми патронами', studyPercent: 45, requires: ['unlock_basic_ammo', 'unlock_assembler'], effect: () => {} },
 
-  // Ветка от Патронов:
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
-  { id: 'unlock_mg_turret', isStub: true, era: 1, cat: 'military', name: 'Пулемётная турель', desc: 'Стреляет простыми патронами', studyPercent: 45, requires: ['unlock_basic_ammo', 'unlock_assembler'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
+  { id: 'unlock_artillery_shells', isStub: true, era: 1, cat: 'military', name: 'Артиллерийские снаряды', desc: 'Для тяжелых орудий', studyPercent: 60, requires: ['unlock_powder_tech', 'unlock_assembly_plant'], effect: () => {} },
   { id: 'unlock_incendiary_mix', isStub: true, era: 1, cat: 'military', name: 'Огнесмесь', desc: 'Топливо для огнемётов', studyPercent: 50, requires: ['unlock_basic_ammo'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_flamethrower_turret', isStub: true, era: 1, cat: 'military', name: 'Слабая огнеметная турель', desc: 'Сжигает врагов вблизи', studyPercent: 70, requires: ['unlock_incendiary_mix', 'unlock_oil_derrick', 'unlock_pipe_factory'], effect: () => {} },
 
-  // Ветка от Снарядов:
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_artillery', isStub: true, era: 1, cat: 'military', name: 'Артиллерийская установка', desc: 'Дальний обстрел', studyPercent: 80, requires: ['unlock_artillery_shells'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_srbm', isStub: true, era: 1, cat: 'military', name: 'Баллистическая ракета малой дистанции', desc: 'Мощный взрыв по площади', studyPercent: 100, requires: ['unlock_artillery'], effect: () => {} },
 
   // ================= ЭНЕРГИЯ =================
-  // --- Ветка Генерации ---
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_steam_generator', isStub: true, era: 1, cat: 'energy', name: 'Паровой генератор', desc: 'Требует воду и уголь', studyPercent: 50, requires: ['unlock_mechanical_factory', 'unlock_pipe_factory'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_diesel_generator', isStub: true, era: 1, cat: 'energy', name: 'Дизель-генератор', desc: 'Сжигает жидкое топливо (мазут/солярку)', studyPercent: 80, requires: ['unlock_oil_derrick', 'unlock_assembly_plant'], effect: () => {} },
-
-  // --- Ветка Передачи ---
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_wooden_power_lines', isStub: true, era: 1, cat: 'energy', name: 'Деревянный ЛЭП', desc: 'Дальняя передача энергии', studyPercent: 25, requires: ['unlock_sawmill'], effect: () => {} },
-
-  // --- Ветка Хранения ---
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_weak_battery', isStub: true, era: 1, cat: 'energy', name: 'Слабый аккумулятор', desc: 'Запас энергии (малый)', studyPercent: 35, requires: ['unlock_assembler'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_improved_battery', isStub: true, era: 1, cat: 'energy', name: 'Улучшенный аккумулятор', desc: 'Запас энергии (большой)', studyPercent: 90, requires: ['unlock_weak_battery', 'unlock_assembly_plant'], effect: () => {} },
 
   // ================= ЖИДКОСТИ =================
-  // --- Ветка Генерации (Добыча и переработка) ---
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_water_pump', isStub: true, era: 1, cat: 'liquid', name: 'Водяной насос', desc: 'Качает воду для паровых двигателей', studyPercent: 25, requires: ['unlock_pipe_factory'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_rough_water_treatment', isStub: true, era: 1, cat: 'liquid', name: 'Очистка воды (грубая)', desc: 'Фильтрует воду от грязи для котлов', studyPercent: 35, requires: ['unlock_water_pump', 'unlock_wire_factory'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_oil_derrick', isStub: true, era: 1, cat: 'liquid', name: 'Нефтяная вышка', desc: 'Качает сырую нефть из под земли', studyPercent: 40, requires: ['unlock_water_pump', 'unlock_assembly_plant'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_basic_oil_refining', isStub: true, era: 1, cat: 'liquid', name: 'Нефтеперерабатывающий завод', desc: 'Делит нефть на мазут и солярку', studyPercent: 60, requires: ['unlock_oil_derrick'], effect: () => {} },
-
-  // --- Ветка Транспортировки ---
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_steel_pipes', isStub: true, era: 1, cat: 'liquid', name: 'Стальные трубы', desc: 'Прочные трубы для жидкостей', studyPercent: 50, requires: ['unlock_pipe_factory'], effect: () => {} },
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_mech_pump', isStub: true, era: 1, cat: 'liquid', name: 'Механический насос', desc: 'Толкает жидкость (увеличивает дальность)', studyPercent: 45, requires: ['unlock_steel_pipes', 'unlock_water_pump'], effect: () => {} },
-
-  // --- Ветка Хранения ---
-  // TODO: УДАЛИТЬ_ЗАГЛУШКУ
   { id: 'unlock_steel_tank', isStub: true, era: 1, cat: 'liquid', name: 'Стальной резервуар', desc: 'Бочка гигант для жидкостей', studyPercent: 55, requires: ['unlock_steel_furnace'], effect: () => {} },
 ];
 
@@ -188,7 +126,7 @@ export function updateStudy(dt) {
 }
 
 export function isBuildingUnlocked(type) {
-  if (type === 'mine' || type === 'furnace' || type === 'lab' || type === 'conveyor' || type === 'lumberjack') return true;
+  if (type === 'mine' || type === 'furnace' || type === 'lab' || type === 'conveyor' || type === 'lumberjack' || type === 'inserter') return true;
   if (type === 'splitter' || type === 'underground') return isTechOwned('unlock_logistics');
   if (type === 'cutter') return isTechOwned('unlock_cutter');
   if (type === 'assembler') return isTechOwned('unlock_assembler');
@@ -196,6 +134,12 @@ export function isBuildingUnlocked(type) {
   if (type === 'storage') return isTechOwned('unlock_storage');
   if (type === 'turret') return isTechOwned('unlock_mg_turret');
   if (type === 'sawmill') return isTechOwned('unlock_sawmill');
+  
+  if (type === 'rolling_mill') return isTechOwned('unlock_rolling_mill');
+  if (type === 'fastener_factory') return isTechOwned('unlock_fastener_factory');
+  if (type === 'mechanical_factory') return isTechOwned('unlock_mechanical_factory');
+  if (type === 'assembly_plant') return isTechOwned('unlock_assembly_plant');
+  
   return true;
 }
 

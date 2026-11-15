@@ -6,7 +6,11 @@ import { spriteUrl, RES_SCALE } from '../sprites.js';
 export const POLLUTION_THRESHOLDS = [100, 300, 600, 1000];
 export let lastThresholdShown = 0;
 
+export function resetPollutionThresholds() { lastThresholdShown = 0; }
+
 export function checkPollutionThresholds(pollution) {
+  if (pollution < lastThresholdShown) lastThresholdShown = 0;
+  
   for (const t of POLLUTION_THRESHOLDS) {
     if (pollution >= t && lastThresholdShown < t) { 
       showToast(`☣ Загрязнение ${t}%`); 
@@ -44,5 +48,6 @@ export const BUILDING_ICONS = {
   mine: '⛏', furnace: '🔥', lab: '🧪', cutter: '✂️', assembler: '⚙️', chemplant: '🧪', 
   storage: '📦', turret: '🎯', conveyor: '↔️', splitter: '↔️', underground: '⬇️', 
   radar: '📡', inserter: '🦾', minicore: '💠',
-  lumberjack: '🪓', sawmill: '🪚' // НОВЫЕ ИКОНКИ
+  lumberjack: '🪓', sawmill: '🪚',
+  rolling_mill: '🪵', fastener_factory: '🔩', mechanical_factory: '⚙️', assembly_plant: '🏭'
 };

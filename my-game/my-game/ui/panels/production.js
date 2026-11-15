@@ -89,15 +89,22 @@ export function recipeInputsHtml(recipe, b) {
 
 export function openRecipePicker(b) {
   state.panel = 'recipe-pick'; state.activeBuilding = b;
-  openModal(b.type === 'assembler' ? '⚙️ Сборщик — рецепт' : b.type === 'sawmill' ? '🪚 Комбинат — рецепт' : '🧪 Химзавод — рецепт');
+  let title = '⚙️ Сборщик — рецепт';
+  if (b.type === 'sawmill') title = '🪚 Комбинат — рецепт';
+  else if (b.type === 'chemplant') title = '🧪 Химзавод — рецепт';
+  else if (b.type === 'rolling_mill') title = '🪵 Прокатный стан — рецепт';
+  else if (b.type === 'fastener_factory') title = '🔩 Метизный завод — рецепт';
+  else if (b.type === 'mechanical_factory') title = '⚙️ Мех. завод — рецепт';
+  else if (b.type === 'assembly_plant') title = '🏭 Сборочный завод — рецепт';
+  openModal(title);
   renderRecipePicker(b);
 }
 
 export function renderRecipePicker(b) {
   let recipes = getRecipesForBuilding(b);
-  if (b.type === 'assembler' && !isTechOwned('unlock_basic_ammo')) {
-    recipes = recipes.filter(r => r.id !== 'ammo');
-  }
+  
+  // Фильтрация по изученным технологиям
+  recipes = recipes.filter(r => !r.requires || isTechOwned(r.requires));
 
   let html = `<div style="font-size:12px;color:#888;margin-bottom:10px;">Выбери, что производить:</div>`;
   for (const r of recipes) {
@@ -120,5 +127,4 @@ export function renderCrafterPanel(b) {
   document.getElementById('remove-btn').addEventListener('click', () => { playClick(); demolishBuilding(b); closePanel(); });
 }
 
-// Комбинат использует ту же панель, что и крафтер, просто вызываем для него renderCrafterPanel
 export const renderSawmillPanel = renderCrafterPanel;

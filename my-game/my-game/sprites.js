@@ -2,14 +2,25 @@
 
 import { RES, RES_COLOR, ctx } from './game.js';
 
+let pendingRedraw = false;
+
+function triggerRedraw() {
+  if (typeof window !== 'undefined' && window.__forceRedraw) {
+    window.__forceRedraw();
+  } else {
+    pendingRedraw = true;
+  }
+}
+
+export function checkPendingRedraw() {
+  if (pendingRedraw && typeof window !== 'undefined' && window.__forceRedraw) {
+    pendingRedraw = false;
+    window.__forceRedraw();
+  }
+}
+
 export const RES_SCALE = {
-  [RES.IRON]: 0.7, 
-  [RES.COPPER]: 0.7, 
-  [RES.COAL]: 1.0, 
-  [RES.STONE]: 0.8,
-  [RES.WOOD]: 1.0,
-  [RES.URANIUM]: 1.0,
-  [RES.LEAD]: 1.0,
+  [RES.IRON]: 0.7, [RES.COPPER]: 0.7, [RES.COAL]: 1.0, [RES.STONE]: 0.8, [RES.WOOD]: 1.0, [RES.URANIUM]: 1.0, [RES.LEAD]: 1.0,
 };
 
 export const SPRITES = {
@@ -26,52 +37,47 @@ export const SPRITES = {
   [RES.POWDER]:       ['assets/powder.png'],
   [RES.AMMO]:         ['assets/ammo.png'],
   [RES.STONE]:        ['assets/stone.png'],
-  [RES.WOOD]:         ['assets/wood.png'],
+  [RES.WOOD]:         ['assets/logs.png', 'assets/wood.png'], // 0 = Бревна, 1 = Лес
   [RES.URANIUM]:      ['assets/uranium.png'],
   [RES.LEAD]:         ['assets/lead.png'],
+  // Заглушки для новых ресурсов (если нет PNG, отрисуется цветом)
+  [RES.BOARD]:        ['assets/board.png'],
+  [RES.COPPER_ROD]:   ['assets/copper_rod.png'],
+  [RES.COPPER_BEAM]:  ['assets/copper_beam.png'],
+  [RES.IRON_ROD]:     ['assets/iron_rod.png'],
+  [RES.IRON_BEAM]:    ['assets/iron_beam.png'],
+  [RES.STEEL_ROD]:    ['assets/steel_rod.png'],
+  [RES.STEEL_BEAM]:   ['assets/steel_beam.png'],
+  [RES.COPPER_BOLT]:  ['assets/copper_bolt.png'],
+  [RES.IRON_BOLT]:    ['assets/iron_bolt.png'],
+  [RES.STEEL_BOLT]:   ['assets/steel_bolt.png'],
+  [RES.COPPER_SHAFT]: ['assets/copper_shaft.png'],
+  [RES.IRON_SHAFT]:   ['assets/iron_shaft.png'],
+  [RES.STEEL_SHAFT]:  ['assets/steel_shaft.png'],
 };
 
 export const BUILDING_SPRITES = {
-  mine:      'assets/mine.png',
-  furnace:   'assets/furnace.png',
-  lab:       'assets/lab.png',
-  cutter:    'assets/cutter.png',
-  assembler: 'assets/assembler.png',
-  chemplant: 'assets/chemplant.png',
-  storage:   'assets/storage.png',
-  turret:    'assets/turret.png',
-  radar:     'assets/radar.png',
-  inserter_base: 'assets/inserter_base.png',
-  inserter_arm:  'assets/inserter_arm.png',
-  splitter: 'assets/splitter.png',
-  underground: 'assets/underground.png',
-  lumberjack: 'assets/lumberjack.png', // <--- ДОБАВЛЕНА ЛЕСОРУБКА
-  sawmill: 'assets/sawmill.png'        // <--- ДОБАВЛЕН КОМБИНАТ
+  mine: 'assets/mine.png', furnace: 'assets/furnace.png', lab: 'assets/lab.png',
+  cutter: 'assets/cutter.png', assembler: 'assets/assembler.png', chemplant: 'assets/chemplant.png',
+  storage: 'assets/storage.png', turret: 'assets/turret.png', radar: 'assets/radar.png',
+  inserter_base: 'assets/inserter_base.png', inserter_arm: 'assets/inserter_arm.png',
+  splitter: 'assets/splitter.png', underground: 'assets/underground.png',
+  lumberjack: 'assets/lumberjack.png', sawmill: 'assets/sawmill.png',
+  rolling_mill: 'assets/rolling_mill.png', fastener_factory: 'assets/fastener_factory.png',
+  mechanical_factory: 'assets/mechanical_factory.png', assembly_plant: 'assets/assembly_plant.png'
 };
 
 export const BUILDING_SCALE = {
-  mine:      1.0,
-  furnace:   1.0,
-  lab:       1.0,
-  cutter:    1.0,
-  assembler: 1.0,
-  chemplant: 1.0,
-  storage:   1.0,
-  turret:    1.0,
-  radar:     1.0,
-  inserter_base: 1.0,
-  inserter_arm: 1.5,
-  splitter: 1.0,
-  underground: 1.0,
-  lumberjack: 1.0,
-  sawmill: 1.0
+  mine: 1.0, furnace: 1.0, lab: 1.0, cutter: 1.0, assembler: 1.0, chemplant: 1.0,
+  storage: 1.0, turret: 1.0, radar: 1.0, inserter_base: 1.0, inserter_arm: 1.5,
+  splitter: 1.0, underground: 1.0, lumberjack: 1.0, sawmill: 1.0,
+  rolling_mill: 1.0, fastener_factory: 1.0, mechanical_factory: 1.0, assembly_plant: 1.0
 };
 
 const CONVEYOR_SPRITES = [
   'assets/conveyor_n.png', 'assets/conveyor_e.png', 'assets/conveyor_s.png',
   'assets/conveyor_w.png', 'assets/conveyor_ne.png', 'assets/conveyor_t.png'
 ];
-
 const CORE_SPRITE = 'assets/core.png';
 
 export const images = {};
@@ -79,17 +85,10 @@ export const buildingImages = {};
 const conveyorImages = [];
 let coreImage = null;
 
-// ФУНКЦИЯ ДЛЯ ПРИНУДИТЕЛЬНОЙ ПЕРЕРИСОВКИ (ФИКС БАГА С СЕЙВАМИ)
-function triggerRedraw() {
-  if (typeof window !== 'undefined' && window.__forceRedraw) {
-    window.__forceRedraw();
-  }
-}
-
 for (const [resType, paths] of Object.entries(SPRITES)) {
   images[resType] = paths.map(path => { 
     const img = new Image(); 
-    img.onload = triggerRedraw; // <--- ПЕРЕРИСОВКА ПРИ ЗАГРУЗКЕ
+    img.onload = triggerRedraw;
     img.src = path; 
     return img; 
   });
@@ -97,7 +96,7 @@ for (const [resType, paths] of Object.entries(SPRITES)) {
 
 for (const [type, path] of Object.entries(BUILDING_SPRITES)) {
   const img = new Image(); 
-  img.onload = triggerRedraw; // <--- ПЕРЕРИСОВКА ПРИ ЗАГРУЗКЕ
+  img.onload = triggerRedraw;
   img.src = path; 
   buildingImages[type] = img;
 }

@@ -7,7 +7,7 @@ import {
   WORLD_W, WORLD_H, drawRangeCircle
 } from './game.js';
 import { CORE, CORE_HP_MAX, world, oreAmount, oreInitial, fog, initialNests, fogCanvas } from './world.js';
-import { drawResIcon, drawCoreSprite } from './sprites.js';
+import { drawResIcon, drawCoreSprite, checkPendingRedraw } from './sprites.js';
 import {
   buildings, conveyors, splitters, undergrounds, turretBeams, tryPlaceBuilding, tryConveyorDragStep,
   updateConveyors, updateBuildings, drawConveyors, drawBuildings, canPlaceGhost,
@@ -25,11 +25,11 @@ if (typeof window !== 'undefined') {
   window.__handleMonsterDeath = handleMonsterDeath;
   window.__fog = fog;
 
-  window.cheat = (amount = 1000) => { for (let i = 1; i <= 25; i++) inventory[i] += amount; showToast(`💰 +${amount} всех ресурсов`); };
+  window.cheat = (amount = 1000) => { for (let i = 1; i <= 47; i++) inventory[i] = (inventory[i] || 0) + amount; showToast(`💰 +${amount} всех ресурсов`); };
   window.cheatDna = (amount = 1000) => { state.dna += amount; showToast(`🧬 +${amount} ДНК`); };
   window.cheatUnlockAll = () => { for (const t of TECHNOLOGIES) { state.techState[t.id] = true; if (t.effect) t.effect(); } showToast('🔓 Все технологии изучены'); };
   window.cheatKill = () => { if (window.__monsters) window.__monsters.length = 0; showToast('💀 Все монстры убиты'); };
-  window.cheatClear = () => { for (let i = 1; i <= 25; i++) inventory[i] = 0; state.dna = 0; showToast('🧹 Инвентарь и ДНК очищены'); };
+  window.cheatClear = () => { for (let i = 1; i <= 47; i++) inventory[i] = 0; state.dna = 0; showToast('🧹 Инвентарь и ДНК очищены'); };
   window.cheatReveal = () => { for (let y = 0; y < WORLD_H; y++) for (let x = 0; x < WORLD_W; x++) fog[y][x] = 0; showToast('🗺 Карта открыта'); };
   window.cheatPollution = (amount = 100) => { state.pollution = amount; showToast(`☣ Загрязнение установлено на ${amount}%`); };
 }
@@ -79,7 +79,7 @@ function handleTap(sx, sy) {
   
   if (fog[ty] && fog[ty][tx] === 1) return; 
 
-  const existingB = buildings.find(b => b.tx === tx && b.ty === ty);
+  const existingB = getBuildingAt(tx, ty);
   if (existingB) { state.selectedBuilding = null; state.ghostPos = null; updateModeBadge(); showInfoCard(existingB); return; }
   const existingC = conveyors.find(c => c.tx === tx && c.ty === ty);
   if (existingC) { state.selectedBuilding = null; state.ghostPos = null; updateModeBadge(); showInfoCard(existingC); return; }
@@ -188,17 +188,17 @@ function draw() {
 
   drawAtmosphere();
   
-  // МИНИКАРТА РИСУЕТСЯ БЕЗ ПАРАМЕТРОВ (ИЗ КЕША)
   drawMinimap();
 }
 
 if (typeof window !== 'undefined') {
   window.__forceRedraw = draw;
+  if (typeof checkPendingRedraw === 'function') checkPendingRedraw();
 }
 
 let lastTime = performance.now();
 let initialNestsSpawned = false;
-let minimapTimer = 0; // ТАЙМЕР МИНИКАРТЫ
+let minimapTimer = 0;
 
 function loop(now) {
   const dt = Math.min(0.1, (now - lastTime) / 1000);
@@ -213,7 +213,6 @@ function loop(now) {
     safeCall(updateHUD, 'updateHUD');
     safeCall(updateMonsters, 'updateMonsters', dt);
     
-    // ОБНОВЛЯЕМ МИНИКАРТУ РАЗ В СЕКУНДУ
     minimapTimer += dt;
     if (minimapTimer >= 1.0) {
       minimapTimer = 0;

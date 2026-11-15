@@ -2,10 +2,18 @@
 
 import { inventory, state, showToast, TILE, RES, RES_COLOR, ctx } from '../game.js';
 import { CORE } from '../world.js';
-import { buildings, conveyors, splitters, undergrounds, CONVEYOR_CAPACITY, DIR_DELTA } from './data.js';
+import { buildings, conveyors, splitters, undergrounds, CONVEYOR_CAPACITY, MAX_STACK, DIR_DELTA } from './data.js';
 
 export function getConveyorAt(tx, ty) { return conveyors.find(c => c.tx === tx && c.ty === ty); }
-export function getBuildingAt(tx, ty) { return buildings.find(b => b.tx === tx && b.ty === ty); }
+
+// НОВАЯ ЛОГИКА: Поддержка многоклеточных зданий (w, h)
+export function getBuildingAt(tx, ty) { 
+  return buildings.find(b => {
+    const bw = b.w || 1, bh = b.h || 1;
+    return tx >= b.tx && tx < b.tx + bw && ty >= b.ty && ty < b.ty + bh;
+  });
+}
+
 export function getSplitterAt(tx, ty) {
   return splitters.find(s => {
     if (s.dir === 1 || s.dir === 3) return s.tx === tx && (s.ty === ty || s.ty === ty - 1);
@@ -15,13 +23,22 @@ export function getSplitterAt(tx, ty) {
 export function getUndergroundAt(tx, ty) { return undergrounds.find(u => u.tx === tx && u.ty === ty); }
 export function isCoreTile(tx, ty) { return Math.abs(tx - CORE.x) <= 1 && Math.abs(ty - CORE.y) <= 1; }
 export function countBuildings(type) { return buildings.filter(b => b.type === type).length; }
-export function checkLimit(type) { return true; }
 export function getStorageTotal(b) { let total = 0; for (const k in b.items) total += b.items[k]; return total; }
 
 export function getOutputConveyor(b) {
   if (b.outputDir === null || b.outputDir === undefined) return null;
   const [dx, dy] = DIR_DELTA[b.outputDir];
-  const tx = b.tx + dx, ty = b.ty + dy;
+  
+  // Если здание 2x2, выход ищем от центра
+  let outTx = b.tx, outTy = b.ty;
+  if (b.w === 2 && b.h === 2) {
+    if (b.outputDir === 1) { outTx = b.tx + 1; outTy = b.ty; } // вправо
+    else if (b.outputDir === 3) { outTx = b.tx; outTy = b.ty; } // влево
+    else if (b.outputDir === 2) { outTx = b.tx; outTy = b.ty + 1; } // вниз
+    else if (b.outputDir === 0) { outTx = b.tx; outTy = b.ty; } // вверх
+  }
+  
+  const tx = outTx + dx, ty = outTy + dy;
   const c = getConveyorAt(tx, ty); if (c && !c.isBroken) return c;
   const s = getSplitterAt(tx, ty); if (s && !s.isBroken) return s;
   const u = getUndergroundAt(tx, ty); if (u && !u.isBroken && u.isEntrance) return u;
@@ -44,7 +61,7 @@ export function damageBuildingAt(tx, ty, dmg) {
   b.hp -= dmg;
   if (b.hp <= 0) { 
     b.hp = 0; b.isBroken = true; 
-    state.needsFogUpdate = true; // <--- СТАВИМ ФЛАГ ВМЕСТО ПРЯМОГО ВЫЗОВА
+    state.needsFogUpdate = true;
     return true; 
   }
   return false;
@@ -75,11 +92,30 @@ export function damageConveyorAt(tx, ty, dmg) {
   return false;
 }
 
+// ОПТИМИЗАЦИЯ: Стекирование предметов (до 4 в стак)
+export function pushItemToTransport(transport, itemType) {
+  if (!transport || transport.isBroken) return false;
+  
+  // Ищем стак с таким же предметом, куда можно доложить
+  for (const stack of transport.items) {
+    if (stack.type === itemType && stack.count < MAX_STACK) {
+      stack.count++;
+      return true;
+    }
+  }
+  // Если нет, создаем новый стак (если есть место под новые стаки)
+  if (transport.items.length < CONVEYOR_CAPACITY) {
+    transport.items.push({ type: itemType, progress: 0, count: 1 });
+    return true;
+  }
+  return false;
+}
+
 export function tryOutputItem(b, itemType) {
   if (b.isBroken) return false;
   const outC = getOutputConveyor(b);
   if (outC) {
-    if (outC.items.length < CONVEYOR_CAPACITY) { outC.items.push({ type: itemType, progress: 0 }); return true; }
+    if (pushItemToTransport(outC, itemType)) return true;
   } else if (b.outputDir !== null && b.outputDir !== undefined) {
     const [dx, dy] = DIR_DELTA[b.outputDir];
     const nextB = getBuildingAt(b.tx + dx, b.ty + dy);
@@ -96,9 +132,10 @@ export function flushOutputBuffer(b) {
   if (b.outputBuffer <= 0 || !b.outputBufferType) return;
   while (b.outputBuffer > 0) {
     const outC = getOutputConveyor(b);
-    if (outC && outC.items.length < CONVEYOR_CAPACITY) {
-      outC.items.push({ type: b.outputBufferType, progress: 0 });
-      b.outputBuffer--;
+    if (outC) {
+      if (pushItemToTransport(outC, b.outputBufferType)) {
+        b.outputBuffer--;
+      } else break;
     } else if (!outC && b.outputDir !== null && b.outputDir !== undefined) {
       const [dx, dy] = DIR_DELTA[b.outputDir];
       const nextB = getBuildingAt(b.tx + dx, b.ty + dy);
@@ -113,14 +150,15 @@ export function flushOutputBuffer(b) {
 
 export function outputSpace(b) {
   const outC = getOutputConveyor(b);
-  const convSpace = outC ? (CONVEYOR_CAPACITY - outC.items.length) : 0;
+  const convSpace = outC ? (CONVEYOR_CAPACITY - outC.items.length) * MAX_STACK : 0; // Примерная оценка
   return convSpace + (b.outputBufferMax - b.outputBuffer);
 }
 
-export function drawProgressBar(sx, sy, pct, color) {
+export function drawProgressBar(sx, sy, pct, color, w = 1) {
   pct = Math.min(1, Math.max(0, pct));
-  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(sx + 4, sy + TILE - 6, TILE - 8, 3);
-  ctx.fillStyle = color; ctx.fillRect(sx + 4, sy + TILE - 6, (TILE - 8) * pct, 3);
+  const width = TILE * w;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(sx + 4, sy + TILE - 6, width - 8, 3);
+  ctx.fillStyle = color; ctx.fillRect(sx + 4, sy + TILE - 6, (width - 8) * pct, 3);
 }
 
 export function drawBufferBadge(sx, sy, count, itemType) {
@@ -153,9 +191,9 @@ export function drawBrokenOverlay(sx, sy, size) {
   ctx.restore();
 }
 
-export function drawHpCircle(sx, sy, hp, maxHp) {
+export function drawHpCircle(sx, sy, hp, maxHp, w = 1, h = 1) {
   if (hp >= maxHp) return;
-  const cx = sx + TILE / 2, cy = sy + TILE / 2, radius = 9, pct = Math.max(0, hp / maxHp);
+  const cx = sx + (TILE * w) / 2, cy = sy + (TILE * h) / 2, radius = 9, pct = Math.max(0, hp / maxHp);
   ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.beginPath(); ctx.arc(cx, cy, radius + 1, 0, Math.PI * 2); ctx.fill();
   const color = pct > 0.6 ? '#5ac05a' : pct > 0.3 ? '#e0c040' : '#e04040';
   const startAngle = -Math.PI / 2, endAngle = startAngle + pct * Math.PI * 2;

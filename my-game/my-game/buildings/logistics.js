@@ -1,18 +1,24 @@
 'use strict';
 
 import { inventory, state, addPopup, TILE, WORLD_W, WORLD_H, RES, RES_COLOR, ctx, canvas, camera } from '../game.js';
+import { world } from '../world.js';
 import { playBuildSound } from '../audio.js';
 import { drawResIcon, drawConveyorSprite, drawInserterArm, drawBuildingSprite, drawSplitterSprite, drawUndergroundSprite } from '../sprites.js';
 import { 
   Building, conveyors, splitters, undergrounds, 
-  DIR_DELTA, CONVEYOR_SPEED, CONVEYOR_CAPACITY, BUILDING_HP,
+  DIR_DELTA, CONVEYOR_SPEED, CONVEYOR_CAPACITY, BUILDING_HP, MAX_STACK,
   INSERTER_COST, CONVEYOR_COST, UNDERGROUND_COST, SPLITTER_COST
 } from './data.js';
 
 import { 
   getConveyorAt, getBuildingAt, getSplitterAt, getUndergroundAt, isCoreTile, 
-  tryAcceptItem, acceptItem, drawArrow, drawBrokenOverlay, drawHpCircle 
+  tryAcceptItem, acceptItem, drawArrow, drawBrokenOverlay, drawHpCircle, pushItemToTransport
 } from './utils.js';
+
+function isBlockedLiquid(tx, ty) {
+  const r = world[ty] && world[ty][tx];
+  return r === RES.WATER || r === RES.OIL;
+}
 
 export class Inserter extends Building {
   constructor(tx, ty) {
@@ -21,7 +27,8 @@ export class Inserter extends Building {
     this.dir = state.newConveyorDir;
     this.heldItem = null;
     this.animProgress = 0; 
-    this.swingSpeed = 2.5; 
+    this.swingSpeed = 2.5;
+    this.retryTimer = 0;
   }
   update(dt) {
     if (this.isBroken) return;
@@ -33,25 +40,53 @@ export class Inserter extends Building {
       if (this.animProgress < 1) {
         this.animProgress += dt * this.swingSpeed;
         if (this.animProgress > 1) this.animProgress = 1;
+        this.retryTimer = 0;
       } else {
-        this.tryDrop(dstX, dstY);
+        this.retryTimer -= dt;
+        if (this.retryTimer <= 0) {
+          this.tryDrop(dstX, dstY);
+          if (this.heldItem) this.retryTimer = 0.15;
+        }
       }
     } else {
       if (this.animProgress > 0) {
         this.animProgress -= dt * this.swingSpeed;
         if (this.animProgress < 0) this.animProgress = 0;
+        this.retryTimer = 0;
       } else {
-        this.tryPickup(srcX, srcY);
+        this.retryTimer -= dt;
+        if (this.retryTimer <= 0) {
+          this.tryPickup(srcX, srcY);
+          if (!this.heldItem) this.retryTimer = 0.15;
+        }
       }
     }
   }
   tryPickup(sx, sy) {
     const c = getConveyorAt(sx, sy);
-    if (c && !c.isBroken && c.items.length > 0) { this.heldItem = c.items.shift().type; this.animProgress = 0.01; return; }
+    if (c && !c.isBroken && c.items.length > 0) { 
+      const stack = c.items[0];
+      this.heldItem = stack.type;
+      stack.count--;
+      if (stack.count <= 0) c.items.shift();
+      this.animProgress = 0.01; return; 
+    }
     const s = getSplitterAt(sx, sy);
-    if (s && !s.isBroken && s.items.length > 0) { this.heldItem = s.items.shift().type; this.animProgress = 0.01; return; }
+    if (s && !s.isBroken && s.items.length > 0) { 
+      const stack = s.items[0];
+      this.heldItem = stack.type;
+      stack.count--;
+      if (stack.count <= 0) s.items.shift();
+      this.animProgress = 0.01; return; 
+    }
     const u = getUndergroundAt(sx, sy);
-    if (u && !u.isBroken && u.items.length > 0) { this.heldItem = u.items.shift().type; this.animProgress = 0.01; return; }
+    if (u && !u.isBroken && u.items.length > 0) { 
+      const stack = u.items[0];
+      this.heldItem = stack.type;
+      stack.count--;
+      if (stack.count <= 0) u.items.shift();
+      this.animProgress = 0.01; return; 
+    }
     const b = getBuildingAt(sx, sy);
     if (b && !b.isBroken && b.outputBuffer > 0) {
       this.heldItem = b.outputBufferType; 
@@ -62,11 +97,11 @@ export class Inserter extends Building {
   }
   tryDrop(dx, dy) {
     const c = getConveyorAt(dx, dy);
-    if (c && !c.isBroken && c.items.length < CONVEYOR_CAPACITY) { c.items.push({ type: this.heldItem, progress: 0 }); this.heldItem = null; return; }
+    if (c && !c.isBroken) { if (pushItemToTransport(c, this.heldItem)) { this.heldItem = null; return; } }
     const s = getSplitterAt(dx, dy);
-    if (s && !s.isBroken && s.items.length < CONVEYOR_CAPACITY) { s.items.push({ type: this.heldItem, progress: 0 }); this.heldItem = null; return; }
+    if (s && !s.isBroken) { if (pushItemToTransport(s, this.heldItem)) { this.heldItem = null; return; } }
     const u = getUndergroundAt(dx, dy);
-    if (u && u.isEntrance && !u.isBroken && u.items.length < CONVEYOR_CAPACITY) { u.items.push({ type: this.heldItem, progress: 0 }); this.heldItem = null; return; }
+    if (u && u.isEntrance && !u.isBroken) { if (pushItemToTransport(u, this.heldItem)) { this.heldItem = null; return; } }
     const b = getBuildingAt(dx, dy);
     if (b && !b.isBroken && tryAcceptItem(b, this.heldItem)) { acceptItem(b, this.heldItem); this.heldItem = null; return; }
   }
@@ -85,6 +120,7 @@ export function tryConveyorDragStep(cell, prevCell) {
   if (!cell) return false;
   if (Math.abs(cell.tx - (WORLD_W/2)) <= 1 && Math.abs(cell.ty - (WORLD_H/2)) <= 1) return false;
   if (getBuildingAt(cell.tx, cell.ty) || getConveyorAt(cell.tx, cell.ty) || getSplitterAt(cell.tx, cell.ty) || getUndergroundAt(cell.tx, cell.ty)) return false;
+  if (isBlockedLiquid(cell.tx, cell.ty)) return false;
   
   let dir = state.newConveyorDir;
   if (prevCell) {
@@ -126,16 +162,16 @@ export function updateConveyors(dt) {
       const [dx, dy] = DIR_DELTA[c.dir];
       const nx = c.tx + dx, ny = c.ty + dy;
       if (nx < 0 || nx >= WORLD_W || ny < 0 || ny >= WORLD_H) { it.progress = 1; continue; }
-      if (isCoreTile(nx, ny)) { inventory[it.type]++; addPopup(nx * TILE + TILE / 2, ny * TILE + TILE / 2, '+1', RES_COLOR[it.type]); c.items.splice(i, 1); continue; }
+      if (isCoreTile(nx, ny)) { inventory[it.type] += it.count; addPopup(nx * TILE + TILE / 2, ny * TILE + TILE / 2, '+' + it.count, RES_COLOR[it.type]); c.items.splice(i, 1); continue; }
       
       const nextC = getConveyorAt(nx, ny);
-      if (nextC) { if (!nextC.isBroken && nextC.items.length < CONVEYOR_CAPACITY) { nextC.items.push({ type: it.type, progress: 0 }); c.items.splice(i, 1); } else it.progress = 1; continue; }
+      if (nextC) { if (!nextC.isBroken && pushItemToTransport(nextC, it.type)) { c.items.splice(i, 1); } else it.progress = 1; continue; }
       
       const nextS = getSplitterAt(nx, ny);
-      if (nextS) { if (!nextS.isBroken && nextS.items.length < CONVEYOR_CAPACITY) { nextS.items.push({ type: it.type, progress: 0 }); c.items.splice(i, 1); } else it.progress = 1; continue; }
+      if (nextS) { if (!nextS.isBroken && pushItemToTransport(nextS, it.type)) { c.items.splice(i, 1); } else it.progress = 1; continue; }
       
       const nextU = getUndergroundAt(nx, ny);
-      if (nextU && nextU.isEntrance) { if (!nextU.isBroken && nextU.items.length < CONVEYOR_CAPACITY) { nextU.items.push({ type: it.type, progress: 0 }); c.items.splice(i, 1); } else it.progress = 1; continue; }
+      if (nextU && nextU.isEntrance) { if (!nextU.isBroken && pushItemToTransport(nextU, it.type)) { c.items.splice(i, 1); } else it.progress = 1; continue; }
       
       const nextB = getBuildingAt(nx, ny);
       if (nextB && tryAcceptItem(nextB, it.type)) { acceptItem(nextB, it.type); c.items.splice(i, 1); continue; }
@@ -176,11 +212,11 @@ export function updateConveyors(dt) {
       const tryPush = (tx, ty) => {
         if (tx === null || ty === null) return false;
         const nextC = getConveyorAt(tx, ty);
-        if (nextC && !nextC.isBroken && nextC.items.length < CONVEYOR_CAPACITY) { nextC.items.push({ type: it.type, progress: 0 }); return true; }
+        if (nextC && !nextC.isBroken && pushItemToTransport(nextC, it.type)) return true;
         const nextS = getSplitterAt(tx, ty);
-        if (nextS && !nextS.isBroken && nextS.items.length < CONVEYOR_CAPACITY) { nextS.items.push({ type: it.type, progress: 0 }); return true; }
+        if (nextS && !nextS.isBroken && pushItemToTransport(nextS, it.type)) return true;
         const nextU = getUndergroundAt(tx, ty);
-        if (nextU && nextU.isEntrance && !nextU.isBroken && nextU.items.length < CONVEYOR_CAPACITY) { nextU.items.push({ type: it.type, progress: 0 }); return true; }
+        if (nextU && nextU.isEntrance && !nextU.isBroken && pushItemToTransport(nextU, it.type)) return true;
         return false;
       };
 
@@ -198,7 +234,7 @@ export function updateConveyors(dt) {
       for (let i = u.items.length - 1; i >= 0; i--) {
         const it = u.items[i];
         if (it.progress < 1) continue;
-        if (u.partner && !u.partner.isBroken && u.partner.items.length < CONVEYOR_CAPACITY) { u.partner.items.push({ type: it.type, progress: 0 }); u.items.splice(i, 1); } 
+        if (u.partner && !u.partner.isBroken && pushItemToTransport(u.partner, it.type)) { u.items.splice(i, 1); } 
         else it.progress = 1;
       }
     } else {
@@ -209,13 +245,13 @@ export function updateConveyors(dt) {
         const nx = u.tx + dx, ny = u.ty + dy;
         
         const nextC = getConveyorAt(nx, ny);
-        if (nextC) { if (!nextC.isBroken && nextC.items.length < CONVEYOR_CAPACITY) { nextC.items.push({ type: it.type, progress: 0 }); u.items.splice(i, 1); } else it.progress = 1; continue; }
+        if (nextC) { if (!nextC.isBroken && pushItemToTransport(nextC, it.type)) { u.items.splice(i, 1); } else it.progress = 1; continue; }
         
         const nextS = getSplitterAt(nx, ny);
-        if (nextS) { if (!nextS.isBroken && nextS.items.length < CONVEYOR_CAPACITY) { nextS.items.push({ type: it.type, progress: 0 }); u.items.splice(i, 1); } else it.progress = 1; continue; }
+        if (nextS) { if (!nextS.isBroken && pushItemToTransport(nextS, it.type)) { u.items.splice(i, 1); } else it.progress = 1; continue; }
 
         const nextU = getUndergroundAt(nx, ny);
-        if (nextU && nextU.isEntrance) { if (!nextU.isBroken && nextU.items.length < CONVEYOR_CAPACITY) { nextU.items.push({ type: it.type, progress: 0 }); u.items.splice(i, 1); } else it.progress = 1; continue; }
+        if (nextU && nextU.isEntrance) { if (!nextU.isBroken && pushItemToTransport(nextU, it.type)) { u.items.splice(i, 1); } else it.progress = 1; continue; }
 
         const nextB = getBuildingAt(nx, ny);
         if (nextB && tryAcceptItem(nextB, it.type)) { acceptItem(nextB, it.type); u.items.splice(i, 1); continue; }
@@ -225,7 +261,6 @@ export function updateConveyors(dt) {
   }
 }
 
-// CULLING ДЛЯ КОНВЕЙЕРОВ
 export function drawConveyors() {
   const viewLeft = camera.x - canvas.width / (2 * camera.zoom) - TILE * 2;
   const viewRight = camera.x + canvas.width / (2 * camera.zoom) + TILE * 2;
@@ -287,7 +322,6 @@ export function drawConveyors() {
     if (!spriteOk) {
       const isH = s.dir === 0 || s.dir === 2;
       ctx.fillStyle = '#c8a040'; if (isH) ctx.fillRect(sx, sy, TILE * 2, TILE); else ctx.fillRect(sx, sy, TILE, TILE * 2);
-      // ... (упрощенная отрисовка если нет спрайта)
     }
 
     if (s.filterLeft || s.filterRight) {
@@ -321,7 +355,6 @@ export function drawConveyors() {
     }
   }
 
-  // Предметы на конвейерах рисуем только для видимых
   const itemSize = 12;
   for (const c of visibleConveyors) {
     if (c.isBroken) continue;
@@ -333,6 +366,10 @@ export function drawConveyors() {
       else if (c.dir === 1) { ix = sx + p * TILE; iy = sy + TILE/2 - itemSize/2; }
       else { ix = sx + TILE - p * TILE - itemSize; iy = sy + TILE/2 - itemSize/2; }
       drawResIcon(it.type, ix, iy, itemSize, 0);
+      if (it.count > 1) {
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+        ctx.fillText(it.count, ix + itemSize + 2, iy + itemSize + 2);
+      }
     }
   }
   
@@ -345,6 +382,10 @@ export function drawConveyors() {
       if (p < 1) { const [dx, dy] = DIR_DELTA[s.dir]; const startX = cx - dx * TILE * 0.5; const startY = cy - dy * TILE * 0.5; ix = startX + (cx - startX) * p - itemSize/2; iy = startY + (cy - startY) * p - itemSize/2; } 
       else { ix = cx - itemSize/2 + (Math.random() - 0.5) * 4; iy = cy - itemSize/2 + (Math.random() - 0.5) * 4; }
       drawResIcon(it.type, ix, iy, itemSize, 0);
+      if (it.count > 1) {
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+        ctx.fillText(it.count, ix + itemSize + 2, iy + itemSize + 2);
+      }
     }
   }
 }

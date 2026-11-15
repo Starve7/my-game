@@ -23,7 +23,8 @@ export const camera = { x: 0, y: 0, zoom: 1 };
 
 export const inventory = { 
   1: 100, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0,
-  13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 0, 19: 0, 20: 0, 21: 0, 22: 0, 23: 0, 24: 0, 25: 0, 26: 0
+  13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 0, 19: 0, 20: 0, 21: 0, 22: 0, 23: 0, 24: 0, 25: 0, 26: 0,
+  27: 0, 28: 0, 29: 0, 30: 0, 31: 0, 32: 0, 33: 0, 34: 0, 35: 0, 36: 0, 37: 0, 38: 0, 39: 0, 40: 0, 41: 0, 42: 0, 43: 0, 44: 0, 45: 0, 46: 0, 47: 0
 };
 
 export const state = {
@@ -33,7 +34,6 @@ export const state = {
   turretRangeBonus: 0, turretDamageBonus: 0, turretHpBonus: 0,
   soundEnabled: true, gameStarted: false, inMenu: true,
   demolishMode: false, currentSaveSlot: null, totalKills: 0,
-  LIMITS: { mine: 30, furnace: 10, lab: 5, cutter: 10, assembler: 5, chemplant: 5, storage: 5, turret: 15, radar: 20, inserter: 50, lumberjack: 50 },
   techState: {}, statHistory: {}, activeStudyTechId: null, studyProgressByTech: {}, studyTickTimer: 0,
   day: 1, timeOfDay: 0.25,
   hudResources: [1, 2, 3],
@@ -302,7 +302,8 @@ export function drawBackground(world, oreAmount, oreInitial, getBuildingAt, draw
         if (amount <= 0) alpha = 0.15;
         else if (initial !== null && initial !== undefined && initial > 0) alpha = 0.4 + 0.6 * (amount / initial);
         ctx.globalAlpha = alpha;
-        const v = variantForTile(tx, ty) % 3;
+        // ФИКС ТЕКСТУРЫ ДЕРЕВА
+        const v = (r === RES.WOOD) ? 1 : (variantForTile(tx, ty) % 3);
         const drawn = drawResIcon(r, sx, sy, TILE, v);
         if (!drawn) drawProceduralTile(r, sx, sy, TILE);
         ctx.globalAlpha = 1;
@@ -322,16 +323,21 @@ export function drawBackground(world, oreAmount, oreInitial, getBuildingAt, draw
 
 export function drawGhost(type, tx, ty, canPlace) {
   const sx = tx * TILE, sy = ty * TILE;
+  
+  // МНОГОКЛЕТОЧНЫЕ ЗДАНИЯ (2x2)
+  let w = 1, h = 1;
+  if (type === 'assembly_plant' || type === 'steel_furnace') { w = 2; h = 2; }
+  
   if (type === 'splitter') {
     const dir = state.newConveyorDir;
     const isH = dir === 0 || dir === 2; 
-    const w = isH ? TILE * 2 : TILE;
-    const h = isH ? TILE : TILE * 2;
+    w = isH ? 2 : 1;
+    h = isH ? 1 : 2;
     ctx.fillStyle = canPlace ? 'rgba(120, 200, 120, 0.45)' : 'rgba(220, 80, 80, 0.45)';
-    ctx.fillRect(sx, sy, w, h);
+    ctx.fillRect(sx, sy, w * TILE, h * TILE);
     ctx.strokeStyle = canPlace ? '#9fe09f' : '#e07070';
     ctx.lineWidth = 2 / camera.zoom;
-    ctx.strokeRect(sx + 1.5, sy + 1.5, w - 3, h - 3);
+    ctx.strokeRect(sx + 1.5, sy + 1.5, w * TILE - 3, h * TILE - 3);
     ctx.strokeStyle = canPlace ? '#fff' : '#ffb0b0';
     ctx.lineWidth = 3 / camera.zoom;
     const cx = sx + (isH ? TILE : TILE/2);
@@ -344,14 +350,14 @@ export function drawGhost(type, tx, ty, canPlace) {
     if (isH) ctx.lineTo(cx + dx * TILE/2, cy + TILE/2); else ctx.lineTo(cx + TILE/2, cy + dy * TILE/2); ctx.stroke();
   } else {
     ctx.fillStyle = canPlace ? 'rgba(120, 200, 120, 0.45)' : 'rgba(220, 80, 80, 0.45)';
-    ctx.fillRect(sx, sy, TILE, TILE);
+    ctx.fillRect(sx, sy, w * TILE, h * TILE);
     ctx.strokeStyle = canPlace ? '#9fe09f' : '#e07070';
     ctx.lineWidth = 2 / camera.zoom;
-    ctx.strokeRect(sx + 1.5, sy + 1.5, TILE - 3, TILE - 3);
-    const icon = { mine: '⛏', furnace: '🔥', lab: '🧪', cutter: '✂️', assembler: '⚙️', chemplant: '🧪', storage: '📦', turret: '🎯', conveyor: '↔️', underground: '⬇️', splitter: '↔️', radar: '📡', inserter: '🦾', minicore: '💠', lumberjack: '🪓', sawmill: '🪚' }[type] || '?';
-    ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeRect(sx + 1.5, sy + 1.5, w * TILE - 3, h * TILE - 3);
+    const icon = { mine: '⛏', furnace: '🔥', lab: '🧪', cutter: '✂️', assembler: '⚙️', chemplant: '🧪', storage: '📦', turret: '🎯', conveyor: '↔️', underground: '⬇️', splitter: '↔️', radar: '📡', inserter: '🦾', minicore: '💠', lumberjack: '🪓', sawmill: '🪚', rolling_mill: '🪵', fastener_factory: '🔩', mechanical_factory: '⚙️', assembly_plant: '🏭' }[type] || '?';
+    ctx.font = `bold ${18 * Math.min(w, h)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillStyle = canPlace ? '#ffffff' : '#ffb0b0';
-    ctx.fillText(icon, sx + TILE / 2, sy + TILE / 2);
+    ctx.fillText(icon, sx + w * TILE / 2, sy + h * TILE / 2);
   }
 }
 
@@ -403,7 +409,6 @@ export function drawRangeCircle(cx, cy, radius, isGhost = false) {
   ctx.restore();
 }
 
-// ==================== НОВАЯ МИНИКАРТА С КЕШИРОВАНИЕМ ====================
 const MINIMAP_SIZE = 100, MINIMAP_MARGIN = 12;
 
 export const minimapCanvas = document.createElement('canvas');
@@ -413,7 +418,6 @@ export const minimapCtx = minimapCanvas.getContext('2d');
 
 export function getMinimapRect() { return { x: canvas.width - MINIMAP_SIZE - MINIMAP_MARGIN, y: 46 + MINIMAP_MARGIN, w: MINIMAP_SIZE, h: MINIMAP_SIZE }; }
 
-// ЭТА ФУНКЦИЯ ОБНОВЛЯЕТ КАРТИНКУ МИНИКАРТЫ (вызывать раз в сек)
 export function updateMinimapCanvas(CORE, buildings, conveyors, monsters, splitters, undergrounds) {
   const scale = minimapCanvas.width / (WORLD_W * TILE);
   minimapCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
@@ -462,24 +466,20 @@ export function updateMinimapCanvas(CORE, buildings, conveyors, monsters, splitt
   }
 }
 
-// Эта функция просто рисует готовый холст + рамку камеры (быстро)
 export function drawMinimap() {
   const rect = getMinimapRect();
   ctx.fillStyle = 'rgba(15,25,15,0.85)'; ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
   ctx.strokeStyle = 'rgba(120,160,120,0.7)'; ctx.lineWidth = 2; ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
   
-  // Рисуем готовую картинку с кеша
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(minimapCanvas, rect.x, rect.y, rect.w, rect.h);
 
-  // Рамка камеры (двигается каждый кадр - это нормально)
   const scale = MINIMAP_SIZE / (WORLD_W * TILE);
   const camWorldX = camera.x - canvas.width / (2 * camera.zoom), camWorldY = camera.y - canvas.height / (2 * camera.zoom);
   const camWorldW = canvas.width / camera.zoom, camWorldH = canvas.height / camera.zoom;
   ctx.strokeStyle = 'rgba(255,220,60,0.9)'; ctx.lineWidth = 1;
   ctx.strokeRect(rect.x + camWorldX * scale, rect.y + camWorldY * scale, camWorldW * scale, camWorldH * scale);
 }
-// ====================================================================
 
 export function handleMinimapClick(sx, sy) {
   const rect = getMinimapRect();

@@ -1,11 +1,11 @@
 'use strict';
 
-import { drawerToggle, drawerHide, drawerTabs, modalClose, modalBackdrop, toggleDrawer, closeModal, applyHudIcons } from './core.js';
+import { drawerToggle, drawerHide, drawerTabs, modalClose, modalBackdrop, toggleDrawer, closeModal } from './core.js';
 import { state, showToast } from '../game.js';
 import { playClick } from '../audio.js';
-import { openBuildPanel } from './build.js';
-import { openResearchPanel } from './research.js';
-import { openStatsPanel } from './stats.js';
+import { openBuildPanel, resetBuildTab } from './build.js';
+import { openResearchPanel, resetResearchTab } from './research.js';
+import { openStatsPanel, resetStatsTab } from './stats.js';
 import { openSettingsPanel } from './settings.js';
 import { buildHudResourcesDOM } from './hud.js';
 
@@ -21,7 +21,12 @@ export * from './settings.js';
 export * from './gameOver.js';
 export * from './panels/index.js';
 
-// ЗАЩИТА ОТ NULL (если index.html не заменен)
+export function resetUITabs() {
+  resetBuildTab();
+  resetStatsTab();
+  resetResearchTab();
+}
+
 if (drawerToggle) drawerToggle.addEventListener('click', () => { playClick(); toggleDrawer(); });
 if (drawerHide) drawerHide.addEventListener('click', () => { toggleDrawer(false); });
 if (modalClose) modalClose.addEventListener('click', () => { playClick(); closeModal(); });
@@ -53,6 +58,6 @@ if (drawerTabs && drawerTabs.length > 0) {
   });
 }
 
-if (typeof applyHudIcons === 'function') {
-  applyHudIcons(); setTimeout(applyHudIcons, 500); setTimeout(applyHudIcons, 1500);
-}
+if (typeof buildHudResourcesDOM === 'function') buildHudResourcesDOM();
+
+if (typeof window !== 'undefined') window.__resetUITabs = resetUITabs;

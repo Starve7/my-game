@@ -10,7 +10,6 @@ import { updateStatsLive } from './stats.js';
 import { updateActivePanelLive } from './panels/index.js';
 import { playClick } from '../audio.js';
 
-// Строит HTML-элементы для ресурсов в HUD
 export function buildHudResourcesDOM() {
   if (!hudResourcesContainer) return;
   hudResourcesContainer.innerHTML = '';
@@ -18,13 +17,11 @@ export function buildHudResourcesDOM() {
   state.hudResources.forEach(resId => {
     const div = document.createElement('div');
     div.className = 'res';
-    // ЖЕСТКО ЗАДАЕМ РАЗМЕРЫ И ЗАПРЕЩАЕМ СЖАТИЕ
     div.innerHTML = `<div class="res-dot" style="width:11px; height:11px; flex-shrink:0; display:block; border-radius:2px; ${iconStyle(resId)}"></div><span data-res-val="${resId}">${inventory[resId] || 0}</span>`;
     hudResourcesContainer.appendChild(div);
   });
 }
 
-// Открывает модалку настройки HUD
 export function openHudSettings() {
   playClick();
   openModal('⚙️ Настройки HUD');
@@ -34,6 +31,7 @@ export function openHudSettings() {
   
   for (const [idStr, name] of Object.entries(RES_NAME)) {
     const id = parseInt(idStr);
+    if (id > 26) continue; // Показываем только старые базовые в настройках HUD, чтобы не засорять
     const isSelected = state.hudResources.includes(id);
     
     html += `
@@ -58,7 +56,7 @@ export function openHudSettings() {
         state.hudResources = state.hudResources.filter(r => r !== id);
       }
       buildHudResourcesDOM();
-      openHudSettings(); // Перерисовываем модалку, чтобы обновить рамки
+      openHudSettings();
     });
   });
 }
@@ -77,7 +75,10 @@ export function updateHUD() {
   
   checkPollutionThresholds(state.pollution);
 
-  // Обновляем цифры в HUD
+  if (hudResourcesContainer && hudResourcesContainer.children.length !== state.hudResources.length) {
+    buildHudResourcesDOM();
+  }
+
   if (hudResourcesContainer) {
     state.hudResources.forEach(resId => {
       const span = hudResourcesContainer.querySelector(`[data-res-val="${resId}"]`);
@@ -85,7 +86,6 @@ export function updateHUD() {
     });
   }
 
-  // Вызываем обновления интерфейсов
   updateInfoCardLive();
   updateActivePanelLive();
   updateResearchLive();
@@ -106,7 +106,6 @@ export function updateResearchBadge() {
   }
 }
 
-// Инициализация кнопки настроек HUD
 if (hudSettingsBtn) {
   hudSettingsBtn.addEventListener('click', openHudSettings);
 }

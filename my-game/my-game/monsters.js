@@ -129,7 +129,8 @@ export function updateNests(dt) {
           if (newTx >= 0 && newTx < WORLD_W && newTy >= 0 && newTy < WORLD_H && world[newTy][newTx] !== RES.WATER) {
             n.tx = newTx;
             n.ty = newTy;
-            explosions.push({ x: n.tx * TILE + TILE/2, y: n.ty * TILE + TILE/2, radius: TILE * 3, life: 0.8, maxLife: 0.8, color: '#800080' });
+            // ФИКС: цвет взрыва в формате rgb, а не hex (иначе rgba() ломается)
+            explosions.push({ x: n.tx * TILE + TILE/2, y: n.ty * TILE + TILE/2, radius: TILE * 3, life: 0.8, maxLife: 0.8, color: '128, 0, 128' });
             if (window.__showToast) window.__showToast(`⚠️ Королева телепортировалась!`);
           }
         }
@@ -183,7 +184,6 @@ function spawnMonsterFromNest(nest) {
   });
 }
 
-// CULLING ДЛЯ УЛЬЕВ
 export function drawNestsAndInfection() {
   const viewLeft = camera.x - canvas.width / (2 * camera.zoom) - TILE * 6;
   const viewRight = camera.x + canvas.width / (2 * camera.zoom) + TILE * 6;
@@ -359,11 +359,9 @@ export function updateMonsters(dt) {
         m.attackTimer -= 1;
         if (t.kind === 'building') {
           const b = t.ref;
-          // УБРАЛИ includes(b), ПРОВЕРЯЕМ ПРОСТО HP
           if (!b.isBroken && b.hp > 0) { if (damageBuildingAt(b.tx, b.ty, m.damage)) m.cachedTarget = null; } else m.cachedTarget = null;
         } else if (t.kind === 'conveyor') {
           const c = t.ref;
-          // УБРАЛИ includes(c), ПРОВЕРЯЕМ ПРОСТО isBroken
           if (!c.isBroken) { if (damageConveyorAt(c.tx, c.ty, m.damage)) m.cachedTarget = null; } else m.cachedTarget = null;
         }
         if (!m.cachedTarget) break;
@@ -403,7 +401,6 @@ export function updateMonsters(dt) {
   }
 }
 
-// CULLING ДЛЯ МОБОВ
 export function drawMonsters() {
   const viewLeft = camera.x - canvas.width / (2 * camera.zoom) - TILE * 2;
   const viewRight = camera.x + canvas.width / (2 * camera.zoom) + TILE * 2;

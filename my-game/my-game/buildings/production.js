@@ -4,9 +4,10 @@ import { inventory, state, addPopup, TILE, RES, RES_COLOR, ctx } from '../game.j
 import { playMineSound } from '../audio.js';
 import { world, oreAmount } from '../world.js';
 import { drawResIcon, drawBuildingSprite, isReady, buildingImages } from '../sprites.js';
+import { isTechOwned } from '../research.js';
 import { 
-  Building, ASSEMBLER_RECIPES, CHEM_RECIPES, SAWMILL_RECIPES, getRecipeById, 
-  BUILDING_HP, MINE_COST, LUMBERJACK_COST, FURNACE_COST, FURNACE_INTERVAL, MINE_INTERVAL, POLLUTION_PER_PLATE,
+  Building, ASSEMBLER_RECIPES, CHEM_RECIPES, SAWMILL_RECIPES, ROLLING_MILL_RECIPES, FASTENER_FACTORY_RECIPES, MECH_FACTORY_RECIPES, ASSEMBLY_PLANT_RECIPES, 
+  getRecipeById, BUILDING_HP, MINE_COST, LUMBERJACK_COST, FURNACE_COST, FURNACE_INTERVAL, MINE_INTERVAL, POLLUTION_PER_PLATE,
   FURNACE_OUTPUT_BUFFER_MAX, INPUT_BUFFER_MAX, STORAGE_CAPACITY, 
   STORAGE_IRON_COST, STORAGE_COPPER_COST, 
   LAB_INTERVAL, LAB_IRON_COST, LAB_COPPER_COST, 
@@ -14,7 +15,10 @@ import {
   ASSEMBLER_IRON_COST, ASSEMBLER_COPPER_COST, 
   CHEMPLANT_IRON_COST, CHEMPLANT_COPPER_COST, CHEMPLANT_WIRE_COST,
   SAWMILL_IRON_COST, SAWMILL_WOOD_COST, SAWMILL_WIRE_COST,
-  FURNACE_BUFFER_MAX
+  FURNACE_BUFFER_MAX, ROLLING_MILL_IRON, ROLLING_MILL_COPPER, 
+  FASTENER_FACTORY_IRON, FASTENER_FACTORY_COPPER, FASTENER_FACTORY_ROD,
+  MECH_FACTORY_IRON, MECH_FACTORY_BOLT, MECH_FACTORY_ENGINE, MECH_FACTORY_CORPS,
+  ASSEMBLY_PLANT_IRON, ASSEMBLY_PLANT_FRAME, ASSEMBLY_PLANT_ENGINE
 } from './data.js';
 
 import { 
@@ -72,34 +76,25 @@ export class Lumberjack extends Building {
   }
   update(dt) {
     if (oreAmount[this.ty][this.tx] <= 0) { flushOutputBuffer(this); return; }
-    
     const outC = getOutputConveyor(this);
     if (!(outC && outC.items.length < 2) && !(this.outputBuffer < this.outputBufferMax)) return;
-    
     const interval = MINE_INTERVAL / state.miningSpeedMult;
     this.timer += dt;
     while (this.timer >= interval && oreAmount[this.ty][this.tx] > 0) {
       if (!tryOutputItem(this, RES.WOOD)) break;
       addPopup(this.tx * TILE + TILE / 2, this.ty * TILE + 4, '+1', RES_COLOR[RES.WOOD]);
       playMineSound(); this.timer -= interval;
-      
       oreAmount[this.ty][this.tx]--;
-      if (oreAmount[this.ty][this.tx] <= 0) { 
-        oreAmount[this.ty][this.tx] = 0; 
-        world[this.ty][this.tx] = 0;
-      }
+      if (oreAmount[this.ty][this.tx] <= 0) { oreAmount[this.ty][this.tx] = 0; world[this.ty][this.tx] = 0; }
     }
     flushOutputBuffer(this);
   }
   drawSpecific() {
     const sx = this.tx * TILE, sy = this.ty * TILE;
     const empty = oreAmount[this.ty][this.tx] <= 0;
-    
     if (empty) {
       ctx.globalAlpha = 0.4;
-      if (!drawBuildingSprite('lumberjack', sx, sy, TILE)) {
-        ctx.fillStyle = '#3a3a3a'; ctx.fillRect(sx + 2, sy + 2, TILE - 4, TILE - 4);
-      }
+      if (!drawBuildingSprite('lumberjack', sx, sy, TILE)) { ctx.fillStyle = '#3a3a3a'; ctx.fillRect(sx + 2, sy + 2, TILE - 4, TILE - 4); }
       ctx.globalAlpha = 1;
       ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(sx + 9, sy + 9); ctx.lineTo(sx + TILE - 9, sy + TILE - 9); ctx.moveTo(sx + TILE - 9, sy + 9); ctx.lineTo(sx + 9, sy + TILE - 9); ctx.stroke();
@@ -226,8 +221,8 @@ export class Cutter extends Building {
 }
 
 export class Crafter extends Building {
-  constructor(tx, ty, type, hp, paidCost) {
-    super(tx, ty, type, hp); this.timer = 0; this.paidCost = paidCost; this.selectedRecipe = null;
+  constructor(tx, ty, type, hp, paidCost, w = 1, h = 1) {
+    super(tx, ty, type, hp, w, h); this.timer = 0; this.paidCost = paidCost; this.selectedRecipe = null;
     this.inputBuffer = {}; this.outputDir = state.savedOutputDir; this.outputBuffer = 0;
     this.outputBufferMax = FURNACE_OUTPUT_BUFFER_MAX; this.outputBufferType = null;
   }
@@ -244,6 +239,9 @@ export class Crafter extends Building {
     if (!this.selectedRecipe) return;
     const recipe = getRecipeById(this.selectedRecipe);
     if (!recipe) return;
+    // Проверка на изучение (для UI и логики)
+    if (recipe.requires && !isTechOwned(recipe.requires)) return;
+    
     let canCraft = true;
     for (const [resType, count] of recipe.inputs) { if ((this.inputBuffer[resType] || 0) < count) { canCraft = false; break; } }
     if (!canCraft) { this.timer = 0; return; }
@@ -260,29 +258,32 @@ export class Crafter extends Building {
   drawAmbient() {
     const canWork = this.selectedRecipe && getRecipeById(this.selectedRecipe);
     if (!canWork) return;
-    const cx = this.tx * TILE + TILE / 2, cy = this.ty * TILE + TILE / 2;
+    const cx = this.tx * TILE + (TILE * this.w) / 2, cy = this.ty * TILE + (TILE * this.h) / 2;
     const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, TILE * 2);
     grad.addColorStop(0, 'rgba(50,50,40,0.35)'); grad.addColorStop(1, 'rgba(50,50,40,0)');
     ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(cx, cy, TILE * 2, 0, Math.PI * 2); ctx.fill();
   }
   drawSpecific() {
     const sx = this.tx * TILE, sy = this.ty * TILE;
-    const spriteOk = drawBuildingSprite(this.type, sx, sy, TILE);
+    const drawSize = TILE * Math.max(this.w, this.h);
+    const spriteOk = drawBuildingSprite(this.type, sx, sy, drawSize);
     if (!spriteOk) {
-      const baseColor = this.type === 'assembler' ? '#3a4a3a' : (this.type === 'sawmill' ? '#4a3a2a' : '#5a3a4a');
-      const borderColor = this.type === 'assembler' ? '#5a7a5a' : (this.type === 'sawmill' ? '#6a5a4a' : '#8a5a6a');
-      ctx.fillStyle = baseColor; ctx.fillRect(sx + 2, sy + 2, TILE - 4, TILE - 4);
-      ctx.fillStyle = borderColor; ctx.fillRect(sx + 4, sy + 4, TILE - 8, TILE - 8);
+      const baseColor = this.type.includes('assembler') ? '#3a4a3a' : (this.type.includes('sawmill') ? '#4a3a2a' : '#5a3a4a');
+      const borderColor = this.type.includes('assembler') ? '#5a7a5a' : (this.type.includes('sawmill') ? '#6a5a4a' : '#8a5a6a');
+      ctx.fillStyle = baseColor; ctx.fillRect(sx + 2, sy + 2, drawSize - 4, drawSize - 4);
+      ctx.fillStyle = borderColor; ctx.fillRect(sx + 4, sy + 4, drawSize - 8, drawSize - 8);
     }
     const recipe = this.selectedRecipe ? getRecipeById(this.selectedRecipe) : null;
     if (recipe) {
       let canCraft = true;
       for (const [resType, count] of recipe.inputs) { if ((this.inputBuffer[resType] || 0) < count) { canCraft = false; break; } }
-      if (canCraft) drawProgressBar(sx, sy, this.timer / recipe.time, this.type === 'assembler' ? '#7fbf7f' : (this.type === 'sawmill' ? '#d4a373' : '#c080c0'));
-      else if (Math.sin(performance.now() / 250) > 0) { ctx.fillStyle = '#ff5050'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', sx + TILE / 2, sy + TILE / 2); }
+      if (recipe.requires && !isTechOwned(recipe.requires)) canCraft = false;
+
+      if (canCraft) drawProgressBar(sx, sy, this.timer / recipe.time, this.type.includes('assembler') ? '#7fbf7f' : '#d4a373', this.w);
+      else if (Math.sin(performance.now() / 250) > 0) { ctx.fillStyle = '#ff5050'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', sx + drawSize / 2, sy + drawSize / 2); }
     } else {
-      ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(sx + 8, sy + 8, TILE - 16, TILE - 16);
-      ctx.fillStyle = '#ffcc66'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', sx + TILE / 2, sy + TILE / 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(sx + 8, sy + 8, drawSize - 16, drawSize - 16);
+      ctx.fillStyle = '#ffcc66'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', sx + drawSize / 2, sy + drawSize / 2);
     }
     drawBufferBadge(sx, sy, this.outputBuffer, this.outputBufferType);
   }
@@ -299,6 +300,27 @@ export class Chemplant extends Crafter {
 export class Sawmill extends Crafter { 
   constructor(tx, ty) { super(tx, ty, 'sawmill', BUILDING_HP.sawmill, { ironPlate: SAWMILL_IRON_COST, wood: SAWMILL_WOOD_COST, wire: SAWMILL_WIRE_COST }); this.selectedRecipe = 'board'; } 
   getRecipes() { return SAWMILL_RECIPES; } 
+}
+
+// НОВЫЕ ЗДАНИЯ
+export class RollingMill extends Crafter {
+  constructor(tx, ty) { super(tx, ty, 'rolling_mill', BUILDING_HP.rolling_mill, { ironPlate: ROLLING_MILL_IRON, copperPlate: ROLLING_MILL_COPPER }); this.selectedRecipe = 'cu_rod'; }
+  getRecipes() { return ROLLING_MILL_RECIPES; }
+}
+
+export class FastenerFactory extends Crafter {
+  constructor(tx, ty) { super(tx, ty, 'fastener_factory', BUILDING_HP.fastener_factory, { ironPlate: FASTENER_FACTORY_IRON, copperPlate: FASTENER_FACTORY_COPPER, copperRod: FASTENER_FACTORY_ROD }); this.selectedRecipe = 'cu_bolt'; }
+  getRecipes() { return FASTENER_FACTORY_RECIPES; }
+}
+
+export class MechanicalFactory extends Crafter {
+  constructor(tx, ty) { super(tx, ty, 'mechanical_factory', BUILDING_HP.mechanical_factory, { ironPlate: MECH_FACTORY_IRON, ironBolt: MECH_FACTORY_BOLT, copperBolt: MECH_FACTORY_BOLT, engine: MECH_FACTORY_ENGINE, corps: MECH_FACTORY_CORPS }); this.selectedRecipe = 'cu_shaft'; }
+  getRecipes() { return MECH_FACTORY_RECIPES; }
+}
+
+export class AssemblyPlant extends Crafter {
+  constructor(tx, ty) { super(tx, ty, 'assembly_plant', BUILDING_HP.assembly_plant, { ironPlate: ASSEMBLY_PLANT_IRON, heavyFrame: ASSEMBLY_PLANT_FRAME, engine: ASSEMBLY_PLANT_ENGINE }, 2, 2); this.selectedRecipe = 'heavy_frame'; }
+  getRecipes() { return ASSEMBLY_PLANT_RECIPES; }
 }
 
 export class Storage extends Building {

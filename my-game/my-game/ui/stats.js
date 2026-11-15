@@ -11,7 +11,6 @@ const STATS_TABS = [
 ];
 let activeStatsTab = 'resources';
 
-// Подкатегории для ресурсов
 const RES_CATEGORIES = [
   { id: 'raw', name: '🪨 Сырьё' },
   { id: 'industry', name: '⚙️ Промышленность' },
@@ -20,11 +19,9 @@ const RES_CATEGORIES = [
 let activeResCategory = 'raw';
 
 const STAT_ROWS = [
-  // Сырьё
   { key: 'iron', name: 'Железо', res: RES.IRON, cat: 'raw' },
   { key: 'copper', name: 'Медь', res: RES.COPPER, cat: 'raw' },
   { key: 'coal', name: 'Уголь', res: RES.COAL, cat: 'raw' },
-  // Промышленность
   { key: 'plate_iron', name: 'Железные плиты', res: RES.PLATE_IRON, cat: 'industry' },
   { key: 'plate_copper', name: 'Медные плиты', res: RES.PLATE_COPPER, cat: 'industry' },
   { key: 'wire', name: 'Провод', res: RES.WIRE, cat: 'industry' },
@@ -32,7 +29,6 @@ const STAT_ROWS = [
   { key: 'corps', name: 'Корпус', res: RES.CORPS, cat: 'industry' },
   { key: 'circuit', name: 'Электросхема', res: RES.CIRCUIT, cat: 'industry' },
   { key: 'engine', name: 'Двигатель', res: RES.ENGINE, cat: 'industry' },
-  // Разное
   { key: 'powder', name: 'Порох', res: RES.POWDER, cat: 'misc' },
   { key: 'ammo', name: 'Патроны', res: RES.AMMO, cat: 'misc' },
   { key: 'dna', name: '🧬 ДНК', res: null, cat: 'misc' },
@@ -106,7 +102,6 @@ function renderStatRow(row) {
 export function openStatsPanel() { openModal('📊 Статистика'); renderStatsPanel(); }
 
 function renderStatsPanel() {
-  // Главные вкладки
   let tabsHtml = `<div class="stats-tabs">`;
   for (const tab of STATS_TABS) {
     const isActive = tab.id === activeStatsTab;
@@ -117,7 +112,6 @@ function renderStatsPanel() {
   let contentHtml = '';
 
   if (activeStatsTab === 'resources') {
-    // Подвкладки для ресурсов
     let subTabsHtml = `<div style="display:flex; gap:4px; margin-bottom:12px; overflow-x:auto; padding-bottom:4px;">`;
     for (const sub of RES_CATEGORIES) {
       const isSubActive = sub.id === activeResCategory;
@@ -125,8 +119,6 @@ function renderStatsPanel() {
     }
     subTabsHtml += `</div>`;
 
-    // Считаем общую сумму только для текущей категории (или для всех?)
-    // Лучше считать общую сумму для всего, чтобы не путать.
     let totalAmount = 0, totalRate = 0;
     for (const row of STAT_ROWS) {
       if (row.key === 'dna') continue;
@@ -154,7 +146,6 @@ function renderStatsPanel() {
     contentHtml += subTabsHtml;
     contentHtml += `<div class="stats-section-title">Список ресурсов</div><div class="stats-list">`;
     
-    // Фильтруем строки по активной подкатегории
     const filteredRows = STAT_ROWS.filter(r => r.cat === activeResCategory);
     for (const row of filteredRows) {
       contentHtml += renderStatRow(row);
@@ -179,7 +170,6 @@ function renderStatsPanel() {
 
   panelContent.innerHTML = tabsHtml + contentHtml;
 
-  // Обработчики главных вкладок
   panelContent.querySelectorAll('[data-stat-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
       activeStatsTab = btn.dataset.statTab;
@@ -187,7 +177,6 @@ function renderStatsPanel() {
     });
   });
 
-  // Обработчики подвкладок ресурсов
   panelContent.querySelectorAll('[data-res-cat]').forEach(btn => {
     btn.addEventListener('click', () => {
       activeResCategory = btn.dataset.resCat;
@@ -196,10 +185,16 @@ function renderStatsPanel() {
   });
 }
 
+// ФИКС: троттлинг — не чаще 1 раза в секунду (иначе спарклайны пересоздаются каждый кадр)
+let _statsLiveTimer = 0;
+
 export function updateStatsLive() {
   if (state.panel !== 'stats' || activeStatsTab !== 'resources') return;
   
-  // Обновляем только те строки, которые сейчас видны
+  const now = performance.now();
+  if (now - _statsLiveTimer < 1000) return;
+  _statsLiveTimer = now;
+  
   const filteredRows = STAT_ROWS.filter(r => r.cat === activeResCategory);
   
   filteredRows.forEach(row => {

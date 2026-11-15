@@ -7,7 +7,8 @@ import {
 import { world, oreAmount, oreInitial, CORE, generateWorld, fog, initialNests } from './world.js';
 import {
   buildings, conveyors, splitters, undergrounds, turretBeams, updateFog,
-  Mine, Furnace, Lab, Cutter, Assembler, Chemplant, Storage, Turret, Radar, Inserter, MiniCore, Lumberjack, Sawmill
+  Mine, Furnace, Lab, Cutter, Assembler, Chemplant, Storage, Turret, Radar, Inserter, MiniCore, Lumberjack, Sawmill,
+  RollingMill, FastenerFactory, MechanicalFactory, AssemblyPlant
 } from './buildings.js';
 import { monsters, coreBeams, explosions, nests } from './monsters.js';
 
@@ -17,6 +18,7 @@ const CURRENT_VERSION = 1;
 const TRANSIENT_STATE_KEYS = [
   'panel', 'activeBuilding', 'activeConveyor', 'selectedBuilding', 'ghostPos',
   'gameOver', 'gameStarted', 'inMenu', 'statHistory', 'demolishMode', 'currentSaveSlot',
+  'LIMITS',
 ];
 
 function isPersistentStateValue(key, value) {
@@ -153,6 +155,8 @@ export function restoreGameData(data) {
   }
 
   updateFog();
+
+  if (typeof window !== 'undefined' && typeof window.__resetUITabs === 'function') window.__resetUITabs();
 }
 
 function makeBuilding(data) {
@@ -171,6 +175,11 @@ function makeBuilding(data) {
     else if (data.type === 'radar') b = new Radar(data.tx, data.ty);
     else if (data.type === 'inserter') b = new Inserter(data.tx, data.ty);
     else if (data.type === 'minicore') b = new MiniCore(data.tx, data.ty);
+    // Новые
+    else if (data.type === 'rolling_mill') b = new RollingMill(data.tx, data.ty);
+    else if (data.type === 'fastener_factory') b = new FastenerFactory(data.tx, data.ty);
+    else if (data.type === 'mechanical_factory') b = new MechanicalFactory(data.tx, data.ty);
+    else if (data.type === 'assembly_plant') b = new AssemblyPlant(data.tx, data.ty);
     else return null;
   } catch (e) { console.error('[load] failed to create building:', data.type, e); return null; }
   Object.assign(b, data);
@@ -182,13 +191,15 @@ export function resetGameData() {
   state.gameOver = false; state.newConveyorDir = 1; state.savedOutputDir = null;
   state.miningSpeedMult = 1.0; state.labSpeedMult = 1.0; state.coreDamageBonus = 0;
   state.turretFireRateMult = 1.0; state.turretRangeBonus = 0; state.turretDamageBonus = 0; state.turretHpBonus = 0;
-  state.LIMITS = { mine: 30, furnace: 10, lab: 5, cutter: 10, assembler: 5, chemplant: 5, storage: 5, turret: 15, radar: 20, inserter: 50, lumberjack: 50 };
   state.techState = {}; state.studyProgressByTech = {}; state.activeStudyTechId = null; state.studyTickTimer = 0;
   state.statHistory = {}; state.panel = null; state.activeBuilding = null; state.activeConveyor = null;
   state.selectedBuilding = null; state.ghostPos = null; state.demolishMode = false; state.currentSaveSlot = null; state.totalKills = 0;
 
   for (const k in inventory) delete inventory[k];
-  Object.assign(inventory, { 1: 100, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 0, 19: 0, 20: 0, 21: 0, 22: 0, 23: 0, 24: 0, 25: 0, 26: 0 });
+  Object.assign(inventory, { 
+    1: 100, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 0, 19: 0, 20: 0, 21: 0, 22: 0, 23: 0, 24: 0, 25: 0, 26: 0,
+    27: 0, 28: 0, 29: 0, 30: 0, 31: 0, 32: 0, 33: 0, 34: 0, 35: 0, 36: 0, 37: 0, 38: 0, 39: 0, 40: 0, 41: 0, 42: 0, 43: 0, 44: 0, 45: 0, 46: 0, 47: 0
+  });
   
   generateWorld();
   camera.x = CORE.x * TILE + TILE / 2; camera.y = CORE.y * TILE + TILE / 2;
@@ -198,6 +209,8 @@ export function resetGameData() {
   monsters.length = 0; nests.length = 0; turretBeams.length = 0; coreBeams.length = 0; explosions.length = 0;
 
   updateFog();
+
+  if (typeof window !== 'undefined' && typeof window.__resetUITabs === 'function') window.__resetUITabs();
 }
 
 console.debug('[save] loaded');

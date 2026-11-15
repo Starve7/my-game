@@ -4,10 +4,9 @@ import { state, showToast } from '../game.js';
 import { CATEGORIES, TECHNOLOGIES, isTechOwned, selectStudyTech, cancelStudy, getTechProgressPct } from '../research.js';
 import { playClick } from '../audio.js';
 
-// Находим элементы локально, т.к. они специфичны только для этого экрана
 const researchScreen = document.getElementById('research-screen');
 const researchTabs = document.getElementById('research-tabs');
-const researchClose = document.getElementById('research-close'); // <--- ВОТ ТУТ ОБЪЯВЛЯЕМ ЛОКАЛЬНО
+const researchClose = document.getElementById('research-close');
 const researchViewport = document.getElementById('research-viewport');
 const researchWorld = document.getElementById('research-world');
 const researchSvg = document.getElementById('research-svg');
@@ -245,7 +244,8 @@ function renderResearchPanel() {
     }
   }
 
-  setTimeout(() => {
+  // ФИКС: двойной RAF вместо setTimeout(0) — гарантирует, что offsetLeft/Height уже вычислены
+  requestAnimationFrame(() => requestAnimationFrame(() => {
     let allSvgLines = '';
     for (const id in globalPositions) {
       const t = TECHNOLOGIES.find(x => x.id === id);
@@ -270,7 +270,7 @@ function renderResearchPanel() {
       }
     }
     researchSvg.innerHTML = allSvgLines;
-  }, 0);
+  }));
 }
 
 function renderTechCardHtml(t) {

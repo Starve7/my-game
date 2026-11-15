@@ -11,13 +11,18 @@ import {
   LAB_IRON_COST, LAB_COPPER_COST, CUTTER_IRON_COST, CUTTER_COPPER_COST, ASSEMBLER_IRON_COST, ASSEMBLER_COPPER_COST,
   CHEMPLANT_IRON_COST, CHEMPLANT_COPPER_COST, CHEMPLANT_WIRE_COST, STORAGE_IRON_COST, STORAGE_COPPER_COST,
   TURRET_CORPS_COST, TURRET_ENGINE_COST, TURRET_CIRCUIT_COST,
-  LUMBERJACK_COST, SAWMILL_IRON_COST, SAWMILL_WOOD_COST, SAWMILL_WIRE_COST
+  LUMBERJACK_COST, SAWMILL_IRON_COST, SAWMILL_WOOD_COST, SAWMILL_WIRE_COST,
+  ROLLING_MILL_IRON, ROLLING_MILL_COPPER, FASTENER_FACTORY_IRON, FASTENER_FACTORY_COPPER, FASTENER_FACTORY_ROD,
+  MECH_FACTORY_IRON, MECH_FACTORY_BOLT, MECH_FACTORY_ENGINE, MECH_FACTORY_CORPS,
+  ASSEMBLY_PLANT_IRON, ASSEMBLY_PLANT_FRAME, ASSEMBLY_PLANT_ENGINE
 } from '../buildings.js';
 import { costHtml, BUILDING_ICONS } from './utils.js';
 import { playClick } from '../audio.js';
 
 const BUILD_TABS = [{ id: 'industry', name: '🏭 Индустрия' }, { id: 'military', name: '⚔️ Военная' }, { id: 'energy', name: '⚡ Энергетика' }];
 let activeBuildTab = 'industry';
+
+export function resetBuildTab() { activeBuildTab = 'industry'; }
 
 function canAffordLab() { return inventory[RES.PLATE_IRON] >= LAB_IRON_COST && inventory[RES.PLATE_COPPER] >= LAB_COPPER_COST; }
 function canAffordCutter() { return inventory[RES.PLATE_IRON] >= CUTTER_IRON_COST && inventory[RES.PLATE_COPPER] >= CUTTER_COPPER_COST; }
@@ -29,20 +34,31 @@ function canAffordRadar() { return inventory[RES.CIRCUIT] >= RADAR_COST.circuit 
 function canAffordInserter() { return inventory[RES.IRON] >= INSERTER_COST.iron && inventory[RES.GEAR] >= INSERTER_COST.gear && inventory[RES.PLATE_IRON] >= INSERTER_COST.plate_iron; }
 function canAffordSawmill() { return inventory[RES.PLATE_IRON] >= SAWMILL_IRON_COST && inventory[RES.WOOD] >= SAWMILL_WOOD_COST && inventory[RES.WIRE] >= SAWMILL_WIRE_COST; }
 
-function getBuildingSpriteStyle(type) {
+function canAffordRollingMill() { return inventory[RES.PLATE_IRON] >= ROLLING_MILL_IRON && inventory[RES.PLATE_COPPER] >= ROLLING_MILL_COPPER; }
+function canAffordFastenerFactory() { return inventory[RES.PLATE_IRON] >= FASTENER_FACTORY_IRON && inventory[RES.PLATE_COPPER] >= FASTENER_FACTORY_COPPER && inventory[RES.COPPER_ROD] >= FASTENER_FACTORY_ROD; }
+function canAffordMechFactory() { return inventory[RES.PLATE_IRON] >= MECH_FACTORY_IRON && inventory[RES.IRON_BOLT] >= MECH_FACTORY_BOLT && inventory[RES.COPPER_BOLT] >= MECH_FACTORY_BOLT && inventory[RES.ENGINE] >= MECH_FACTORY_ENGINE && inventory[RES.CORPS] >= MECH_FACTORY_CORPS; }
+function canAffordAssemblyPlant() { return inventory[RES.PLATE_IRON] >= ASSEMBLY_PLANT_IRON && inventory[RES.HEAVY_FRAME] >= ASSEMBLY_PLANT_FRAME && inventory[RES.ENGINE] >= ASSEMBLY_PLANT_ENGINE; }
+
+function getBuildingSpriteInfo(type) {
   const img = buildingImages[type];
-  if (isReady(img)) return `background-image:url('${img.src}'); background-size:contain; background-repeat:no-repeat; background-position:center bottom;`;
-  return `display:flex; align-items:center; justify-content:center; font-size:24px;`;
+  if (isReady(img)) {
+    return {
+      style: `background-image:url('${img.src}'); background-size:contain; background-repeat:no-repeat; background-position:center bottom;`,
+      fallbackIcon: ''
+    };
+  }
+  return {
+    style: `display:flex; align-items:center; justify-content:center; font-size:24px;`,
+    fallbackIcon: BUILDING_ICONS[type] || '?'
+  };
 }
 
 export function openBuildPanel() { openModal('🏗️ Постройки'); renderBuildPanel(); }
 
 function renderBuildCard(type, name, costHtmlStr, isOk, countStr = '') {
-  const icon = BUILDING_ICONS[type] || '?';
-  const spriteStyle = getBuildingSpriteStyle(type);
-  
+  const spriteInfo = getBuildingSpriteInfo(type);
   return `<div class="build-card ${isOk ? '' : 'disabled'}" data-type="${type}">
-    <div class="build-card-img" style="${spriteStyle}">${spriteStyle.includes('font-size') ? icon : ''}</div>
+    <div class="build-card-img" style="${spriteInfo.style}">${spriteInfo.fallbackIcon}</div>
     <div class="build-card-info">
       <div class="build-card-name">${name}</div>
       ${countStr ? `<div class="build-card-count">${countStr}</div>` : ''}
@@ -81,6 +97,8 @@ function renderBuildPanel() {
     const assemblerCount = countBuildings('assembler'), chemplantCount = countBuildings('chemplant');
     const storageCount = countBuildings('storage'), radarCount = countBuildings('radar'), inserterCount = countBuildings('inserter');
     const lumberjackCount = countBuildings('lumberjack'), sawmillCount = countBuildings('sawmill');
+    const rollingMillCount = countBuildings('rolling_mill'), fastenerCount = countBuildings('fastener_factory');
+    const mechCount = countBuildings('mechanical_factory'), assemblyCount = countBuildings('assembly_plant');
 
     const mineOk = iron >= MINE_COST;
     const lumberjackOk = iron >= LUMBERJACK_COST;
@@ -93,6 +111,10 @@ function renderBuildPanel() {
     const radarOk = canAffordRadar();
     const inserterOk = canAffordInserter();
     const sawmillOk = isBuildingUnlocked('sawmill') && canAffordSawmill();
+    const rollingMillOk = isBuildingUnlocked('rolling_mill') && canAffordRollingMill();
+    const fastenerOk = isBuildingUnlocked('fastener_factory') && canAffordFastenerFactory();
+    const mechOk = isBuildingUnlocked('mechanical_factory') && canAffordMechFactory();
+    const assemblyOk = isBuildingUnlocked('assembly_plant') && canAffordAssemblyPlant();
 
     html += `<div class="build-group-title">⛏ Добыча и плавка</div><div class="build-grid">`;
     html += renderBuildCard('mine', 'Угольный бур', costHtml(MINE_COST, RES.IRON), mineOk, `${mineCount}`);
@@ -102,15 +124,18 @@ function renderBuildPanel() {
 
     html += `<div class="build-group-title">⚙️ Переработка</div><div class="build-grid">`;
     html += renderBuildCard('lab', 'Лаборатория', `${costHtml(LAB_IRON_COST, RES.PLATE_IRON)}+${costHtml(LAB_COPPER_COST, RES.PLATE_COPPER)}`, labOk, `${labCount}`);
-    
-    if (isBuildingUnlocked('sawmill')) {
-      html += renderBuildCard('sawmill', 'Лесопильный комбинат', `${costHtml(SAWMILL_IRON_COST, RES.PLATE_IRON)}+${costHtml(SAWMILL_WOOD_COST, RES.WOOD)}+${costHtml(SAWMILL_WIRE_COST, RES.WIRE)}`, sawmillOk, `${sawmillCount}`);
-    }
-
+    if (isBuildingUnlocked('sawmill')) html += renderBuildCard('sawmill', 'Лесопильный комбинат', `${costHtml(SAWMILL_IRON_COST, RES.PLATE_IRON)}+${costHtml(SAWMILL_WOOD_COST, RES.WOOD)}+${costHtml(SAWMILL_WIRE_COST, RES.WIRE)}`, sawmillOk, `${sawmillCount}`);
     if (isBuildingUnlocked('cutter')) html += renderBuildCard('cutter', 'Резак', `${costHtml(CUTTER_IRON_COST, RES.PLATE_IRON)}+${costHtml(CUTTER_COPPER_COST, RES.PLATE_COPPER)}`, cutterOk, `${cutterCount}`);
     if (isBuildingUnlocked('assembler')) html += renderBuildCard('assembler', 'Сборщик', `${costHtml(ASSEMBLER_IRON_COST, RES.PLATE_IRON)}+${costHtml(ASSEMBLER_COPPER_COST, RES.PLATE_COPPER)}`, assemblerOk, `${assemblerCount}`);
     if (isBuildingUnlocked('chemplant')) html += renderBuildCard('chemplant', 'Химзавод', `${costHtml(CHEMPLANT_IRON_COST, RES.PLATE_IRON)}+${costHtml(CHEMPLANT_COPPER_COST, RES.PLATE_COPPER)}+${costHtml(CHEMPLANT_WIRE_COST, RES.WIRE)}`, chemplantOk, `${chemplantCount}`);
     if (isBuildingUnlocked('storage')) html += renderBuildCard('storage', 'Склад', `${costHtml(STORAGE_IRON_COST, RES.PLATE_IRON)}+${costHtml(STORAGE_COPPER_COST, RES.PLATE_COPPER)}`, storageOk, `${storageCount}`);
+    html += `</div>`;
+
+    html += `<div class="build-group-title">🏭 Тяжёлая промышленность</div><div class="build-grid">`;
+    if (isBuildingUnlocked('rolling_mill')) html += renderBuildCard('rolling_mill', 'Прокатный стан', `${costHtml(ROLLING_MILL_IRON, RES.PLATE_IRON)}+${costHtml(ROLLING_MILL_COPPER, RES.PLATE_COPPER)}`, rollingMillOk, `${rollingMillCount}`);
+    if (isBuildingUnlocked('fastener_factory')) html += renderBuildCard('fastener_factory', 'Метизный завод', `${costHtml(FASTENER_FACTORY_IRON, RES.PLATE_IRON)}+${costHtml(FASTENER_FACTORY_COPPER, RES.PLATE_COPPER)}+${costHtml(FASTENER_FACTORY_ROD, RES.COPPER_ROD)}`, fastenerOk, `${fastenerCount}`);
+    if (isBuildingUnlocked('mechanical_factory')) html += renderBuildCard('mechanical_factory', 'Мех. завод', `${costHtml(MECH_FACTORY_IRON, RES.PLATE_IRON)}+${costHtml(MECH_FACTORY_BOLT, RES.IRON_BOLT)}+${costHtml(MECH_FACTORY_BOLT, RES.COPPER_BOLT)}+${costHtml(MECH_FACTORY_ENGINE, RES.ENGINE)}+${costHtml(MECH_FACTORY_CORPS, RES.CORPS)}`, mechOk, `${mechCount}`);
+    if (isBuildingUnlocked('assembly_plant')) html += renderBuildCard('assembly_plant', 'Сборочный завод', `${costHtml(ASSEMBLY_PLANT_IRON, RES.PLATE_IRON)}+${costHtml(ASSEMBLY_PLANT_FRAME, RES.HEAVY_FRAME)}+${costHtml(ASSEMBLY_PLANT_ENGINE, RES.ENGINE)}`, assemblyOk, `${assemblyCount}`);
     html += `</div>`;
 
     html += `<div class="build-group-title">↔️ Логистика</div><div class="build-grid">`;

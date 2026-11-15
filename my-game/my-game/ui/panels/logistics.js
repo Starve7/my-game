@@ -16,7 +16,29 @@ export function renderStoragePanel(b) {
 }
 
 export function renderInserterPanel(b) {
-  panelContent.innerHTML = `<div class="info-line">Берет предметы сзади, кладет спереди.</div><div class="info-line">Направление: <strong>${['Север', 'Восток', 'Юг', 'Запад'][b.dir]}</strong></div><div class="info-line" style="margin-top:8px;">В руке: <strong>${b.heldItem ? RES_NAME[b.heldItem] : 'Пусто'}</strong></div><button class="remove-btn" id="remove-btn" style="margin-top:16px;">Удалить (вернуть 50%)</button>`;
+  const dirName = ['Север', 'Восток', 'Юг', 'Запад'][b.dir];
+  panelContent.innerHTML = `
+    <div class="info-line">Берет предметы сзади, кладет спереди.</div>
+    <div class="info-line">Направление: <strong id="inserter-dir-name">${dirName}</strong></div>
+    <div style="display:flex; gap:6px; margin:12px 0;">
+      <button class="option-btn ${b.dir === 0 ? 'selected' : ''}" style="flex:1; padding:14px; font-size:22px; justify-content:center;" data-dir="0">↑</button>
+      <button class="option-btn ${b.dir === 1 ? 'selected' : ''}" style="flex:1; padding:14px; font-size:22px; justify-content:center;" data-dir="1">→</button>
+      <button class="option-btn ${b.dir === 2 ? 'selected' : ''}" style="flex:1; padding:14px; font-size:22px; justify-content:center;" data-dir="2">↓</button>
+      <button class="option-btn ${b.dir === 3 ? 'selected' : ''}" style="flex:1; padding:14px; font-size:22px; justify-content:center;" data-dir="3">←</button>
+    </div>
+    <div class="info-line" style="margin-top:8px;">В руке: <strong>${b.heldItem ? RES_NAME[b.heldItem] : 'Пусто'}</strong></div>
+    <button class="remove-btn" id="remove-btn" style="margin-top:16px;">Удалить (вернуть 50%)</button>
+  `;
+  panelContent.querySelectorAll('[data-dir]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      playClick();
+      b.dir = parseInt(btn.dataset.dir);
+      b.retryTimer = 0;
+      panelContent.querySelectorAll('[data-dir]').forEach(x => x.classList.toggle('selected', parseInt(x.dataset.dir) === b.dir));
+      const nameEl = document.getElementById('inserter-dir-name');
+      if (nameEl) nameEl.textContent = ['Север', 'Восток', 'Юг', 'Запад'][b.dir];
+    });
+  });
   document.getElementById('remove-btn').addEventListener('click', () => { playClick(); demolishBuilding(b); closePanel(); });
 }
 

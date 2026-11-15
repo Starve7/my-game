@@ -1,6 +1,6 @@
 'use strict';
 
-import { state } from '../../game.js';
+import { state, inventory, RES } from '../../game.js';
 import { oreAmount } from '../../world.js';
 import { openModal, panelContent } from '../core.js';
 
@@ -25,6 +25,10 @@ export function openInfoPanel(b) {
   else if (b.type === 'radar') title = '📡 Радар';
   else if (b.type === 'inserter') title = '🦾 Манипулятор';
   else if (b.type === 'minicore') title = '💠 Мини-ядро';
+  else if (b.type === 'rolling_mill') title = '🪵 Прокатный стан';
+  else if (b.type === 'fastener_factory') title = '🔩 Метизный завод';
+  else if (b.type === 'mechanical_factory') title = '⚙️ Механический завод';
+  else if (b.type === 'assembly_plant') title = '🏭 Сборочный завод';
   
   openModal(title);
   
@@ -34,7 +38,7 @@ export function openInfoPanel(b) {
   else if (b.type === 'furnace') renderFurnacePanel(b);
   else if (b.type === 'lab') renderLabPanel(b);
   else if (b.type === 'cutter') renderCutterPanel(b);
-  else if (b.type === 'assembler' || b.type === 'chemplant') renderCrafterPanel(b);
+  else if (b.type === 'assembler' || b.type === 'chemplant' || b.type === 'rolling_mill' || b.type === 'fastener_factory' || b.type === 'mechanical_factory' || b.type === 'assembly_plant') renderCrafterPanel(b);
   else if (b.type === 'storage') renderStoragePanel(b);
   else if (b.type === 'turret') renderTurretPanel(b);
   else if (b.type === 'radar') renderRadarPanel(b);
@@ -67,12 +71,17 @@ export function updateActivePanelLive() {
     else if (b.type === 'cutter') {
       const el = document.getElementById('cutter-in'); if (el) el.textContent = b.inputBuffer;
       const el2 = document.getElementById('cutter-out'); if (el2) el2.textContent = b.outputBuffer + ' / ' + b.outputBufferMax;
-    } else if (b.type === 'assembler' || b.type === 'chemplant' || b.type === 'sawmill') { 
+    } else if (b.type === 'assembler' || b.type === 'chemplant' || b.type === 'sawmill' || b.type === 'rolling_mill' || b.type === 'fastener_factory' || b.type === 'mechanical_factory' || b.type === 'assembly_plant') { 
       const el = document.getElementById('crafter-buf-out'); if (el) el.textContent = b.outputBuffer + ' / ' + b.outputBufferMax; 
     }
     else if (b.type === 'turret') {
       const el = document.getElementById('turret-kills'); if (el) el.textContent = b.totalKills || 0;
       const el2 = document.getElementById('turret-hp'); if (el2) el2.textContent = Math.round(b.hp) + ' / ' + Math.round(b.maxHp);
+      const el3 = document.getElementById('turret-ammo');
+      if (el3) {
+        el3.textContent = inventory[RES.AMMO];
+        el3.style.color = inventory[RES.AMMO] > 0 ? '#7fbf7f' : '#e06060';
+      }
     }
   } else if (state.panel === 'conveyor' && state.activeConveyor) {
     const el = document.getElementById('conveyor-items'); if (el) el.textContent = state.activeConveyor.items.length;

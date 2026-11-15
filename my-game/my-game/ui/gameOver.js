@@ -26,5 +26,17 @@ export function showGameOver() {
     <button id="game-over-restart" style="margin-top:12px; padding:16px 40px; background:linear-gradient(180deg,#ffb000,#d96a00); color:#1a0d00; border:3px solid #0a0a0a; border-radius:12px; font-size:16px; font-weight:900; letter-spacing:2px; cursor:pointer; font-family:inherit; text-transform:uppercase;">В меню</button>
   `;
   document.body.appendChild(div);
-  document.getElementById('game-over-restart').addEventListener('click', () => location.reload());
+  document.getElementById('game-over-restart').addEventListener('click', () => {
+    // ФИКС: вместо location.reload() — чисто убираем экран и возвращаемся в меню.
+    // resetGameData() вызовется при нажатии "Играть" в меню.
+    div.remove();
+    state.gameOver = false;
+    state.gameStarted = false;
+    if (typeof window.__showMainMenu === 'function') {
+      window.__showMainMenu();
+    } else {
+      // fallback на случай если showMainMenu ещё не загружен — reload безопаснее
+      location.reload();
+    }
+  });
 }
