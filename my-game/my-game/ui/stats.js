@@ -11,9 +11,15 @@ const STATS_TABS = [
 ];
 let activeStatsTab = 'resources';
 
+export function resetStatsTab() {
+  activeStatsTab = 'resources';
+  activeResCategory = 'raw';
+}
+
 const RES_CATEGORIES = [
   { id: 'raw', name: '🪨 Сырьё' },
   { id: 'industry', name: '⚙️ Промышленность' },
+  { id: 'mechanics', name: '🔩 Механика' },
   { id: 'misc', name: '📦 Разное' }
 ];
 let activeResCategory = 'raw';
@@ -22,6 +28,7 @@ const STAT_ROWS = [
   { key: 'iron', name: 'Железо', res: RES.IRON, cat: 'raw' },
   { key: 'copper', name: 'Медь', res: RES.COPPER, cat: 'raw' },
   { key: 'coal', name: 'Уголь', res: RES.COAL, cat: 'raw' },
+  
   { key: 'plate_iron', name: 'Железные плиты', res: RES.PLATE_IRON, cat: 'industry' },
   { key: 'plate_copper', name: 'Медные плиты', res: RES.PLATE_COPPER, cat: 'industry' },
   { key: 'wire', name: 'Провод', res: RES.WIRE, cat: 'industry' },
@@ -29,6 +36,23 @@ const STAT_ROWS = [
   { key: 'corps', name: 'Корпус', res: RES.CORPS, cat: 'industry' },
   { key: 'circuit', name: 'Электросхема', res: RES.CIRCUIT, cat: 'industry' },
   { key: 'engine', name: 'Двигатель', res: RES.ENGINE, cat: 'industry' },
+  { key: 'copper_rod', name: 'Медный пруток', res: RES.COPPER_ROD, cat: 'industry' },
+  { key: 'copper_beam', name: 'Медная балка', res: RES.COPPER_BEAM, cat: 'industry' },
+  { key: 'iron_rod', name: 'Жел. пруток', res: RES.IRON_ROD, cat: 'industry' },
+  { key: 'iron_beam', name: 'Жел. балка', res: RES.IRON_BEAM, cat: 'industry' },
+  { key: 'steel_rod', name: 'Ст. пруток', res: RES.STEEL_ROD, cat: 'industry' },
+  { key: 'steel_beam', name: 'Ст. балка', res: RES.STEEL_BEAM, cat: 'industry' },
+
+  { key: 'copper_bolt', name: 'Медный болт', res: RES.COPPER_BOLT, cat: 'mechanics' },
+  { key: 'iron_bolt', name: 'Жел. болт', res: RES.IRON_BOLT, cat: 'mechanics' },
+  { key: 'steel_bolt', name: 'Ст. болт', res: RES.STEEL_BOLT, cat: 'mechanics' },
+  { key: 'copper_shaft', name: 'Медный вал', res: RES.COPPER_SHAFT, cat: 'mechanics' },
+  { key: 'iron_shaft', name: 'Жел. вал', res: RES.IRON_SHAFT, cat: 'mechanics' },
+  { key: 'steel_shaft', name: 'Ст. вал', res: RES.STEEL_SHAFT, cat: 'mechanics' },
+  { key: 'iron_gearbox', name: 'Жел. редуктор', res: RES.IRON_GEARBOX, cat: 'mechanics' },
+  { key: 'steel_gearbox', name: 'Ст. редуктор', res: RES.STEEL_GEARBOX, cat: 'mechanics' },
+  { key: 'heavy_frame', name: 'Тяжёлая рама', res: RES.HEAVY_FRAME, cat: 'mechanics' },
+
   { key: 'powder', name: 'Порох', res: RES.POWDER, cat: 'misc' },
   { key: 'ammo', name: 'Патроны', res: RES.AMMO, cat: 'misc' },
   { key: 'dna', name: '🧬 ДНК', res: null, cat: 'misc' },
@@ -185,7 +209,6 @@ function renderStatsPanel() {
   });
 }
 
-// ФИКС: троттлинг — не чаще 1 раза в секунду (иначе спарклайны пересоздаются каждый кадр)
 let _statsLiveTimer = 0;
 
 export function updateStatsLive() {

@@ -36,9 +36,11 @@ export const state = {
   demolishMode: false, currentSaveSlot: null, totalKills: 0,
   techState: {}, statHistory: {}, activeStudyTechId: null, studyProgressByTech: {}, studyTickTimer: 0,
   day: 1, timeOfDay: 0.25,
-  hudResources: [1, 2, 3],
+  hudResources: [1, 2, 3, 4, 5, 12],
   selectedInfoCard: null,
-  needsFogUpdate: false
+  needsFogUpdate: false,
+  hoveredCell: null,
+  selectedCell: null
 };
 
 export const STAT_WINDOW_SEC = 30;
@@ -119,10 +121,11 @@ export function screenToCell(sx, sy) {
 canvas.addEventListener('pointerdown', e => {
   canvas.setPointerCapture(e.pointerId);
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  state.hoveredCell = screenToCell(e.clientX, e.clientY);
 
   if (pointers.size === 1) {
     if (state.selectedBuilding) {
-      const cell = screenToCell(e.clientX, e.clientY);
+      const cell = state.hoveredCell;
       if (cell) state.ghostPos = cell;
       if (state.selectedBuilding === 'conveyor' || state.selectedBuilding === 'underground') {
         dragState = { mode: 'conveyor-drag', startX: e.clientX, startY: e.clientY, moved: 0, lastCell: cell };
@@ -139,12 +142,17 @@ canvas.addEventListener('pointerdown', e => {
     const mid = pinchMid();
     pinchState = { startDist: pinchDist(), startZoom: camera.zoom, startMidX: mid.x, startMidY: mid.y, startCamX: camera.x, startCamY: camera.y };
     dragState = null;
+    state.hoveredCell = null;
   }
 });
 
 canvas.addEventListener('pointermove', e => {
-  if (!pointers.has(e.pointerId)) return;
+  if (!pointers.has(e.pointerId)) {
+    state.hoveredCell = screenToCell(e.clientX, e.clientY);
+    return;
+  }
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  state.hoveredCell = screenToCell(e.clientX, e.clientY);
 
   if (pointers.size === 1 && dragState) {
     const dx = e.clientX - dragState.startX;
@@ -189,6 +197,8 @@ canvas.addEventListener('pointermove', e => {
 function endPointer(e) {
   if (!pointers.has(e.pointerId)) return;
   pointers.delete(e.pointerId);
+  state.hoveredCell = null;
+
   if (pointers.size === 0) {
     if (dragState && dragState.mode === 'demolish') {
       if (!dragState.lastCell) {
@@ -221,6 +231,7 @@ function endPointer(e) {
 }
 canvas.addEventListener('pointerup', endPointer);
 canvas.addEventListener('pointercancel', endPointer);
+canvas.addEventListener('pointerleave', () => { state.hoveredCell = null; });
 
 canvas.addEventListener('wheel', e => {
   e.preventDefault();
@@ -302,7 +313,6 @@ export function drawBackground(world, oreAmount, oreInitial, getBuildingAt, draw
         if (amount <= 0) alpha = 0.15;
         else if (initial !== null && initial !== undefined && initial > 0) alpha = 0.4 + 0.6 * (amount / initial);
         ctx.globalAlpha = alpha;
-        // ФИКС ТЕКСТУРЫ ДЕРЕВА
         const v = (r === RES.WOOD) ? 1 : (variantForTile(tx, ty) % 3);
         const drawn = drawResIcon(r, sx, sy, TILE, v);
         if (!drawn) drawProceduralTile(r, sx, sy, TILE);
@@ -324,7 +334,6 @@ export function drawBackground(world, oreAmount, oreInitial, getBuildingAt, draw
 export function drawGhost(type, tx, ty, canPlace) {
   const sx = tx * TILE, sy = ty * TILE;
   
-  // МНОГОКЛЕТОЧНЫЕ ЗДАНИЯ (2x2)
   let w = 1, h = 1;
   if (type === 'assembly_plant' || type === 'steel_furnace') { w = 2; h = 2; }
   
@@ -354,7 +363,7 @@ export function drawGhost(type, tx, ty, canPlace) {
     ctx.strokeStyle = canPlace ? '#9fe09f' : '#e07070';
     ctx.lineWidth = 2 / camera.zoom;
     ctx.strokeRect(sx + 1.5, sy + 1.5, w * TILE - 3, h * TILE - 3);
-    const icon = { mine: '⛏', furnace: '🔥', lab: '🧪', cutter: '✂️', assembler: '⚙️', chemplant: '🧪', storage: '📦', turret: '🎯', conveyor: '↔️', underground: '⬇️', splitter: '↔️', radar: '📡', inserter: '🦾', minicore: '💠', lumberjack: '🪓', sawmill: '🪚', rolling_mill: '🪵', fastener_factory: '🔩', mechanical_factory: '⚙️', assembly_plant: '🏭' }[type] || '?';
+    const icon = { mine: '⛏', furnace: '🔥', lab: '🧪', cutter: '✂️', assembler: '⚙️', chemplant: '🧪', storage: '📦', turret: '🎯', conveyor: '↔️', underground: '⬇️', splitter: '↔️', radar: '📡', inserter: '🦾', minicore: '💠', lumberjack: '🪓', sawmill: '🪚', rolling_mill: '🪵', fastener_factory: '🔩', mechanical_factory: '⚙️', assembly_plant: '🏭', steel_furnace: '🏭' }[type] || '?';
     ctx.font = `bold ${18 * Math.min(w, h)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillStyle = canPlace ? '#ffffff' : '#ffb0b0';
     ctx.fillText(icon, sx + w * TILE / 2, sy + h * TILE / 2);

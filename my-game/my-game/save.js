@@ -6,7 +6,7 @@ import {
 } from './game.js';
 import { world, oreAmount, oreInitial, CORE, generateWorld, fog, initialNests } from './world.js';
 import {
-  buildings, conveyors, splitters, undergrounds, turretBeams, updateFog,
+  buildings, conveyors, splitters, undergrounds, turretBeams, updateFog, rebuildSpatialCache,
   Mine, Furnace, Lab, Cutter, Assembler, Chemplant, Storage, Turret, Radar, Inserter, MiniCore, Lumberjack, Sawmill,
   RollingMill, FastenerFactory, MechanicalFactory, AssemblyPlant
 } from './buildings.js';
@@ -18,7 +18,7 @@ const CURRENT_VERSION = 1;
 const TRANSIENT_STATE_KEYS = [
   'panel', 'activeBuilding', 'activeConveyor', 'selectedBuilding', 'ghostPos',
   'gameOver', 'gameStarted', 'inMenu', 'statHistory', 'demolishMode', 'currentSaveSlot',
-  'LIMITS',
+  'LIMITS', 'hoveredCell', 'selectedCell'
 ];
 
 function isPersistentStateValue(key, value) {
@@ -155,6 +155,7 @@ export function restoreGameData(data) {
   }
 
   updateFog();
+  rebuildSpatialCache();
 
   if (typeof window !== 'undefined' && typeof window.__resetUITabs === 'function') window.__resetUITabs();
 }
@@ -175,7 +176,6 @@ function makeBuilding(data) {
     else if (data.type === 'radar') b = new Radar(data.tx, data.ty);
     else if (data.type === 'inserter') b = new Inserter(data.tx, data.ty);
     else if (data.type === 'minicore') b = new MiniCore(data.tx, data.ty);
-    // Новые
     else if (data.type === 'rolling_mill') b = new RollingMill(data.tx, data.ty);
     else if (data.type === 'fastener_factory') b = new FastenerFactory(data.tx, data.ty);
     else if (data.type === 'mechanical_factory') b = new MechanicalFactory(data.tx, data.ty);
@@ -209,6 +209,7 @@ export function resetGameData() {
   monsters.length = 0; nests.length = 0; turretBeams.length = 0; coreBeams.length = 0; explosions.length = 0;
 
   updateFog();
+  rebuildSpatialCache();
 
   if (typeof window !== 'undefined' && typeof window.__resetUITabs === 'function') window.__resetUITabs();
 }

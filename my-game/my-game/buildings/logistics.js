@@ -3,7 +3,7 @@
 import { inventory, state, addPopup, TILE, WORLD_W, WORLD_H, RES, RES_COLOR, ctx, canvas, camera } from '../game.js';
 import { world } from '../world.js';
 import { playBuildSound } from '../audio.js';
-import { drawResIcon, drawConveyorSprite, drawInserterArm, drawBuildingSprite, drawSplitterSprite, drawUndergroundSprite } from '../sprites.js';
+import { drawResIcon, drawConveyorSprite, drawInserterArm, drawBuildingSprite, drawSplitterSprite, drawUndergroundSprite, isReady, buildingImages } from '../sprites.js';
 import { 
   Building, conveyors, splitters, undergrounds, 
   DIR_DELTA, CONVEYOR_SPEED, CONVEYOR_CAPACITY, BUILDING_HP, MAX_STACK,
@@ -108,9 +108,30 @@ export class Inserter extends Building {
   drawSpecific() {
     const sx = this.tx * TILE, sy = this.ty * TILE;
     const cx = sx + TILE / 2, cy = sy + TILE / 2;
-    if (!drawBuildingSprite('inserter_base', sx, sy, TILE)) { ctx.fillStyle = '#5a5a5a'; ctx.beginPath(); ctx.arc(cx, cy, TILE/2 - 2, 0, Math.PI*2); ctx.fill(); }
+    
     let baseAngle = 0;
     if (this.dir === 0) baseAngle = -Math.PI / 2; else if (this.dir === 1) baseAngle = 0; else if (this.dir === 2) baseAngle = Math.PI / 2; else if (this.dir === 3) baseAngle = Math.PI;
+
+    // ФИКС: Поворачиваем саму базу манипулятора
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(baseAngle);
+    
+    const img = buildingImages['inserter_base'];
+    if (isReady(img)) {
+      ctx.drawImage(img, -TILE/2, -TILE/2, TILE, TILE);
+    } else {
+      ctx.fillStyle = '#5a5a5a'; ctx.beginPath(); ctx.arc(0, 0, TILE/2 - 2, 0, Math.PI*2); ctx.fill();
+    }
+    
+    // Добавляем стрелочку направления на базу
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.beginPath();
+    ctx.moveTo(12, 0); ctx.lineTo(4, -6); ctx.lineTo(4, 6);
+    ctx.fill();
+    ctx.restore();
+
+    // Рисуем руку (она тоже крутится)
     const armAngle = baseAngle + (1 - this.animProgress) * Math.PI;
     drawInserterArm(armAngle, this.heldItem, cx, cy);
   }
@@ -267,20 +288,9 @@ export function drawConveyors() {
   const viewTop = camera.y - canvas.height / (2 * camera.zoom) - TILE * 2;
   const viewBottom = camera.y + canvas.height / (2 * camera.zoom) + TILE * 2;
 
-  const visibleConveyors = conveyors.filter(c => {
-    const cx = c.tx * TILE, cy = c.ty * TILE;
-    return cx + TILE >= viewLeft && cx <= viewRight && cy + TILE >= viewTop && cy <= viewBottom;
-  });
-
-  const visibleSplitters = splitters.filter(s => {
-    const cx = s.tx * TILE, cy = s.ty * TILE;
-    return cx + TILE * 2 >= viewLeft && cx <= viewRight && cy + TILE * 2 >= viewTop && cy <= viewBottom;
-  });
-
-  const visibleUndergrounds = undergrounds.filter(u => {
-    const cx = u.tx * TILE, cy = u.ty * TILE;
-    return cx + TILE >= viewLeft && cx <= viewRight && cy + TILE >= viewTop && cy <= viewBottom;
-  });
+  const visibleConveyors = conveyors.filter(c => c.tx * TILE + TILE >= viewLeft && c.tx * TILE <= viewRight && c.ty * TILE + TILE >= viewTop && c.ty * TILE <= viewBottom);
+  const visibleSplitters = splitters.filter(s => s.tx * TILE + TILE * 2 >= viewLeft && s.tx * TILE <= viewRight && s.ty * TILE + TILE * 2 >= viewTop && s.ty * TILE <= viewBottom);
+  const visibleUndergrounds = undergrounds.filter(u => u.tx * TILE + TILE >= viewLeft && u.tx * TILE <= viewRight && u.ty * TILE + TILE >= viewTop && u.ty * TILE <= viewBottom);
 
   for (const c of visibleConveyors) {
     const sx = c.tx * TILE, sy = c.ty * TILE;
@@ -356,6 +366,23 @@ export function drawConveyors() {
   }
 
   const itemSize = 12;
+  
+  const drawItemStack = (it, ix, iy) => {
+    drawResIcon(it.type, ix, iy, itemSize, 0);
+    if (it.count > 1) {
+      ctx.fillStyle = '#fff'; 
+      ctx.font = 'bold 11px sans-serif'; 
+      ctx.textAlign = 'center'; 
+      ctx.textBaseline = 'middle';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 3;
+      const txtX = ix + itemSize / 2;
+      const txtY = iy + itemSize / 2;
+      ctx.strokeText(it.count, txtX, txtY);
+      ctx.fillText(it.count, txtX, txtY);
+    }
+  };
+
   for (const c of visibleConveyors) {
     if (c.isBroken) continue;
     const sx = c.tx * TILE, sy = c.ty * TILE;
@@ -365,11 +392,8 @@ export function drawConveyors() {
       else if (c.dir === 2) { ix = sx + TILE/2 - itemSize/2; iy = sy + p * TILE; }
       else if (c.dir === 1) { ix = sx + p * TILE; iy = sy + TILE/2 - itemSize/2; }
       else { ix = sx + TILE - p * TILE - itemSize; iy = sy + TILE/2 - itemSize/2; }
-      drawResIcon(it.type, ix, iy, itemSize, 0);
-      if (it.count > 1) {
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
-        ctx.fillText(it.count, ix + itemSize + 2, iy + itemSize + 2);
-      }
+      
+      drawItemStack(it, ix, iy);
     }
   }
   
@@ -380,12 +404,9 @@ export function drawConveyors() {
     for (const it of s.items) {
       const p = Math.min(1, it.progress); let ix, iy;
       if (p < 1) { const [dx, dy] = DIR_DELTA[s.dir]; const startX = cx - dx * TILE * 0.5; const startY = cy - dy * TILE * 0.5; ix = startX + (cx - startX) * p - itemSize/2; iy = startY + (cy - startY) * p - itemSize/2; } 
-      else { ix = cx - itemSize/2 + (Math.random() - 0.5) * 4; iy = cy - itemSize/2 + (Math.random() - 0.5) * 4; }
-      drawResIcon(it.type, ix, iy, itemSize, 0);
-      if (it.count > 1) {
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
-        ctx.fillText(it.count, ix + itemSize + 2, iy + itemSize + 2);
-      }
+      else { ix = cx - itemSize/2; iy = cy - itemSize/2; }
+      
+      drawItemStack(it, ix, iy);
     }
   }
 }

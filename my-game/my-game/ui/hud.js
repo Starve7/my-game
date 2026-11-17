@@ -10,6 +10,9 @@ import { updateStatsLive } from './stats.js';
 import { updateActivePanelLive } from './panels/index.js';
 import { playClick } from '../audio.js';
 
+// Жёсткий список для HUD
+const ALLOWED_HUD_RES = [RES.IRON, RES.COPPER, RES.COAL, RES.PLATE_IRON, RES.PLATE_COPPER, RES.AMMO];
+
 export function buildHudResourcesDOM() {
   if (!hudResourcesContainer) return;
   hudResourcesContainer.innerHTML = '';
@@ -21,6 +24,7 @@ export function buildHudResourcesDOM() {
     hudResourcesContainer.appendChild(div);
   });
 }
+if (typeof window !== 'undefined') window.__buildHudDOM = buildHudResourcesDOM;
 
 export function openHudSettings() {
   playClick();
@@ -31,7 +35,8 @@ export function openHudSettings() {
   
   for (const [idStr, name] of Object.entries(RES_NAME)) {
     const id = parseInt(idStr);
-    if (id > 26) continue; // Показываем только старые базовые в настройках HUD, чтобы не засорять
+    if (!ALLOWED_HUD_RES.includes(id)) continue; // Только разрешенные
+    
     const isSelected = state.hudResources.includes(id);
     
     html += `

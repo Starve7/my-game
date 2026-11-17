@@ -4,23 +4,45 @@ import { inventory, state, showToast, TILE, RES, RES_COLOR, ctx } from '../game.
 import { CORE } from '../world.js';
 import { buildings, conveyors, splitters, undergrounds, CONVEYOR_CAPACITY, MAX_STACK, DIR_DELTA } from './data.js';
 
-export function getConveyorAt(tx, ty) { return conveyors.find(c => c.tx === tx && c.ty === ty); }
+// ОПТИМИЗАЦИЯ: Пространственные хэш-карты
+export const buildingCache = new Map();
+export const conveyorCache = new Map();
+export const splitterCache = new Map();
+export const undergroundCache = new Map();
 
-// НОВАЯ ЛОГИКА: Поддержка многоклеточных зданий (w, h)
-export function getBuildingAt(tx, ty) { 
-  return buildings.find(b => {
-    const bw = b.w || 1, bh = b.h || 1;
-    return tx >= b.tx && tx < b.tx + bw && ty >= b.ty && ty < b.ty + bh;
-  });
+export function rebuildSpatialCache() {
+  buildingCache.clear();
+  conveyorCache.clear();
+  splitterCache.clear();
+  undergroundCache.clear();
+
+  for (const b of buildings) {
+    const w = b.w || 1, h = b.h || 1;
+    for (let x = 0; x < w; x++) {
+      for (let y = 0; y < h; y++) {
+        buildingCache.set((b.tx + x) + ',' + (b.ty + y), b);
+      }
+    }
+  }
+  for (const c of conveyors) conveyorCache.set(c.tx + ',' + c.ty, c);
+  
+  for (const s of splitters) {
+    const isH = s.dir === 1 || s.dir === 3;
+    const w = isH ? 2 : 1, h = isH ? 1 : 2;
+    for (let x = 0; x < w; x++) {
+      for (let y = 0; y < h; y++) {
+        splitterCache.set((s.tx + x) + ',' + (s.ty + y), s);
+      }
+    }
+  }
+  for (const u of undergrounds) undergroundCache.set(u.tx + ',' + u.ty, u);
 }
 
-export function getSplitterAt(tx, ty) {
-  return splitters.find(s => {
-    if (s.dir === 1 || s.dir === 3) return s.tx === tx && (s.ty === ty || s.ty === ty - 1);
-    else return s.ty === ty && (s.tx === tx || s.tx === tx - 1);
-  });
-}
-export function getUndergroundAt(tx, ty) { return undergrounds.find(u => u.tx === tx && u.ty === ty); }
+export function getBuildingAt(tx, ty) { return buildingCache.get(tx + ',' + ty); }
+export function getConveyorAt(tx, ty) { return conveyorCache.get(tx + ',' + ty); }
+export function getSplitterAt(tx, ty) { return splitterCache.get(tx + ',' + ty); }
+export function getUndergroundAt(tx, ty) { return undergroundCache.get(tx + ',' + ty); }
+
 export function isCoreTile(tx, ty) { return Math.abs(tx - CORE.x) <= 1 && Math.abs(ty - CORE.y) <= 1; }
 export function countBuildings(type) { return buildings.filter(b => b.type === type).length; }
 export function getStorageTotal(b) { let total = 0; for (const k in b.items) total += b.items[k]; return total; }
@@ -29,13 +51,12 @@ export function getOutputConveyor(b) {
   if (b.outputDir === null || b.outputDir === undefined) return null;
   const [dx, dy] = DIR_DELTA[b.outputDir];
   
-  // Если здание 2x2, выход ищем от центра
   let outTx = b.tx, outTy = b.ty;
   if (b.w === 2 && b.h === 2) {
-    if (b.outputDir === 1) { outTx = b.tx + 1; outTy = b.ty; } // вправо
-    else if (b.outputDir === 3) { outTx = b.tx; outTy = b.ty; } // влево
-    else if (b.outputDir === 2) { outTx = b.tx; outTy = b.ty + 1; } // вниз
-    else if (b.outputDir === 0) { outTx = b.tx; outTy = b.ty; } // вверх
+    if (b.outputDir === 1) { outTx = b.tx + 1; outTy = b.ty; }
+    else if (b.outputDir === 3) { outTx = b.tx; outTy = b.ty; }
+    else if (b.outputDir === 2) { outTx = b.tx; outTy = b.ty + 1; }
+    else if (b.outputDir === 0) { outTx = b.tx; outTy = b.ty; }
   }
   
   const tx = outTx + dx, ty = outTy + dy;
@@ -92,18 +113,15 @@ export function damageConveyorAt(tx, ty, dmg) {
   return false;
 }
 
-// ОПТИМИЗАЦИЯ: Стекирование предметов (до 4 в стак)
 export function pushItemToTransport(transport, itemType) {
   if (!transport || transport.isBroken) return false;
   
-  // Ищем стак с таким же предметом, куда можно доложить
   for (const stack of transport.items) {
     if (stack.type === itemType && stack.count < MAX_STACK) {
       stack.count++;
       return true;
     }
   }
-  // Если нет, создаем новый стак (если есть место под новые стаки)
   if (transport.items.length < CONVEYOR_CAPACITY) {
     transport.items.push({ type: itemType, progress: 0, count: 1 });
     return true;
@@ -150,7 +168,7 @@ export function flushOutputBuffer(b) {
 
 export function outputSpace(b) {
   const outC = getOutputConveyor(b);
-  const convSpace = outC ? (CONVEYOR_CAPACITY - outC.items.length) * MAX_STACK : 0; // Примерная оценка
+  const convSpace = outC ? (CONVEYOR_CAPACITY - outC.items.length) * MAX_STACK : 0;
   return convSpace + (b.outputBufferMax - b.outputBuffer);
 }
 

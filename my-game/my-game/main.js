@@ -73,6 +73,7 @@ function handleTap(sx, sy) {
   const nest = nests.find(n => n.hp > 0 && n.tx === tx && n.ty === ty);
   if (nest) {
     state.selectedBuilding = null; state.ghostPos = null; updateModeBadge();
+    state.selectedCell = { tx, ty };
     showInfoCard({ isNest: true, ...nest });
     return;
   }
@@ -80,40 +81,119 @@ function handleTap(sx, sy) {
   if (fog[ty] && fog[ty][tx] === 1) return; 
 
   const existingB = getBuildingAt(tx, ty);
-  if (existingB) { state.selectedBuilding = null; state.ghostPos = null; updateModeBadge(); showInfoCard(existingB); return; }
-  const existingC = conveyors.find(c => c.tx === tx && c.ty === ty);
-  if (existingC) { state.selectedBuilding = null; state.ghostPos = null; updateModeBadge(); showInfoCard(existingC); return; }
+  if (existingB) { state.selectedBuilding = null; state.ghostPos = null; updateModeBadge(); state.selectedCell = { tx, ty }; showInfoCard(existingB); return; }
+  const existingC = getConveyorAt(tx, ty);
+  if (existingC) { state.selectedBuilding = null; state.ghostPos = null; updateModeBadge(); state.selectedCell = { tx, ty }; showInfoCard(existingC); return; }
   const existingS = getSplitterAt(tx, ty);
-  if (existingS) { state.selectedBuilding = null; state.ghostPos = null; updateModeBadge(); showInfoCard(existingS); return; }
+  if (existingS) { state.selectedBuilding = null; state.ghostPos = null; updateModeBadge(); state.selectedCell = { tx, ty }; showInfoCard(existingS); return; }
   const existingU = getUndergroundAt(tx, ty);
-  if (existingU) { state.selectedBuilding = null; state.ghostPos = null; updateModeBadge(); showInfoCard(existingU); return; }
+  if (existingU) { state.selectedBuilding = null; state.ghostPos = null; updateModeBadge(); state.selectedCell = { tx, ty }; showInfoCard(existingU); return; }
   
-  if (Math.abs(tx - CORE.x) <= 1 && Math.abs(ty - CORE.y) <= 1) { showInfoCard({ type: 'core' }); return; }
+  if (Math.abs(tx - CORE.x) <= 1 && Math.abs(ty - CORE.y) <= 1) { state.selectedCell = { tx, ty }; showInfoCard({ type: 'core' }); return; }
   
   const worldX = tx * TILE + TILE / 2, worldY = ty * TILE + TILE / 2;
   const monster = monsters.find(m => Math.hypot(m.x - worldX, m.y - worldY) < 20);
-  if (monster) { monster.isMonster = true; showInfoCard(monster); return; }
+  if (monster) { monster.isMonster = true; state.selectedCell = { tx, ty }; showInfoCard(monster); return; }
+
+  const oreType = world[ty] && world[ty][tx];
+  if (oreType > 0 && oreType !== RES.WATER && oreType !== RES.OIL) {
+    state.selectedCell = { tx, ty };
+    showInfoCard({ type: 'ore', resType: oreType, tx, ty });
+    return;
+  }
   
+  state.selectedCell = null;
   hideInfoCard();
+}
+
+function drawHoverHighlight() {
+  if (state.inMenu || state.gameOver) return;
+  
+  if (state.hoveredCell) {
+    drawHighlight(state.hoveredCell.tx, state.hoveredCell.ty, false);
+  }
+  
+  if (state.selectedCell) {
+    drawHighlight(state.selectedCell.tx, state.selectedCell.ty, true);
+  }
+}
+
+function drawHighlight(tx, ty, isSelected) {
+  if (fog[ty] && fog[ty][tx] === 1) return;
+
+  let isInteractive = false;
+  let w = 1, h = 1;
+
+  const b = getBuildingAt(tx, ty);
+  if (b) { isInteractive = true; w = b.w || 1; h = b.h || 1; }
+  else if (getConveyorAt(tx, ty)) isInteractive = true;
+  else if (getSplitterAt(tx, ty)) isInteractive = true;
+  else if (getUndergroundAt(tx, ty)) isInteractive = true;
+  else if (Math.abs(tx - CORE.x) <= 1 && Math.abs(ty - CORE.y) <= 1) isInteractive = true;
+  else if (nests.find(n => n.hp > 0 && n.tx === tx && n.ty === ty)) isInteractive = true;
+  else if (world[ty] && world[ty][tx] > 0 && world[ty][tx] !== RES.WATER && world[ty][tx] !== RES.OIL) isInteractive = true;
+  else {
+    const wx = tx * TILE + TILE/2, wy = ty * TILE + TILE/2;
+    if (monsters.find(m => Math.hypot(m.x - wx, m.y - wy) < 20)) isInteractive = true;
+  }
+
+  if (!isInteractive) return;
+
+  let startTx = tx, startTy = ty;
+  if (b) { startTx = b.tx; startTy = b.ty; }
+
+  const sx = startTx * TILE;
+  const sy = startTy * TILE;
+  const sw = w * TILE;
+  const sh = h * TILE;
+
+  ctx.save();
+  const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 200);
+  
+  if (isSelected) {
+    ctx.strokeStyle = `rgba(255, 255, 255, 0.9)`;
+    ctx.lineWidth = 2 / camera.zoom;
+    ctx.strokeRect(sx + 1, sy + 1, sw - 2, sh - 2);
+    ctx.fillStyle = `rgba(255, 255, 255, 0.1)`;
+    ctx.fillRect(sx + 1, sy + 1, sw - 2, sh - 2);
+  } else {
+    ctx.strokeStyle = `rgba(255, 255, 255, ${0.3 + pulse * 0.3})`;
+    ctx.lineWidth = 1.5 / camera.zoom;
+    ctx.setLineDash([4 / camera.zoom, 4 / camera.zoom]);
+    ctx.strokeRect(sx + 1, sy + 1, sw - 2, sh - 2);
+    ctx.setLineDash([]);
+  }
+  
+  ctx.restore();
 }
 
 hooks.onTap = handleTap;
 hooks.onConveyorDragStep = tryConveyorDragStep;
 hooks.onDemolishDrag = (cell) => demolishAt(cell.tx, cell.ty);
 
+// ФИКС СТАТИСТИКИ: Добавлены ВСЕ новые ресурсы
 function recordStatHistory() {
   const now = performance.now() / 1000;
-  const keys = ['iron','copper','coal','plate_iron','plate_copper','wire','gear','corps','circuit','engine','powder','ammo','dna'];
-  const values = {
-    iron: inventory[RES.IRON], copper: inventory[RES.COPPER], coal: inventory[RES.COAL],
-    plate_iron: inventory[RES.PLATE_IRON], plate_copper: inventory[RES.PLATE_COPPER],
-    wire: inventory[RES.WIRE], gear: inventory[RES.GEAR], corps: inventory[RES.CORPS],
-    circuit: inventory[RES.CIRCUIT], engine: inventory[RES.ENGINE], powder: inventory[RES.POWDER],
-    ammo: inventory[RES.AMMO], dna: state.dna,
+  
+  const resMap = {
+    iron: RES.IRON, copper: RES.COPPER, coal: RES.COAL,
+    plate_iron: RES.PLATE_IRON, plate_copper: RES.PLATE_COPPER,
+    wire: RES.WIRE, gear: RES.GEAR, corps: RES.CORPS,
+    circuit: RES.CIRCUIT, engine: RES.ENGINE, powder: RES.POWDER,
+    ammo: RES.AMMO, dna: -1,
+    board: RES.BOARD, copper_rod: RES.COPPER_ROD, copper_beam: RES.COPPER_BEAM,
+    iron_rod: RES.IRON_ROD, iron_beam: RES.IRON_BEAM, steel_rod: RES.STEEL_ROD, steel_beam: RES.STEEL_BEAM,
+    copper_bolt: RES.COPPER_BOLT, iron_bolt: RES.IRON_BOLT, steel_bolt: RES.STEEL_BOLT,
+    copper_shaft: RES.COPPER_SHAFT, iron_shaft: RES.IRON_SHAFT, steel_shaft: RES.STEEL_SHAFT,
+    copper_bearing: RES.COPPER_BEARING, iron_bearing: RES.IRON_BEARING, steel_bearing: RES.STEEL_BEARING,
+    copper_gearbox: RES.COPPER_GEARBOX, iron_gearbox: RES.IRON_GEARBOX, steel_gearbox: RES.STEEL_GEARBOX,
+    heavy_frame: RES.HEAVY_FRAME, advanced_engine: RES.ADVANCED_ENGINE, control_block: RES.CONTROL_BLOCK
   };
-  for (const k of keys) {
+  
+  for (const k in resMap) {
     if (!state.statHistory[k]) state.statHistory[k] = [];
-    state.statHistory[k].push({ t: now, v: values[k] });
+    const val = k === 'dna' ? state.dna : inventory[resMap[k]];
+    state.statHistory[k].push({ t: now, v: val });
     while (state.statHistory[k].length > 0 && state.statHistory[k][0].t < now - STAT_WINDOW_SEC) state.statHistory[k].shift();
   }
 }
@@ -162,7 +242,7 @@ function draw() {
       const range = TURRET_RANGE_BASE + state.turretRangeBonus * TILE;
       drawRangeCircle(b.tx * TILE + TILE/2, b.ty * TILE + TILE/2, range, false);
     } else if (state.selectedInfoCard.type === 'core') {
-      drawRangeCircle(CORE.x * TILE + TILE*1.5, CORE.y * TILE + TILE*1.5, TILE * 6, false);
+      drawRangeCircle(CORE.x * TILE + TILE / 2, CORE.y * TILE + TILE / 2, TILE * 6, false);
     } else if (state.selectedInfoCard.isNest) {
       const n = state.selectedInfoCard;
       ctx.save();
@@ -179,15 +259,14 @@ function draw() {
     }
   }
 
+  drawHoverHighlight();
   drawPopups();
 
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(fogCanvas, 0, 0, WORLD_W * TILE, WORLD_H * TILE);
-
   ctx.restore();
 
   drawAtmosphere();
-  
   drawMinimap();
 }
 

@@ -10,6 +10,10 @@ function triggerRedraw() {
   } else {
     pendingRedraw = true;
   }
+  // ФИКС: Обновляем HUD, когда картинки докачались
+  if (typeof window !== 'undefined' && window.__buildHudDOM) {
+    window.__buildHudDOM();
+  }
 }
 
 export function checkPendingRedraw() {
@@ -40,7 +44,6 @@ export const SPRITES = {
   [RES.WOOD]:         ['assets/logs.png', 'assets/wood.png'], // 0 = Бревна, 1 = Лес
   [RES.URANIUM]:      ['assets/uranium.png'],
   [RES.LEAD]:         ['assets/lead.png'],
-  // Заглушки для новых ресурсов (если нет PNG, отрисуется цветом)
   [RES.BOARD]:        ['assets/board.png'],
   [RES.COPPER_ROD]:   ['assets/copper_rod.png'],
   [RES.COPPER_BEAM]:  ['assets/copper_beam.png'],
@@ -52,8 +55,17 @@ export const SPRITES = {
   [RES.IRON_BOLT]:    ['assets/iron_bolt.png'],
   [RES.STEEL_BOLT]:   ['assets/steel_bolt.png'],
   [RES.COPPER_SHAFT]: ['assets/copper_shaft.png'],
+  [RES.COPPER_BEARING]: ['assets/copper_bearing.png'],
+  [RES.COPPER_GEARBOX]: ['assets/copper_gearbox.png'],
   [RES.IRON_SHAFT]:   ['assets/iron_shaft.png'],
+  [RES.IRON_BEARING]: ['assets/iron_bearing.png'],
+  [RES.IRON_GEARBOX]: ['assets/iron_gearbox.png'],
   [RES.STEEL_SHAFT]:  ['assets/steel_shaft.png'],
+  [RES.STEEL_BEARING]: ['assets/steel_bearing.png'],
+  [RES.STEEL_GEARBOX]: ['assets/steel_gearbox.png'],
+  [RES.HEAVY_FRAME]:  ['assets/heavy_frame.png'],
+  [RES.ADVANCED_ENGINE]: ['assets/advanced_engine.png'],
+  [RES.CONTROL_BLOCK]: ['assets/control_block.png'],
 };
 
 export const BUILDING_SPRITES = {

@@ -1,6 +1,5 @@
 'use strict';
 
-// ID ресурсов
 export const RES = {
   IRON: 1, COPPER: 2, COAL: 3,
   PLATE_IRON: 4, PLATE_COPPER: 5,
@@ -8,7 +7,7 @@ export const RES = {
   STONE: 13, CLAY: 14, WOOD: 15, WATER: 16, OIL: 17,
   BAUXITE: 18, LEAD: 19, TIN: 20, ZINC: 21,
   TITANIUM: 22, TUNGSTEN: 23, URANIUM: 24, SILICON: 25, BOARD: 26,
-  // Новые ресурсы (Прокатный, Метизный и т.д.)
+  // Новые ресурсы
   COPPER_ROD: 27, COPPER_BEAM: 28,
   IRON_ROD: 29, IRON_BEAM: 30,
   STEEL_ROD: 31, STEEL_BEAM: 32,

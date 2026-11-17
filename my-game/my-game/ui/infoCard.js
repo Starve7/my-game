@@ -1,7 +1,7 @@
 'use strict';
 
 import { RES, RES_NAME, inventory, state } from '../game.js';
-import { oreAmount } from '../world.js';
+import { oreAmount, oreInitial } from '../world.js';
 import { getStorageTotal, STORAGE_CAPACITY, CONVEYOR_CAPACITY, getRecipeById, repairBuilding, repairConveyor } from '../buildings.js';
 import { infoCardEl, infoCardContent } from './core.js';
 import { showToast } from '../game.js';
@@ -30,7 +30,7 @@ export function showInfoCard(e) {
     
     title = hiveName; icon = '🕸️';
     html = `<div class="card-header"><span>${icon} ${title}</span><button class="card-close">✕</button></div>
-            <div class="card-row"><span>HP:</span><span>${Math.ceil(e.hp)} / ${Math.ceil(e.maxHp)}</span></div>
+            <div class="card-row"><span>HP:</span><span id="card-nest-hp">${Math.ceil(e.hp)} / ${Math.ceil(e.maxHp)}</span></div>
             <div class="card-row"><span>Броня:</span><span>${e.armor}</span></div>
             <div class="card-row"><span>Уровень:</span><span>${e.level}</span></div>
             <div class="card-row"><span>Статус:</span><span style="color:${e.isProvoked ? '#ff5050' : '#7fbf7f'}">${e.isProvoked ? 'РАЗЪЯРЕН' : 'Спокойно'}</span></div>
@@ -41,6 +41,16 @@ export function showInfoCard(e) {
             <div class="card-row"><span>HP:</span><span id="card-core-hp">${Math.round(state.coreHP)} / 1000</span></div>
             <div class="card-row"><span>Загрязнение:</span><span id="card-core-poll">${state.pollution.toFixed(1)}%</span></div>
             <div class="card-row"><span>День:</span><span>${state.day}</span></div>`;
+  } else if (e.type === 'ore') {
+    // ФИКС: Карточка руды
+    title = RES_NAME[e.resType] || 'Ресурс'; icon = '🪨';
+    const tier = e.resType === RES.BAUXITE || e.resType === RES.LEAD || e.resType === RES.TIN || e.resType === RES.ZINC ? 2 : (e.resType >= RES.TITANIUM && e.resType <= RES.SILICON ? 3 : 1);
+    const amount = oreAmount[e.ty][e.tx];
+    const initial = oreInitial[e.ty][e.tx];
+    html = `<div class="card-header"><span>${icon} ${title}</span><button class="card-close">✕</button></div>
+            <div class="card-row"><span>Тир руды:</span><span>${tier}</span></div>
+            <div class="card-row"><span>Осталось в жиле:</span><span id="card-ore-amount">${Math.round(amount)}</span></div>
+            <div class="card-row"><span>Изначально было:</span><span>${Math.round(initial)}</span></div>`;
   } else if (e.type === 'minicore') {
     title = 'Мини-ядро'; icon = '💠';
     html = `<div class="card-header"><span>${icon} ${title}</span><button class="card-close">✕</button></div>
@@ -83,6 +93,11 @@ export function showInfoCard(e) {
     else if (e.type === 'turret') { name = 'Турель'; icon = '🎯'; }
     else if (e.type === 'radar') { name = 'Радар'; icon = '📡'; }
     else if (e.type === 'inserter') { name = 'Манипулятор'; icon = '🦾'; }
+    else if (e.type === 'rolling_mill') { name = 'Прокатный стан'; icon = '🪵'; }
+    else if (e.type === 'fastener_factory') { name = 'Метизный завод'; icon = '🔩'; }
+    else if (e.type === 'mechanical_factory') { name = 'Мех. завод'; icon = '⚙️'; }
+    else if (e.type === 'assembly_plant') { name = 'Сборочный завод'; icon = '🏭'; }
+    
     title = name;
     if (e.isBroken) title += ' (Сломано)';
 
@@ -105,7 +120,7 @@ export function showInfoCard(e) {
       html += `<div class="card-row"><span>Загрязнение:</span><span id="card-furn-poll">${((e.pollutionMade || 0)).toFixed(1)}%</span></div>`;
     } else if (e.type === 'lab') { html += `<div class="card-row"><span>ДНК в ядре:</span><span>${state.dna}</span></div>`; }
     else if (e.type === 'cutter') { html += `<div class="card-row"><span>Медных плит:</span><span id="card-cut-in">${e.inputBuffer}</span></div>`; }
-    else if (e.type === 'assembler' || e.type === 'chemplant') {
+    else if (e.type === 'assembler' || e.type === 'chemplant' || e.type === 'rolling_mill' || e.type === 'fastener_factory' || e.type === 'mechanical_factory' || e.type === 'assembly_plant') {
       const recipe = e.selectedRecipe ? getRecipeById(e.selectedRecipe) : null;
       html += `<div class="card-row"><span>Рецепт:</span><span>${recipe ? recipe.name : '—'}</span></div>`;
       if (recipe) for (const [res, count] of recipe.inputs) {
@@ -178,6 +193,9 @@ export function updateInfoCardLive() {
   else if (e.type === 'core') {
     const hpEl = document.getElementById('card-core-hp'); if (hpEl) hpEl.textContent = `${Math.round(state.coreHP)} / 1000`;
     const pollEl = document.getElementById('card-core-poll'); if (pollEl) pollEl.textContent = `${state.pollution.toFixed(1)}%`;
+  } else if (e.type === 'ore') {
+    const amountEl = document.getElementById('card-ore-amount');
+    if (amountEl) amountEl.textContent = Math.round(oreAmount[e.ty][e.tx]);
   } else if (e.type === 'mine') {
     const amountEl = document.getElementById('card-mine-amount');
     if (amountEl) { const amt = oreAmount[e.ty][e.tx]; amountEl.textContent = amt <= 0 ? 'Истощено' : Math.round(amt); }

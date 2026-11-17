@@ -1,7 +1,7 @@
 'use strict';
 
 import { state, showToast } from '../game.js';
-import { CATEGORIES, TECHNOLOGIES, isTechOwned, selectStudyTech, cancelStudy, getTechProgressPct } from '../research.js';
+import { CATEGORIES, TECHNOLOGIES, isTechOwned, canSelectTech, selectStudyTech, cancelStudy, getTechProgressPct } from '../research.js';
 import { playClick } from '../audio.js';
 
 const researchScreen = document.getElementById('research-screen');
@@ -15,6 +15,12 @@ const researchNodes = document.getElementById('research-nodes');
 let cam = { x: 0, y: 0, scale: 1 }, isDragging = false, startX = 0, startY = 0, initialCamX = 0, initialCamY = 0, uiLastStudyTechId = null;
 let activeResearchCat = 'production';
 let researchFirstOpen = true;
+
+export function resetResearchTab() {
+  activeResearchCat = 'production';
+  researchFirstOpen = true;
+  cam = { x: 0, y: 0, scale: 1 };
+}
 
 if (researchClose) researchClose.addEventListener('click', closeResearchPanel);
 
@@ -108,7 +114,7 @@ function renderResearchPanel() {
   researchNodes.innerHTML = ''; 
   researchSvg.innerHTML = '';
   
-  const NODE_W = 130, NODE_H = 75, GAP_Y = 40, GAP_X = 12;
+  const NODE_W = 110, NODE_H = 65, GAP_Y = 40, GAP_X = 15;
   let maxTotalY = 0;
   const globalPositions = {};
   let currentColumnStartX = 50;
@@ -135,10 +141,12 @@ function renderResearchPanel() {
     const children = {}; const roots = [];
     for (const t of catTechs) {
       const parentsInCol = (t.requires || []).filter(r => techMap[r]);
-      if (parentsInCol.length === 0) roots.push(t.id);
-      for (const p of parentsInCol) { 
-        if (!children[p]) children[p] = []; 
-        children[p].push(t.id); 
+      if (parentsInCol.length === 0) {
+        roots.push(t.id);
+      } else {
+        const primaryParent = parentsInCol[0];
+        if (!children[primaryParent]) children[primaryParent] = []; 
+        children[primaryParent].push(t.id); 
       }
     }
 
@@ -168,12 +176,12 @@ function renderResearchPanel() {
       const lastKidX = globalPositions[kids[kids.length - 1]].x;
       globalPositions[id].x = (firstKidX + lastKidX + NODE_W) / 2 - NODE_W / 2;
       
-      return totalWidth;
+      return Math.max(totalWidth, NODE_W + GAP_X);
     }
 
     for (const rid of roots) {
       const width = layoutNode(rid, 0, rootStartX);
-      rootStartX += width + 30;
+      rootStartX += width + 25;
     }
     
     for (const id in globalPositions) {
@@ -184,7 +192,7 @@ function renderResearchPanel() {
 
     const colCenterX = (colMinX + colMaxX) / 2;
     header.style.left = colCenterX + 'px';
-    currentColumnStartX = colMaxX + 100;
+    currentColumnStartX = colMaxX + 50;
   } else {
     header.style.left = '100px';
     currentColumnStartX = 200;
@@ -195,8 +203,18 @@ function renderResearchPanel() {
 
   researchSvg.style.width = totalWidth + 'px';
   researchSvg.style.height = totalHeight + 'px';
+  researchSvg.style.position = 'absolute';
+  researchSvg.style.top = '0'; 
+  researchSvg.style.left = '0';
+  researchSvg.style.pointerEvents = 'none';
+  researchSvg.style.zIndex = '1';
+
   researchNodes.style.width = totalWidth + 'px';
   researchNodes.style.height = totalHeight + 'px';
+  researchNodes.style.position = 'absolute';
+  researchNodes.style.top = '0'; 
+  researchNodes.style.left = '0';
+  researchNodes.style.zIndex = '2';
 
   const bgText = document.createElement('div');
   bgText.textContent = 'I ЭПОХА';
@@ -212,7 +230,46 @@ function renderResearchPanel() {
   bgText.style.zIndex = '0';
   researchNodes.appendChild(bgText);
 
-  const cardElements = {};
+  // Генерируем линии
+  let allSvgLines = '';
+  for (const id in globalPositions) {
+    const t = TECHNOLOGIES.find(x => x.id === id);
+    if (!t) continue;
+
+    for (const reqId of (t.requires || [])) {
+      const reqT = TECHNOLOGIES.find(x => x.id === reqId);
+      if (!reqT || reqT.cat !== t.cat) continue;
+
+      const posParent = globalPositions[reqId];
+      const posChild = globalPositions[id];
+      if (!posParent || !posChild) continue;
+
+      const x1 = posParent.x + NODE_W / 2;
+      const y1 = posParent.y + NODE_H;
+      const x2 = posChild.x + NODE_W / 2;
+      const y2 = posChild.y;
+
+      const midY = y1 + (y2 - y1) * 0.5;
+      
+      // Определение цвета линии
+      let strokeColor = '#555'; // Темно-серый (заблокировано)
+      let strokeWidth = 2;
+      
+      if (isTechOwned(reqId) && isTechOwned(id)) {
+        strokeColor = '#5ac05a'; // Ярко-зеленый (оба изучены)
+        strokeWidth = 3;
+      } else if (isTechOwned(reqId)) {
+        strokeColor = '#ffd700'; // Золотой (родитель изучен, ребенок доступен)
+        strokeWidth = 3;
+      }
+      
+      // Рисуем уголки со сглаживанием
+      allSvgLines += `<path d="M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}" stroke="${strokeColor}" stroke-width="${strokeWidth}" fill="none" stroke-linejoin="round" stroke-linecap="round" />`;
+    }
+  }
+  researchSvg.innerHTML = allSvgLines;
+
+  // Рисуем карточки
   for (const id in globalPositions) {
     const t = TECHNOLOGIES.find(x => x.id === id);
     if (!t) continue;
@@ -222,58 +279,50 @@ function renderResearchPanel() {
     cardDiv.style.position = 'absolute';
     cardDiv.style.left = globalPositions[id].x + 'px';
     cardDiv.style.top = globalPositions[id].y + 'px';
-    cardDiv.style.zIndex = '1';
-    cardDiv.innerHTML = renderTechCardHtml(t);
+    cardDiv.style.zIndex = '3';
+    
+    // Добавляем логику для свечения доступных
+    const isAvailable = canSelectTech(t.id);
+    let extraStyles = 'width:110px; padding:6px; box-sizing:border-box; cursor:pointer;';
+    if (isAvailable) {
+      extraStyles += 'border-color: #fff; box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);';
+    } else if (isTechOwned(t.id)) {
+      extraStyles += 'border-color: #5ac05a; background: #1a2a1a;'; 
+    }
+
+    cardDiv.innerHTML = renderTechCardHtml(t, extraStyles);
     cardDiv.addEventListener('click', (e) => {
       e.stopPropagation();
       playClick();
       showTechModal(t);
     });
     researchNodes.appendChild(cardDiv);
-    cardElements[id] = cardDiv;
   }
 
   if (researchFirstOpen) {
-    const firstRootId = catTechs.find(t => t.requires.length === 0)?.id;
-    if (firstRootId && globalPositions[firstRootId]) {
-      const startNode = globalPositions[firstRootId];
-      const vpRect = researchViewport.getBoundingClientRect();
-      cam.x = -(startNode.x - vpRect.width / 2 + NODE_W / 2);
-      cam.y = -(startNode.y - vpRect.height / 3);
+    const vpRect = researchViewport.getBoundingClientRect();
+    if (colMinX !== Infinity) {
+      const treeW = colMaxX - colMinX;
+      const treeH = maxTotalY - 140;
+      const padding = 100;
+      
+      const zoomX = vpRect.width / (treeW + padding);
+      const zoomY = vpRect.height / (treeH + padding);
+      const targetZoom = Math.min(1.0, Math.min(zoomX, zoomY));
+      
+      cam.scale = Math.max(0.3, targetZoom);
+      cam.x = vpRect.width / 2 - (colMinX + treeW / 2) * cam.scale;
+      cam.y = vpRect.height / 2 - (140 + treeH / 2) * cam.scale;
+      
+      applyCamera();
+    } else {
+      cam.x = vpRect.width / 2; cam.y = vpRect.height / 2; cam.scale = 1;
       applyCamera();
     }
   }
-
-  // ФИКС: двойной RAF вместо setTimeout(0) — гарантирует, что offsetLeft/Height уже вычислены
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    let allSvgLines = '';
-    for (const id in globalPositions) {
-      const t = TECHNOLOGIES.find(x => x.id === id);
-      if (!t) continue;
-
-      for (const reqId of (t.requires || [])) {
-        const reqT = TECHNOLOGIES.find(x => x.id === reqId);
-        if (!reqT || reqT.cat !== t.cat) continue;
-
-        const parentEl = cardElements[reqId];
-        const childEl = cardElements[id];
-        if (!parentEl || !childEl) continue;
-
-        const x1 = parentEl.offsetLeft + parentEl.offsetWidth / 2;
-        const y1 = parentEl.offsetTop + parentEl.offsetHeight;
-        const x2 = childEl.offsetLeft + childEl.offsetWidth / 2;
-        const y2 = childEl.offsetTop;
-
-        const midY = y1 + (y2 - y1) * 0.5;
-        const strokeColor = isTechOwned(reqId) ? '#5a7a5a' : '#333';
-        allSvgLines += `<path d="M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}" stroke="${strokeColor}" stroke-width="2" fill="none" stroke-linejoin="round" />`;
-      }
-    }
-    researchSvg.innerHTML = allSvgLines;
-  }));
 }
 
-function renderTechCardHtml(t) {
+function renderTechCardHtml(t, extraStyles = '') {
   const owned = isTechOwned(t.id), locked = t.requires.some(r => !isTechOwned(r));
   const isActive = state.activeStudyTechId === t.id, progressPct = getTechProgressPct(t.id);
   
@@ -284,7 +333,7 @@ function renderTechCardHtml(t) {
   else if (isActive) { statusText = progressPct.toFixed(0) + '%'; statusColor = '#7fbfff'; }
   else { statusText = `${t.studyPercent * 2}🧬`; statusColor = '#aaa'; }
 
-  return `<div class="tech-card ${owned ? 'owned' : ''} ${locked ? 'locked' : ''} ${isActive ? 'selected' : ''}" style="width:130px; padding:6px; box-sizing:border-box; cursor:pointer;">
+  return `<div class="tech-card ${owned ? 'owned' : ''} ${locked ? 'locked' : ''} ${isActive ? 'selected' : ''}" style="${extraStyles}">
     <div class="tech-head" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
       <div class="tech-name" style="font-size:11px; font-weight:bold; line-height:1.1;">${t.name}</div>
       <div class="tech-status" style="font-size:10px; color:${statusColor}; margin-left:2px;">${statusText}</div>

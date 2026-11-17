@@ -13,39 +13,47 @@ export const TECHNOLOGIES = [
   // ================= ПРОИЗВОДСТВО =================
   { id: 'unlock_cutter', era: 1, cat: 'production', name: 'Резак', desc: '1 медная плита → 2 провода', studyPercent: 10, requires: [], effect: () => {} },
   { id: 'unlock_logistics', era: 1, cat: 'production', name: 'Логистика', desc: 'Базовые манипуляторы и распределители', studyPercent: 15, requires: [], effect: () => {} },
-  
   { id: 'unlock_sawmill', era: 1, cat: 'production', name: 'Лесопильный комбинат', desc: 'Доски, брусья из брёвен', studyPercent: 20, requires: [], effect: () => {} },
 
-  // --- Ветка Логистики ---
+  // Ветка Логистики
   { id: 'unlock_fast_inserter', isStub: true, era: 1, cat: 'production', name: 'Быстрый манипулятор', desc: 'Скорость переноса х2', studyPercent: 25, requires: ['unlock_logistics'], effect: () => {} },
   { id: 'unlock_filtering_inserter', isStub: true, era: 1, cat: 'production', name: 'Фильтрующий манипулятор', desc: 'Берет только выбранный предмет', studyPercent: 40, requires: ['unlock_logistics'], effect: () => {} },
 
-  // --- Ветка Резака и Сборки ---
+  // Ветка Резака и Сборки
   { id: 'unlock_assembler', era: 1, cat: 'production', name: 'Сборщик', desc: 'Шестерни, корпуса, схемы', studyPercent: 30, requires: ['unlock_cutter'], effect: () => {} },
   { id: 'unlock_storage', era: 1, cat: 'production', name: 'Склад', desc: 'Хранилище на 500 предметов', studyPercent: 40, requires: ['unlock_cutter'], effect: () => {} },
 
-  // От Сборщика идут ветки:
-  { id: 'unlock_rolling_mill', era: 1, cat: 'production', name: 'Прокатный стан', desc: 'Медные прутки, балки', studyPercent: 40, requires: ['unlock_assembler'], effect: () => {} },
   { id: 'unlock_chemplant', era: 1, cat: 'production', name: 'Химзавод', desc: 'Производство пороха', studyPercent: 55, requires: ['unlock_assembler'], effect: () => {} },
-  { id: 'unlock_wire_factory', isStub: true, era: 1, cat: 'production', name: 'Проволочный завод', desc: 'Проволока, тросы, сетка', studyPercent: 45, requires: ['unlock_assembler'], effect: () => {} },
+  { id: 'unlock_wire_factory', era: 1, cat: 'production', name: 'Проволочный завод', desc: 'Проволока, тросы, сетка', studyPercent: 45, requires: ['unlock_assembler'], effect: () => {} },
 
-  // --- Ветка Прокатного стана ---
-  { id: 'unlock_fastener_factory', era: 1, cat: 'production', name: 'Метизный завод', desc: 'Болты, гайки, заклёпки', studyPercent: 45, requires: ['unlock_rolling_mill'], effect: () => {} },
-  
+  // --- Прокатный стан и его ветка (независимая) ---
+  { id: 'unlock_rolling_mill', era: 1, cat: 'production', name: 'Прокатный стан', desc: 'Медные прутки, балки', studyPercent: 40, requires: ['unlock_assembler'], effect: () => {} },
   { id: 'unlock_iron_rods', era: 1, cat: 'production', name: 'Железные прутки', desc: 'Железные прутки и балки', studyPercent: 50, requires: ['unlock_rolling_mill'], effect: () => {} },
-  { id: 'unlock_steel_rods', era: 1, cat: 'production', name: 'Стальные прутки', desc: 'Стальные прутки и балки', studyPercent: 70, requires: ['unlock_iron_rods'], effect: () => {} },
+  { id: 'unlock_steel_rods', era: 1, cat: 'production', name: 'Стальные прутки', desc: 'Стальные прутки и балки', studyPercent: 70, requires: ['unlock_iron_rods', 'unlock_steel_furnace'], effect: () => {} },
 
-  // --- Ветка Метизного завода ---
-  { id: 'unlock_mechanical_factory', era: 1, cat: 'production', name: 'Механический завод', desc: 'Валы, подшипники, редукторы', studyPercent: 60, requires: ['unlock_fastener_factory'], effect: () => {} },
+  // --- Метизный завод и его ветка ---
+  { id: 'unlock_fastener_factory', era: 1, cat: 'production', name: 'Метизный завод', desc: 'Болты, гайки, заклёпки', studyPercent: 45, requires: ['unlock_rolling_mill', 'unlock_wire_factory'], effect: () => {} },
   { id: 'unlock_iron_fasteners', era: 1, cat: 'production', name: 'Железные болты', desc: 'Железный крепёж', studyPercent: 55, requires: ['unlock_fastener_factory', 'unlock_iron_rods'], effect: () => {} },
-  { id: 'unlock_steel_fasteners', era: 1, cat: 'production', name: 'Стальные болты', desc: 'Стальной крепёж', studyPercent: 75, requires: ['unlock_iron_fasteners', 'unlock_steel_rods'], effect: () => {} },
+  { id: 'unlock_steel_fasteners', era: 1, cat: 'production', name: 'Стальные болты', desc: 'Стальной крепёж', studyPercent: 75, requires: ['unlock_iron_fasteners', 'unlock_steel_furnace'], effect: () => {} },
 
-  // --- Ветка Механического завода ---
-  { id: 'unlock_assembly_plant', era: 1, cat: 'production', name: 'Сборочный завод', desc: 'Рамы, корпуса, двигатели', studyPercent: 75, requires: ['unlock_mechanical_factory'], effect: () => {} },
-  { id: 'unlock_advanced_coal_mine', isStub: true, era: 1, cat: 'production', name: 'Продвинутый угольный бур', desc: 'Добывает в 2 раза быстрее', studyPercent: 70, requires: ['unlock_mechanical_factory'], effect: () => {} },
-  
+  // --- Механический завод и его ветка ---
+  { id: 'unlock_mechanical_factory', era: 1, cat: 'production', name: 'Механический завод', desc: 'Валы, подшипники, редукторы', studyPercent: 60, requires: ['unlock_fastener_factory'], effect: () => {} },
   { id: 'unlock_iron_mechanics', era: 1, cat: 'production', name: 'Железные механизмы', desc: 'Жел. валы, подшипники, редукторы', studyPercent: 65, requires: ['unlock_mechanical_factory', 'unlock_iron_fasteners'], effect: () => {} },
-  { id: 'unlock_steel_mechanics', era: 1, cat: 'production', name: 'Стальные механизмы', desc: 'Ст. валы, подшипники, редукторы', studyPercent: 85, requires: ['unlock_iron_mechanics', 'unlock_steel_fasteners'], effect: () => {} },
+  { id: 'unlock_steel_mechanics', era: 1, cat: 'production', name: 'Стальные механизмы', desc: 'Ст. валы, подшипники, редукторы', studyPercent: 85, requires: ['unlock_iron_mechanics', 'unlock_steel_furnace'], effect: () => {} },
+
+  // --- Сборочный завод ---
+  { id: 'unlock_assembly_plant', era: 1, cat: 'production', name: 'Сборочный завод', desc: 'Рамы, корпуса, двигатели', studyPercent: 75, requires: ['unlock_mechanical_factory', 'unlock_steel_furnace'], effect: () => {} },
+  { id: 'unlock_advanced_coal_mine', isStub: true, era: 1, cat: 'production', name: 'Продвинутый угольный бур', desc: 'Добывает в 2 раза быстрее', studyPercent: 70, requires: ['unlock_mechanical_factory'], effect: () => {} },
+
+  // --- Восстановленные заводы (Стройка) ---
+  { id: 'unlock_textile_factory', isStub: true, era: 1, cat: 'production', name: 'Текстильная фабрика', desc: 'Ткань, канаты, ремни', studyPercent: 30, requires: ['unlock_sawmill'], effect: () => {} },
+  { id: 'unlock_crusher', isStub: true, era: 1, cat: 'production', name: 'Дробильный завод', desc: 'Щебень, песок, гравий', studyPercent: 25, requires: ['unlock_sawmill', 'unlock_fastener_factory'], effect: () => {} },
+  { id: 'unlock_glass_factory', isStub: true, era: 1, cat: 'production', name: 'Стеклозавод', desc: 'Стекло', studyPercent: 35, requires: ['unlock_crusher'], effect: () => {} },
+  { id: 'unlock_brick_factory', isStub: true, era: 1, cat: 'production', name: 'Кирпичный завод', desc: 'Кирпич, плитка', studyPercent: 35, requires: ['unlock_crusher'], effect: () => {} },
+  { id: 'unlock_brick_furnace', isStub: true, era: 1, cat: 'production', name: 'Кирпичная печь', desc: 'Плавит быстрее обычной', studyPercent: 50, requires: ['unlock_brick_factory'], effect: () => {} },
+  { id: 'unlock_concrete_factory', isStub: true, era: 1, cat: 'production', name: 'Бетонный завод', desc: 'Блоки, плиты, панели', studyPercent: 50, requires: ['unlock_brick_factory'], effect: () => {} },
+  { id: 'unlock_steel_furnace', era: 1, cat: 'production', name: 'Сталелитейная печь', desc: 'Плавит сталь', studyPercent: 80, requires: ['unlock_brick_furnace'], effect: () => {} },
+  { id: 'unlock_pipe_factory', isStub: true, era: 1, cat: 'production', name: 'Трубный завод', desc: 'Трубы, профили. Открывает Жидкости.', studyPercent: 85, requires: ['unlock_concrete_factory', 'unlock_wire_factory'], effect: () => {} },
 
   // ================= ВОЕННАЯ ПРОМЫШЛЕННОСТЬ =================
   { id: 'unlock_wooden_walls', isStub: true, era: 1, cat: 'military', name: 'Деревянные стены', desc: 'Простая защита', studyPercent: 15, requires: ['unlock_sawmill'], effect: () => {} },
@@ -65,19 +73,19 @@ export const TECHNOLOGIES = [
 
   // ================= ЭНЕРГИЯ =================
   { id: 'unlock_steam_generator', isStub: true, era: 1, cat: 'energy', name: 'Паровой генератор', desc: 'Требует воду и уголь', studyPercent: 50, requires: ['unlock_mechanical_factory', 'unlock_pipe_factory'], effect: () => {} },
-  { id: 'unlock_diesel_generator', isStub: true, era: 1, cat: 'energy', name: 'Дизель-генератор', desc: 'Сжигает жидкое топливо (мазут/солярку)', studyPercent: 80, requires: ['unlock_oil_derrick', 'unlock_assembly_plant'], effect: () => {} },
+  { id: 'unlock_diesel_generator', isStub: true, era: 1, cat: 'energy', name: 'Дизель-генератор', desc: 'Сжигает жидкое топливо', studyPercent: 80, requires: ['unlock_oil_derrick', 'unlock_assembly_plant'], effect: () => {} },
   { id: 'unlock_wooden_power_lines', isStub: true, era: 1, cat: 'energy', name: 'Деревянный ЛЭП', desc: 'Дальняя передача энергии', studyPercent: 25, requires: ['unlock_sawmill'], effect: () => {} },
   { id: 'unlock_weak_battery', isStub: true, era: 1, cat: 'energy', name: 'Слабый аккумулятор', desc: 'Запас энергии (малый)', studyPercent: 35, requires: ['unlock_assembler'], effect: () => {} },
   { id: 'unlock_improved_battery', isStub: true, era: 1, cat: 'energy', name: 'Улучшенный аккумулятор', desc: 'Запас энергии (большой)', studyPercent: 90, requires: ['unlock_weak_battery', 'unlock_assembly_plant'], effect: () => {} },
 
   // ================= ЖИДКОСТИ =================
   { id: 'unlock_water_pump', isStub: true, era: 1, cat: 'liquid', name: 'Водяной насос', desc: 'Качает воду для паровых двигателей', studyPercent: 25, requires: ['unlock_pipe_factory'], effect: () => {} },
-  { id: 'unlock_rough_water_treatment', isStub: true, era: 1, cat: 'liquid', name: 'Очистка воды (грубая)', desc: 'Фильтрует воду от грязи для котлов', studyPercent: 35, requires: ['unlock_water_pump', 'unlock_wire_factory'], effect: () => {} },
-  { id: 'unlock_oil_derrick', isStub: true, era: 1, cat: 'liquid', name: 'Нефтяная вышка', desc: 'Качает сырую нефть из под земли', studyPercent: 40, requires: ['unlock_water_pump', 'unlock_assembly_plant'], effect: () => {} },
+  { id: 'unlock_rough_water_treatment', isStub: true, era: 1, cat: 'liquid', name: 'Очистка воды (грубая)', desc: 'Фильтрует воду от грязи', studyPercent: 35, requires: ['unlock_water_pump', 'unlock_wire_factory'], effect: () => {} },
+  { id: 'unlock_oil_derrick', isStub: true, era: 1, cat: 'liquid', name: 'Нефтяная вышка', desc: 'Качает сырую нефть', studyPercent: 40, requires: ['unlock_water_pump', 'unlock_assembly_plant'], effect: () => {} },
   { id: 'unlock_basic_oil_refining', isStub: true, era: 1, cat: 'liquid', name: 'Нефтеперерабатывающий завод', desc: 'Делит нефть на мазут и солярку', studyPercent: 60, requires: ['unlock_oil_derrick'], effect: () => {} },
   { id: 'unlock_steel_pipes', isStub: true, era: 1, cat: 'liquid', name: 'Стальные трубы', desc: 'Прочные трубы для жидкостей', studyPercent: 50, requires: ['unlock_pipe_factory'], effect: () => {} },
-  { id: 'unlock_mech_pump', isStub: true, era: 1, cat: 'liquid', name: 'Механический насос', desc: 'Толкает жидкость (увеличивает дальность)', studyPercent: 45, requires: ['unlock_steel_pipes', 'unlock_water_pump'], effect: () => {} },
-  { id: 'unlock_steel_tank', isStub: true, era: 1, cat: 'liquid', name: 'Стальной резервуар', desc: 'Бочка гигант для жидкостей', studyPercent: 55, requires: ['unlock_steel_furnace'], effect: () => {} },
+  { id: 'unlock_mech_pump', isStub: true, era: 1, cat: 'liquid', name: 'Механический насос', desc: 'Толкает жидкость', studyPercent: 45, requires: ['unlock_steel_pipes', 'unlock_water_pump'], effect: () => {} },
+  { id: 'unlock_steel_tank', isStub: true, era: 1, cat: 'liquid', name: 'Стальной резервуар', desc: 'Бочка гигант', studyPercent: 55, requires: ['unlock_steel_furnace'], effect: () => {} },
 ];
 
 const STUDY_TICK = 2, STUDY_PERCENT_PER_DNA = 0.5;
